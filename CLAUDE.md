@@ -37,22 +37,49 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   zdarzenia `dziecko` z konfiguracji silnika i luzuje okres do 5–35 lat.
 - Opłata za wcześniejszą spłatę: % przez N miesięcy, dotyczy tylko nadpłat dobrowolnych
   (nie spłaty rodzinnej).
-- Reguła RKM (oznaczona w UI „do weryfikacji”): jeśli w pierwszych 36 mies. suma nadpłat
-  DOBROWOLNYCH przekroczy próg (domyślnie = kwota gwarancji BGK, 100 000), spłaty rodzinne
-  przypadające PO przekroczeniu są oznaczane „utracona” i pomijane; checkbox „ignoruj regułę”.
-  Wyższa rata umowna (krótszy okres) NIE jest nadpłatą i nie zużywa progu — to celowe i
-  kluczowe (patrz lokalnie `docs/wnioski-modelu.md`).
-- Stan w `localStorage` (klucz `abkredyt-state-v2`), w try/catch, z kontrolą kształtu
+- Reguła RKM (zweryfikowana z tekstem ustawy 02.09.2026, patrz niżej): część kredytu objęta
+  gwarancją BGK maleje z każdą spłatą kapitału (rata, nadpłata dobrowolna, spłata rodzinna —
+  art. 4a ust. 6). W pierwszych 36 mies. nadpłata DOBROWOLNA jest bezpieczna tylko do
+  wysokości *aktualnej* (nie początkowej) części gwarantowanej; próg jest więc ruchomy, nie
+  stały jak wcześniej modelowano. Rata umowna sama w sobie nigdy nie narusza reguły (to nie
+  nadpłata), ale zużywa gwarantowaną część, więc krótszy okres zmniejsza dostępny zapas na
+  przyszłe nadpłaty — nie jest już „neutralny", jak wcześniej zakładano. Bez gwarancji BGK
+  (wkład ≥ 20%) próg wynosi zero: każda przedterminowa spłata w oknie narusza regułę. Skutek
+  naruszenia to WYŁĄCZNIE utrata przyszłych spłat rodzinnych — już wypłacone nie podlegają
+  zwrotowi (art. 8 ust. 7 nie wymienia tego jako podstawy zwrotu). Spłaty rodzinne
+  przypadające po naruszeniu są oznaczane „utracona” i pomijane; checkbox „ignoruj regułę”
+  zostaje. Uproszczenie silnika: okno 36 mies. liczone od miesiąca uruchomienia kredytu, nie
+  od dnia jego udzielenia (zawarcia umowy), jak dosłownie stanowi ustawa — to świadome
+  uproszczenie (patrz lokalnie `docs/wnioski-modelu.md` dla wcześniejszego modelu).
+- Scenariusz nie ma już pól `rkmThreshold`/`rkmMonths` w stanie — próg to `gwarancja`
+  (dynamiczny, patrz wyżej), a okno to stała silnika `RKM_WINDOW_MONTHS` (36 mies.).
+- Stan w `localStorage` (klucz `abkredyt-state-v3`), w try/catch, z kontrolą kształtu
   (`looksLikeState`) — przy zmianie schematu stanu podbij sufiks klucza.
 
 ## Zasady RKM — skrót (pełny research z cytatami: lokalnie `docs/zasady-rkm.md`)
-Spłata rodzinna: 20k (2. dziecko) / 60k (3.+), dziecko urodzone po umowie, wniosek do banku
-do 12 mies., zmniejsza kapitał; 5-letni zakaz sprzedaży/wynajmu (zwrot proporcjonalny).
-Warunek: w ciągu 3 lat od udzielenia kredytu brak przedterminowej spłaty ponad część objętą
-gwarancją BGK (art. 7 ust. 1 pkt 6 — brzmienie NIE zweryfikowane z tekstem ustawy; strony
-isap/BGK były niedostępne). Wkład własny max 20% (zmienna) / 30% (stała), wkład+gwarancja
-≤ 200k; gwarancja ≤ 100k, koszt 1%. Okres 15–35 lat. Refinansowanie = utrata spłaty rodzinnej.
-Data końca programu (~2030) niepotwierdzona.
+Zweryfikowane 02.09.2026 z tekstem jednolitym ustawy z 1.10.2021 o rodzinnym kredycie
+mieszkaniowym i bezpiecznym kredycie 2% — **Dz.U. 2024 poz. 1724** (stan prawny 30.10.2024),
+przeczytanym przez Sejmowe API ELI (`https://api.sejm.gov.pl/eli/acts/DU/2024/1724/text.html`
+— nie CAPTCHA-gated, w odróżnieniu od isap.sejm.gov.pl). Spłata rodzinna: 20k (2. dziecko) /
+60k (3.+, art. 7 ust. 3), dziecko urodzone po dniu udzielenia kredytu, wniosek do banku do
+12 mies. od narodzin (albo od pierwszej wypłaty, jeśli dziecko urodziło się wcześniej — art. 8
+ust. 1 pkt 2), zmniejsza kapitał; 5-letni zakaz sprzedaży/wynajmu (zwrot proporcjonalny wg
+wzoru w art. 8 ust. 7 pkt 2). Warunek (**art. 7 ust. 1 pkt 7**, nie pkt 6 jak wcześniej
+zapisane — pkt 6 to brak upadłości): w ciągu 3 lat od dnia UDZIELENIA kredytu brak
+przedterminowej spłaty ponad część objętą gwarancją BGK; ta część maleje z każdą spłatą
+kapitału (art. 4a ust. 6) — próg jest dynamiczny. Bez gwarancji BGK próg wynosi zero (pkt 7
+nie ma wyjątku dla braku gwarancji — to ODWROTNOŚĆ wcześniejszej spekulacji w tym pliku).
+Naruszenie odbiera TYLKO przyszłe spłaty rodzinne, nie te już wypłacone. Wkład własny max 20%
+(zmienna) / 30% (stała), wkład+gwarancja ≤ 200k; gwarancja (art. 4a) ≤ 100k, opłata
+jednorazowa 1% bez odrębnego pułapu kwotowego. Okres: **minimum 15 lat** (art. 3 ust. 3 pkt 3,
+ustawowe); **35 lat to praktyka bankowa, nie zapis ustawy** — górnej granicy ustawa nie
+przewiduje. Kredyt może być udzielony do **31.12.2030** (art. 3 ust. 4, potwierdzone) — to
+termin udzielenia, nie termin ważności prawa do spłaty rodzinnej dla kredytów już udzielonych.
+Refinansowanie = utrata spłaty rodzinnej — nadal wniosek z logiki programu, NIE potwierdzone
+dosłownym tekstem ustawy (brak trafień dla „refinans”). Luka rezydualna: nowelizacja
+**Dz.U. 2026 poz. 635** (w mocy od 27.05.2026) nie została przeczytana (tylko PDF) — tytuł
+sugeruje finansowanie Rządowego Funduszu Mieszkaniowego, nie zmiany w art. 7/4a, ale to
+niepotwierdzone.
 
 ## Konwencje
 - Jeden plik, bez bundlera, bez bibliotek; wykres w inline SVG. Fonty wyłącznie systemowe
@@ -62,8 +89,10 @@ Data końca programu (~2030) niepotwierdzona.
   dla Cloudflare Pages — patrz `DEPLOY.md`); reszta `public/` to statyczne towarzyszące
   pliki (`_headers`, `robots.txt`, `sitemap.xml`, `404.html`, `favicon.svg`, `og.png`
   generowany z `og-image.html`, `polityka-prywatnosci.html`).
-- Analityka: placeholder `CF_ANALYTICS_TOKEN` na końcu `index.html`; dopóki stoi, beacon
-  się nie ładuje. Token wkleja właściciel (DEPLOY.md), nie commituj go z automatu.
+- Analityka: skrypt Cloudflare Web Analytics na końcu `index.html` (token to publiczny
+  identyfikator, nie sekret); startuje tylko na hoście `abkredyt.kondratek.pl`, opt-out przez
+  `/?bez-statystyk=1`. Jeśli token zostanie zastąpiony placeholderem `CF_ANALYTICS_TOKEN`,
+  beacon się nie ładuje wcale.
 - Motyw jasny/ciemny przez tokeny CSS na `:root` (+ `prefers-color-scheme`, `[data-theme]`).
 - Formatowanie liczb: spacje jako separator tysięcy, „zł”.
 - Test: `python3 tools/shot.py` robi pełny screenshot `public/index.html` przez Playwright
@@ -71,6 +100,9 @@ Data końca programu (~2030) niepotwierdzona.
   jest testem dymnym w CI (`.github/workflows/ci.yml`, razem z `tools/check-html.mjs`
   i `node tools/test-engine.mjs`). Lokalnie bez instalowania Playwrighta:
   `PW_CHANNEL=chrome uv run --with playwright python tools/shot.py` (używa systemowego Chrome).
-- Zawsze utrzymuj widoczny disclaimer „poglądowe, reguły RKM do weryfikacji w banku” i datę
-  wersji zasad (ustawa jest nowelizowana).
+- Jeden skonsolidowany disclaimer w stopce (poglądowe, pozycja Dz.U., data sprawdzenia,
+  nowelizacja nieuwzględniona, potwierdź w banku) — bez rozproszonych etykiet „do weryfikacji”
+  w UI.
+- Tekst ustawy RKM jest dostępny do pobrania przez Sejmowe API ELI, mimo że isap.sejm.gov.pl
+  jest CAPTCHA-gated dla skryptów: `curl https://api.sejm.gov.pl/eli/acts/DU/2024/1724/text.html`.
 - Wdrożenie na Cloudflare Pages: checklista krok po kroku w `DEPLOY.md`.

@@ -173,6 +173,8 @@ header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:
 .field.span2{ grid-column:1/-1; }
 .field label{ font-size:12px; color:var(--ink-muted); }
 .field label .sub{ color:var(--ink-faint); font-weight:400; }
+.field-hint{ font-size:11px; color:var(--ink-faint); line-height:1.4; }
+.rule-note{ padding:8px 18px 14px; font-size:11.5px; color:var(--ink-faint); line-height:1.55; }
 input[type="text"], input[type="number"], input[type="month"], select{
   background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
   padding:7px 9px; font-size:13.5px; color:var(--ink); font-family:inherit; width:100%;
@@ -312,7 +314,7 @@ tbody td.evt{ font-family:var(--font-sans); text-align:left; color:var(--ink-mut
 .year-row.expanded .chev{ transform:rotate(90deg); }
 
 footer.foot{ margin-top:26px; font-size:12px; color:var(--ink-faint); text-align:center; }
-footer.foot p{ margin:5px 0; }
+footer.foot p{ margin:6px auto; max-width:88ch; }
 
 .noscript-note{
   max-width:60ch; margin:2.5rem auto; padding:0 1.25rem; line-height:1.6; color:var(--ink-muted);
@@ -346,7 +348,7 @@ footer.foot p{ margin:5px 0; }
 
   <div class="info-note rkm-only">
     <span class="dot"></span>
-    <div><b>Minimalny okres kredytowania w programie RKM to 15 lat.</b> Gwarancja BGK (domyślnie 100 000 zł) zabezpiecza brak wkładu własnego — reguła dot. utraty spłaty rodzinnej po przekroczeniu nadpłatami kwoty gwarancji w pierwszych miesiącach kredytu jest oznaczona niżej jako „do weryfikacji”: dokładne brzmienie przepisu należy potwierdzić w banku przed decyzją.</div>
+    <div><b>Okres kredytowania w programie RKM to co najmniej 15 lat</b> (ustawa nie wyznacza maksimum — 35 lat to praktyka banków), a kredyty są udzielane do 31 grudnia 2030 r. Spłata rodzinna wynosi 20 000 zł za drugie i 60 000 zł za trzecie oraz każde kolejne dziecko, które dołączyło do gospodarstwa domowego po udzieleniu kredytu. Nadpłata dobrowolna w pierwszych 3 latach ponad pozostałą część kredytu objętą gwarancją BGK odbiera prawo do przyszłych spłat rodzinnych.</div>
   </div>
 
   <div class="scenarios" id="scenarios"></div>
@@ -392,9 +394,9 @@ footer.foot p{ margin:5px 0; }
   </section>
 
   <footer class="foot">
-    <p>Kalkulator poglądowy — nie stanowi oferty ani symulacji bankowej. Reguły RKM oznaczone „do weryfikacji” wymagają potwierdzenia w regulaminie programu.</p>
-    <p>Zasady RKM wg stanu na 2 września 2026 r. — ustawa jest nowelizowana; potwierdź w banku.</p>
-    <p><a href="/polityka-prywatnosci.html">Polityka prywatności</a> · <a href="https://github.com/mkondratek/abkredyt">Kod źródłowy</a></p>
+    <p>Kalkulator poglądowy — nie stanowi oferty, symulacji bankowej ani porady. Zasady RKM wg tekstu jednolitego ustawy (Dz.U. 2024 poz. 1724); sprawdzono 2 września 2026 r., nowelizacja z 2026 r. (Dz.U. 2026 poz. 635) nieuwzględniona. Przed decyzją potwierdź warunki w banku.</p>
+    <p>Autorem strony jest Mikołaj Kondratek — programista, nie doradca kredytowy · <a href="https://www.linkedin.com/in/mkondratek/" rel="noopener">LinkedIn</a> · <a href="https://github.com/mkondratek" rel="noopener">GitHub</a></p>
+    <p><a href="/polityka-prywatnosci.html">Polityka prywatności</a> · <a href="https://github.com/mkondratek/abkredyt" rel="noopener">Kod źródłowy</a></p>
   </footer>
 </div>
 
@@ -414,6 +416,10 @@ function addMonthsUTC(dateStr, n){
   return new Date(Date.UTC(y,m,1));
 }
 
+/* Okno z art. 7 ust. 1 pkt 7 ustawy o rodzinnym kredycie mieszkaniowym: 3 lata od dnia
+   udzielenia kredytu. Wartość ustawowa — nie jest parametrem konfiguracji. */
+const RKM_WINDOW_MONTHS = 36;
+
 /* Rata równa (annuitet), kapitalizacja miesięczna; r = stopa nominalna / 12. */
 function annuity(P,r,n){ if(n<=0) return P; return r===0 ? P/n : (P*r)/(1-Math.pow(1+r,-n)); }
 
@@ -426,7 +432,7 @@ function solveMonths(balance,r,payment){
 }
 
 function simulateScenario(cfg){
-  const {principal,ratePct,years,startDate,tryb,feePct,feeMonths,rkmThreshold,rkmMonths,ignorujRegule,events} = cfg;
+  const {principal,ratePct,years,startDate,tryb,feePct,feeMonths,gwarancja,ignorujRegule,events} = cfg;
   let r = ratePct/100/12;
   let n = Math.max(1, Math.round(years*12));
   let balance = principal;
@@ -434,7 +440,14 @@ function simulateScenario(cfg){
   let remainingMonths = n;
   const rataHistory = [{month:0, rata:currentRata}];
   const monthsOut = [];
-  let cumVoluntary = 0, rkmBreachMonth = null;
+  /* Art. 4a ust. 6: każda spłata części kapitałowej (rata, nadpłata, spłata rodzinna)
+     zalicza się w pierwszej kolejności na poczet części objętej gwarancją i pomniejsza
+     ją. `guaranteeLeft` to więc jednocześnie limit bezpiecznej nadpłaty dobrowolnej
+     w oknie 36 miesięcy. */
+  const gwarancjaKwota = Math.max(0, Number(gwarancja)||0);
+  let guaranteeLeft = gwarancjaKwota;
+  let guaranteeLeftAt36 = gwarancjaKwota;
+  let cumVoluntary = 0, rkmBreachMonth = null, rkmBreachAmount = 0, rkmBreachAllowance = 0;
   let totalInterest=0, totalFees=0, totalNadplaty=0, totalSplataRodzinna=0;
 
   const byMonth = {};
@@ -471,6 +484,9 @@ function simulateScenario(cfg){
     let paymentThisMonth = currentRata;
     if(principalPaid >= balance){ principalPaid = balance; paymentThisMonth = balance+interest; }
     balance -= principalPaid;
+    // Rata umowna nie jest przedterminową spłatą — nigdy nie łamie reguły, ale zjada
+    // część gwarantowaną, a więc i limit bezpiecznych nadpłat (art. 4a ust. 6).
+    guaranteeLeft = Math.max(0, guaranteeLeft - principalPaid);
     remainingMonths = Math.max(0, remainingMonths-1);
     totalInterest += interest;
 
@@ -479,13 +495,16 @@ function simulateScenario(cfg){
     evts.filter(e=>e.type==="nadplata").forEach(e=>{
       if(balance<=0.5) return;
       const amt = Math.min(e.amount, balance);
-      // Only voluntary nadpłaty (one-off + cykliczna) count toward the RKM guarantee
-      // threshold, and only within the first `rkmMonths` months — a higher contractual
-      // rata (e.g. a formally shorter term) is not a nadpłata and never touches this.
-      if(m<=rkmMonths){
+      // Reguła: nadpłata dobrowolna (jednorazowa/cykliczna) w pierwszych 36 miesiącach
+      // jest bezpieczna tylko do wysokości POZOSTAŁEJ części objętej gwarancją. Wyższa
+      // rata umowna (formalnie krótszy okres) nie jest nadpłatą i reguły nie łamie.
+      if(m<=RKM_WINDOW_MONTHS){
         cumVoluntary += amt;
-        if(cumVoluntary>rkmThreshold && rkmBreachMonth===null) rkmBreachMonth = m;
+        if(amt - guaranteeLeft > 0.005 && rkmBreachMonth===null){
+          rkmBreachMonth = m; rkmBreachAmount = amt; rkmBreachAllowance = guaranteeLeft;
+        }
       }
+      guaranteeLeft = Math.max(0, guaranteeLeft - amt);
       const fee = m<=feeMonths ? amt*(feePct/100) : 0;
       feeThisMonth += fee; totalFees += fee;
       balance -= amt; nadplataThisMonth += amt; totalNadplaty += amt;
@@ -506,11 +525,14 @@ function simulateScenario(cfg){
       }
       if(blocked){
         lostChild = e.childNumber;
-        eventLog.push({month:m, type:"dziecko-lost", text:"Spłata rodzinna (dziecko "+e.childNumber+"): UTRACONA — przekroczono próg gwarancji"});
+        eventLog.push({month:m, type:"dziecko-lost", text:"Spłata rodzinna (dziecko "+e.childNumber+"): UTRACONA — nadpłata dobrowolna w m. "+rkmBreachMonth+" przekroczyła pozostałą część gwarantowaną"});
         return;
       }
       const amt = Math.min(e.amount, balance);
       balance -= amt; splataRodzThisMonth += amt; totalSplataRodzinna += amt;
+      // Spłata rodzinna jest wyłączona z reguły (art. 7 ust. 1 pkt 7), ale też pomniejsza
+      // część objętą gwarancją (art. 4a ust. 6).
+      guaranteeLeft = Math.max(0, guaranteeLeft - amt);
       const useTryb = (e.trybOverride && e.trybOverride!=="auto") ? e.trybOverride : tryb;
       if(balance>0.5){
         if(useTryb==="obniz") currentRata = annuity(balance,r,remainingMonths);
@@ -524,6 +546,9 @@ function simulateScenario(cfg){
       month:m, date:addMonthsUTC(startDate, m-1), rata:paymentThisMonth, odsetki:interest, kapital:principalPaid,
       nadplata:nadplataThisMonth, splataRodzinna:splataRodzThisMonth, oplata:feeThisMonth, saldo:Math.max(0,balance), lostChild
     });
+    // Stan części gwarantowanej na koniec 36. miesiąca (albo na dzień spłaty, jeśli
+    // kredyt kończy się wcześniej) — po tym momencie reguła już nie obowiązuje.
+    if(m<=RKM_WINDOW_MONTHS) guaranteeLeftAt36 = guaranteeLeft;
     if(balance<=0.5) break;
   }
   const last = monthsOut[monthsOut.length-1];
@@ -535,11 +560,14 @@ function simulateScenario(cfg){
     payoffMonths: monthsOut.length,
     initialRata: rataHistory[0].rata,
     finalRata: rataHistory[rataHistory.length-1].rata,
-    rkmBreachMonth, voluntaryOverpayWindow: cumVoluntary, eventLog
+    rkmBreachMonth, rkmBreachAmount, rkmBreachAllowance,
+    voluntaryOverpayWindow: cumVoluntary,
+    gwarancja: gwarancjaKwota, guaranteeLeftAt36, rkmWindowMonths: RKM_WINDOW_MONTHS,
+    eventLog
   };
 }
 
-const api = { simulateScenario, annuity, solveMonths, addMonthsUTC };
+const api = { simulateScenario, annuity, solveMonths, addMonthsUTC, RKM_WINDOW_MONTHS };
 if (typeof window !== "undefined") window.RKM = api;
 if (typeof globalThis !== "undefined") globalThis.RKM = api;
 })();
@@ -586,7 +614,7 @@ function defaultScenario(which){
     marza:1.9, wskaznik:3.6,
     start:"2027-01", tryb:"skroc",
     feePct:3, feeMonths:36,
-    rkmThreshold:100000, rkmMonths:36, ignorujRegule:false
+    ignorujRegule:false
   };
   if(which==="A"){
     return Object.assign({}, common, {
@@ -609,13 +637,13 @@ function defaultState(){
 }
 
 /* ============ persistence ============ */
-const STORAGE_KEY = "abkredyt-state-v2";
+const STORAGE_KEY = "abkredyt-state-v3";
 
 /* Lekka kontrola kształtu — żeby stan z innej (starszej, spersonalizowanej)
    wersji nie odżył po zmianie schematu. */
 function looksLikeScenario(s){
   if(!s || typeof s!=="object") return false;
-  const nums = ["cena","wklad","marza","wskaznik","years","feePct","feeMonths","rkmThreshold","rkmMonths"];
+  const nums = ["cena","wklad","gwarancja","marza","wskaznik","years","feePct","feeMonths"];
   if(!nums.every(k=>typeof s[k]==="number" && isFinite(s[k]))) return false;
   if(typeof s.start!=="string" || !/^\d{4}-\d{2}$/.test(s.start)) return false;
   if(!Array.isArray(s.events)) return false;
@@ -646,12 +674,12 @@ const HEAD_COPY = {
   on: {
     eyebrow: "Rodzinny Kredyt Mieszkaniowy · porównanie scenariuszy A/B",
     lede: "Kalkulator do porównania dwóch wariantów kredytu RKM na zakup mieszkania — z nadpłatami, spłatą rodzinną przy narodzinach dziecka i zmianami oprocentowania w czasie.",
-    hint: "Włączone: spłata rodzinna po narodzinach dziecka, próg gwarancji BGK, licznik nadpłat w pierwszych miesiącach, okres 15–35 lat."
+    hint: "Włączone: spłata rodzinna po narodzinach dziecka, limit nadpłat dobrowolnych w pierwszych 3 latach (część objęta gwarancją BGK), okres co najmniej 15 lat."
   },
   off: {
     eyebrow: "Kalkulator kredytu hipotecznego · porównanie scenariuszy A/B",
     lede: "Kalkulator do porównania dwóch wariantów spłaty kredytu hipotecznego — z nadpłatami jednorazowymi i cyklicznymi oraz zmianami wskaźnika referencyjnego w czasie.",
-    hint: "Wyłączone: bez spłaty rodzinnej i bez progu gwarancji BGK — zwykły kalkulator A/B, okres 5–35 lat."
+    hint: "Wyłączone: bez spłaty rodzinnej i bez limitu nadpłat z gwarancji BGK — zwykły kalkulator A/B, okres 5–35 lat."
   }
 };
 
@@ -685,7 +713,7 @@ function toEngineConfig(s){
   return {
     principal: principalOf(s), ratePct:nominal, years:s.years, startDate:s.start+"-01",
     tryb:s.tryb, feePct:s.feePct, feeMonths:s.feeMonths,
-    rkmThreshold:s.rkmThreshold, rkmMonths:s.rkmMonths,
+    gwarancja: state.rkmOn ? (Number(s.gwarancja)||0) : 0,
     ignorujRegule: state.rkmOn ? s.ignorujRegule : true,
     events
   };
@@ -764,7 +792,14 @@ function renderPanel(key, s, result, baseline){
   html += '<div class="field-grid">';
   html += field("Cena mieszkania","cena",s.cena,"number");
   html += field("Wkład własny","wklad",s.wklad,"number");
-  if(state.rkmOn) html += field("Gwarancja BGK <span class=\'sub\'>(informacyjnie)</span>","gwarancja",s.gwarancja,"number");
+  if(state.rkmOn){
+    // Gwarancja nie zmienia kwoty kredytu, ale wyznacza limit bezpiecznych nadpłat
+    // w pierwszych 3 latach — dlatego siedzi w bloku „Kredyt”, a nie w regule.
+    html += '<div class="field"><label>Gwarancja BGK</label>'+
+      '<input type="number" min="0" step="1000" data-f="gwarancja" value="'+s.gwarancja+'">'+
+      (Number(s.gwarancja)>0 ? '' : '<div class="field-hint">Bez gwarancji (wkład własny ≥ 20 %) każda nadpłata dobrowolna w pierwszych 3 latach odbiera przyszłe spłaty rodzinne.</div>')+
+      '</div>';
+  }
   html += field("Dodatkowa kwota kredytu <span class=\'sub\'>(np. wykończenie)</span>","remont",s.remont,"number");
   html += '<div class="field span2"><label>Kwota kredytu (razem)</label><input type="text" class="mono" readonly value="'+money(principal)+'"></div>';
   html += '</div>';
@@ -790,15 +825,14 @@ function renderPanel(key, s, result, baseline){
 
   if(state.rkmOn){
     if(result.rkmBreachMonth!==null && !s.ignorujRegule){
-      html += '<div class="warning-banner"><span class="x">⚠</span><div><b>Ryzyko utraty spłaty rodzinnej</b> (do weryfikacji): nadpłaty dobrowolne w pierwszych '+s.rkmMonths+' mies. przekroczyły kwotę gwarancji ('+money(s.rkmThreshold)+') w miesiącu '+result.rkmBreachMonth+'. Kolejne zdarzenia „narodziny dziecka” od tego momentu liczone są jako utracone.</div></div>';
+      const excess = Math.max(0, result.rkmBreachAmount - result.rkmBreachAllowance);
+      html += '<div class="warning-banner"><span class="x">⚠</span><div><b>Utrata przyszłych spłat rodzinnych:</b> w miesiącu '+result.rkmBreachMonth+
+        ' nadpłata dobrowolna '+money(result.rkmBreachAmount)+' przekroczyła pozostałą wtedy część objętą gwarancją ('+money(result.rkmBreachAllowance)+') o '+money(excess)+
+        '. Spłaty rodzinne przypadające od tego miesiąca liczone są jako utracone; spłat już wypłaconych BGK nie odbiera.</div></div>';
     }
-    html += '<div class="section-title">Reguła RKM <span style="text-transform:none;font-weight:400;">(próg i okres do weryfikacji)</span></div>';
-    html += '<div class="field-grid">';
-    html += field("Próg gwarancji","rkmThreshold",s.rkmThreshold,"number");
-    html += field("Liczba miesięcy","rkmMonths",s.rkmMonths,"number");
-    html += '</div>';
-    html += '<label class="checkline"><input type="checkbox" data-f="ignorujRegule" '+(s.ignorujRegule?'checked':'')+'> ignoruj regułę (licz spłatę rodzinną mimo przekroczenia progu)</label>';
-    html += '<div style="padding:8px 18px 14px;font-size:11.5px;color:var(--ink-faint);line-height:1.5;">3 lata liczone od dnia udzielenia kredytu; próg = kwota objęta gwarancją BGK (wg art. 7 ust. 1 pkt 6 ustawy — do potwierdzenia w banku). Przy wkładzie ≥20% bez gwarancji próg wynosiłby 0 zł.</div>';
+    html += '<div class="section-title">Reguła RKM</div>';
+    html += '<label class="checkline"><input type="checkbox" data-f="ignorujRegule" '+(s.ignorujRegule?'checked':'')+'> ignoruj regułę (licz spłatę rodzinną mimo przekroczenia)</label>';
+    html += '<div class="rule-note">Spłaty kapitału — raty, nadpłaty i sama spłata rodzinna — zaliczają się najpierw na poczet części objętej gwarancją i ją pomniejszają, więc limit topi się z każdą złotówką kapitału. Nadpłata dobrowolna w pierwszych 3 latach jest bezpieczna tylko w granicach części gwarantowanej pozostałej w tym momencie; przekroczenie odbiera przyszłe spłaty rodzinne (już wypłaconych BGK nie odbiera), a bez gwarancji odbiera je każda nadpłata w tym okresie. Podstawa: art. 7 ust. 1 pkt 7 w zw. z art. 4a ust. 6 ustawy o rodzinnym kredycie mieszkaniowym i bezpiecznym kredycie 2% (t.j. Dz.U. 2024 poz. 1724); kalkulator liczy 3 lata od miesiąca uruchomienia, ustawa — od dnia udzielenia kredytu (zwykle ten sam miesiąc albo nieco wcześniej).</div>';
   }
 
   html += '<div class="section-title">Wydarzenia</div>';
@@ -839,7 +873,7 @@ function renderPanel(key, s, result, baseline){
   html += '</div>';
 
   // KPIs
-  const overThreshold = result.voluntaryOverpayWindow > s.rkmThreshold;
+  const breached = result.rkmBreachMonth!==null && !s.ignorujRegule;
   const kpis = [
     ["Rata początkowa", money(result.initialRata)],
     ["Rata po ostatnim wydarzeniu", money(result.finalRata)],
@@ -850,8 +884,15 @@ function renderPanel(key, s, result, baseline){
     ["Skrócenie okresu", (baseline.payoffMonths - result.payoffMonths)>=0 ? months2ym(baseline.payoffMonths - result.payoffMonths)+" krócej" : months2ym(result.payoffMonths - baseline.payoffMonths)+" dłużej"],
   ];
   if(state.rkmOn){
-    kpis.push(["Nadpłaty dobrowolne w 1. "+s.rkmMonths+" mies.", num(result.voluntaryOverpayWindow)+" / "+num(s.rkmThreshold)+" zł", overThreshold?"critical":"good"]);
+    kpis.push(["Nadpłaty dobrowolne w 1. 3 latach", money(result.voluntaryOverpayWindow), breached?"critical":"good"]);
+    kpis.push([
+      'Część gwarantowana po 3 latach <span style="text-transform:none;letter-spacing:0;">(z '+money(result.gwarancja)+')</span>',
+      money(result.guaranteeLeftAt36),
+      breached?"critical":""
+    ]);
   }
+  // Domknięcie siatki 2-kolumnowej — bez tego ostatni wiersz świeci kolorem obramowania.
+  if(kpis.length % 2) kpis.push(["", ""]);
   html += '<div class="kpi-grid">';
   kpis.forEach(k=>{
     html += '<div class="kpi"><div class="lbl">'+k[0]+'</div><div class="val'+(k[2]?' '+k[2]:'')+'">'+k[1]+'</div></div>';
@@ -941,7 +982,7 @@ function buildChart(resA, resB, mode, sA, sB){
       }
       let month, label, isLost=false;
       if(e.type==="jednorazowa"){ month=e.month; label="Nadpłata jednorazowa: "+num(e.amount)+" zł"; }
-      else if(e.type==="dziecko"){ month=e.month; isLost=lostMonths.has(month); label = isLost ? "Spłata rodzinna: utracona (przekroczono próg gwarancji)" : "Spłata rodzinna: "+num(e.amount)+" zł"; }
+      else if(e.type==="dziecko"){ month=e.month; isLost=lostMonths.has(month); label = isLost ? "Spłata rodzinna: utracona (nadpłata dobrowolna w pierwszych 3 latach przekroczyła pozostałą część gwarantowaną)" : "Spłata rodzinna: "+num(e.amount)+" zł"; }
       else if(e.type==="zmiana_wskaznika"){
         month=e.month;
         label="Zmiana wskaźnika od mies. "+month+": "+pct(e.newWskaznik)+" → nominalnie "+pct(round2((Number(s.marza)||0)+(Number(e.newWskaznik)||0)));
