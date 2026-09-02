@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        width: 1200px;
+        height: 630px;
+        background: #eef1ec;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        color: #1f2a26;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 72px 80px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Delikatny pasek akcentu na górze, żeby kafelek nie był płaski. */
+      .pasek {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 10px;
+        background: #0a8a68;
+      }
+
+      .brew {
+        font-size: 24px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #5c6b62;
+        font-weight: 500;
+      }
+
+      .teza {
+        font-size: 58px;
+        line-height: 1.2;
+        font-weight: 600;
+        letter-spacing: -0.015em;
+        max-width: 18ch;
+        margin: 18px 0 22px;
+      }
+
+      .dopisek {
+        font-size: 28px;
+        color: #5c6b62;
+        line-height: 1.45;
+        max-width: 34ch;
+      }
+
+      /* Miniatura A/B — dwa uproszczone schematy salda w czasie, każdy w
+         kolorze swojego scenariusza, żeby karta czytała się jako porównanie
+         nawet bez patrzenia na tekst. */
+      .porownanie {
+        position: absolute;
+        right: 80px;
+        top: 175px;
+        display: flex;
+        gap: 28px;
+      }
+
+      .scenariusz {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .etykieta {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+      }
+
+      .etykieta.a { color: #0a8a68; }
+      .etykieta.b { color: #c1622b; }
+
+      .slupki {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 200px;
+      }
+
+      .slupek { width: 22px; border-radius: 4px 4px 0 0; }
+      .slupek.a { background: #0a8a68; }
+      .slupek.b { background: #c1622b; }
+
+      .stopka {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        font-size: 26px;
+      }
+
+      .adres { font-weight: 600; }
+      .zastrzezenie { color: #8f471d; font-size: 22px; }
+    </style>
+  </head>
+  <body>
+    <div class="pasek"></div>
+
+    <div>
+      <p class="brew">Kalkulator RKM</p>
+      <p class="teza">Nadpłacić czy skrócić okres?</p>
+      <p class="dopisek">
+        Porównaj dwa scenariusze spłaty kredytu hipotecznego obok siebie —
+        nadpłaty, spłatę rodzinną po urodzeniu dziecka i zmiany oprocentowania
+        w czasie.
+      </p>
+    </div>
+
+    <div class="porownanie">
+      <div class="scenariusz">
+        <span class="etykieta a">A</span>
+        <div class="slupki">
+          <div class="slupek a" style="height:200px"></div>
+          <div class="slupek a" style="height:150px"></div>
+          <div class="slupek a" style="height:100px"></div>
+          <div class="slupek a" style="height:55px"></div>
+        </div>
+      </div>
+      <div class="scenariusz">
+        <span class="etykieta b">B</span>
+        <div class="slupki">
+          <div class="slupek b" style="height:200px"></div>
+          <div class="slupek b" style="height:172px"></div>
+          <div class="slupek b" style="height:118px"></div>
+          <div class="slupek b" style="height:20px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stopka">
+      <span class="adres">abkredyt.kondratek.pl</span>
+      <span class="zastrzezenie">narzędzie poglądowe, zasady RKM do weryfikacji w banku</span>
+    </div>
+  </body>
+</html>

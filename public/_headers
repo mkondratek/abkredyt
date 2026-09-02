@@ -1,0 +1,24 @@
+# Nagłówki dla Cloudflare Pages. Cała strona to jeden nie-haszowany plik
+# (index.html), więc — inaczej niż przy assetach z hashem w nazwie — nie ma tu
+# nic do cache'owania bezterminowo; Pages stawia rozsądne domyślne Cache-Control.
+#
+# X-Content-Type-Options: przeglądarka ma ufać Content-Type z odpowiedzi,
+#   nie zgadywać po zawartości (MIME-sniffing).
+# Referrer-Policy: przy przejściu na inną domenę wysyłaj tylko origin, nie pełny
+#   URL — rozsądny kompromis między prywatnością a analityką.
+# Permissions-Policy: wyłącz funkcje, których kalkulator bez backendu nigdy nie
+#   potrzebuje.
+# X-Frame-Options + frame-ancestors: strona nie ma się dać osadzić w cudzym
+#   <iframe> (clickjacking); oba dla starszych przeglądarek.
+# Content-Security-Policy: świadomie konserwatywna. Fonty są systemowe, więc
+#   żadnych zewnętrznych arkuszy ani fontów. Jedyny zewnętrzny skrypt to beacon
+#   Cloudflare Web Analytics (token CF_ANALYTICS_TOKEN, patrz DEPLOY.md).
+#   Kalkulator używa inline <script>/<style>, stąd 'unsafe-inline' — nie ma tu
+#   żadnych danych użytkownika wysyłanych na zewnątrz, więc ewentualny XSS
+#   ogranicza się do defacementu, nie eksfiltracji.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
+  X-Frame-Options: DENY
+  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'

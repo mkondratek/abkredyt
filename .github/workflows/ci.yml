@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      # Szybka walidacja bez przeglądarki: doctype, sparowane <script>/</script>,
+      # i to, że JS w środku w ogóle się parsuje (bez uruchamiania).
+      - run: node tools/check-html.mjs
+
+      # Regresja silnika: czyste funkcje z <script id="engine"> uruchamiane
+      # w Node przeciw liczbom kontrolnym (rata 3 249 / 4 699 zł itd.).
+      - run: node tools/test-engine.mjs
+
+      # Pełny test dymny w headless Chromium: otwiera public/index.html
+      # i kończy się błędem, jeśli strona zgłosi wyjątek albo cokolwiek
+      # w konsoli wyląduje jako error.
+      - run: pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python tools/shot.py

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#0a8a68" />
+  <!-- Malejące słupki = malejące saldo kredytu w czasie (lewo → prawo). -->
+  <rect x="6" y="7" width="5" height="19" fill="#ffffff" />
+  <rect x="13.5" y="13" width="5" height="13" fill="#ffffff" />
+  <rect x="21" y="18" width="5" height="8" fill="#ffffff" />
+</svg>

@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Kalkulator kredytu hipotecznego A/B z zasadami RKM — abkredyt</title>
+<meta name="description" content="Porównaj dwa scenariusze spłaty kredytu hipotecznego: nadpłaty, spłata rodzinna RKM, zmiany oprocentowania. Liczy w przeglądarce, nie wysyła danych.">
+<link rel="canonical" href="https://abkredyt.kondratek.pl/">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Kalkulator kredytu hipotecznego A/B z zasadami RKM">
+<meta property="og:description" content="Dwa scenariusze obok siebie: nadpłaty jednorazowe i cykliczne, spłata rodzinna RKM, zmiany wskaźnika. Wszystko liczy się w przeglądarce.">
+<meta property="og:locale" content="pl_PL">
+<meta property="og:url" content="https://abkredyt.kondratek.pl/">
+<meta property="og:image" content="https://abkredyt.kondratek.pl/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Porównanie dwóch scenariuszy spłaty kredytu hipotecznego — wykres salda w czasie">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://abkredyt.kondratek.pl/og.png">
+
+<style>
+:root{
+  /* Systemowe stosy fontów — bez zewnętrznych zależności (Google Fonts usunięte przed publikacją). */
+  --font-sans:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif:ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --bg:#eef1ec;
+  --surface:#ffffff;
+  --surface-2:#f5f6f1;
+  --surface-3:#e7ebe4;
+  --border:#d7ddd0;
+  --border-strong:#c2ccb9;
+  --ink:#1f2a26;
+  --ink-muted:#5c6b62;
+  --ink-faint:#8b988f;
+  --accent-a:#0a8a68;
+  --accent-a-ink:#066049;
+  --accent-a-bg:#e2f2ec;
+  --accent-b:#c1622b;
+  --accent-b-ink:#8f471d;
+  --accent-b-bg:#f8e9de;
+  --good:#2f8f5b;
+  --warning:#a8710a;
+  --warning-bg:#fbf0d9;
+  --critical:#b3402f;
+  --critical-bg:#f8e3de;
+  --focus:#0a8a68;
+  --shadow:0 1px 2px rgba(31,42,38,.06), 0 6px 20px -8px rgba(31,42,38,.12);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141d19;
+    --surface:#1b2622;
+    --surface-2:#20302a;
+    --surface-3:#263a32;
+    --border:#33453b;
+    --border-strong:#3f5548;
+    --ink:#eef1ec;
+    --ink-muted:#a9b6ae;
+    --ink-faint:#788c81;
+    --accent-a:#3ea88a;
+    --accent-a-ink:#8fe0c6;
+    --accent-a-bg:#1c332b;
+    --accent-b:#d4793a;
+    --accent-b-ink:#f0b581;
+    --accent-b-bg:#372620;
+    --good:#4caf7d;
+    --warning:#d9a02e;
+    --warning-bg:#3a2f14;
+    --critical:#e0685a;
+    --critical-bg:#3a1f1c;
+    --focus:#3ea88a;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141d19;
+  --surface:#1b2622;
+  --surface-2:#20302a;
+  --surface-3:#263a32;
+  --border:#33453b;
+  --border-strong:#3f5548;
+  --ink:#eef1ec;
+  --ink-muted:#a9b6ae;
+  --ink-faint:#788c81;
+  --accent-a:#3ea88a;
+  --accent-a-ink:#8fe0c6;
+  --accent-a-bg:#1c332b;
+  --accent-b:#d4793a;
+  --accent-b-ink:#f0b581;
+  --accent-b-bg:#372620;
+  --good:#4caf7d;
+  --warning:#d9a02e;
+  --warning-bg:#3a2f14;
+  --critical:#e0685a;
+  --critical-bg:#3a1f1c;
+  --focus:#3ea88a;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-sans);
+  font-size:14.5px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{ background:var(--accent-a); color:#fff; }
+h1,h2,h3{ font-family:var(--font-serif); font-weight:600; text-wrap:balance; margin:0; color:var(--ink); }
+.mono, .tabular, input, select, table{ font-variant-numeric:tabular-nums; }
+.mono{ font-family:var(--font-mono); }
+a{ color:var(--accent-a-ink); }
+:focus-visible{ outline:2px solid var(--focus); outline-offset:2px; border-radius:4px; }
+
+.wrap{ max-width:1180px; margin:0 auto; padding:28px 20px 60px; }
+
+/* Wyłączony tryb RKM ukrywa wszystko, co dotyczy tylko programu. */
+:root[data-rkm="off"] .rkm-only{ display:none !important; }
+
+/* ---------- header ---------- */
+header.top{ margin-bottom:16px; }
+.eyebrow{ font-size:11.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-bottom:6px; }
+header.top h1{ font-size:29px; letter-spacing:-.01em; }
+header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:14px; }
+
+.mode-row{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow); padding:11px 15px;
+}
+.mode-row .sw-label{ display:flex; align-items:center; gap:9px; font-size:14px; font-weight:600; cursor:pointer; }
+.mode-row input[type="checkbox"]{ width:17px; height:17px; accent-color:var(--accent-a); cursor:pointer; }
+.mode-row .hint{ font-size:12px; color:var(--ink-muted); max-width:70ch; }
+
+.info-note{
+  display:flex; gap:10px; align-items:flex-start;
+  background:var(--surface-2); border:1px solid var(--border);
+  border-radius:10px; padding:12px 14px; margin-top:14px; font-size:13px; color:var(--ink-muted);
+}
+.info-note b{ color:var(--ink); }
+.info-note .dot{ flex:0 0 auto; width:6px; height:6px; border-radius:50%; background:var(--accent-a); margin-top:6px; }
+
+/* ---------- panels / fields ---------- */
+.scenarios{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; margin-top:20px; }
+@media (max-width:860px){ .scenarios{ grid-template-columns:1fr; } }
+
+.panel{
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  box-shadow:var(--shadow); overflow:hidden;
+}
+.panel.a{ border-top:3px solid var(--accent-a); }
+.panel.b{ border-top:3px solid var(--accent-b); }
+
+.panel-head{ display:flex; flex-direction:column; align-items:flex-start; padding:16px 18px 12px; gap:3px; }
+.panel-head h2{ font-size:18px; }
+.panel-sum{ font-size:12px; color:var(--ink-muted); line-height:1.45; }
+.panel-sum .mono{ font-variant-numeric:tabular-nums; }
+
+.section-title{
+  font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:600;
+  padding:14px 18px 4px;
+}
+.field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; padding:0 18px 8px; }
+.field-grid.wide{ grid-template-columns:1fr; }
+.field{ display:flex; flex-direction:column; gap:4px; }
+.field.span2{ grid-column:1/-1; }
+.field label{ font-size:12px; color:var(--ink-muted); }
+.field label .sub{ color:var(--ink-faint); font-weight:400; }
+input[type="text"], input[type="number"], input[type="month"], select{
+  background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+  padding:7px 9px; font-size:13.5px; color:var(--ink); font-family:inherit; width:100%;
+}
+input[type="number"]{ font-family:var(--font-mono); }
+input:focus, select:focus{ background:var(--surface); }
+input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
+
+.presets-row{ display:flex; flex-wrap:wrap; gap:6px; padding:0 18px 10px; }
+.chip{
+  border:1px solid var(--border-strong); background:var(--surface-2); color:var(--ink);
+  border-radius:999px; padding:5px 11px; font-size:12px; cursor:pointer; font-family:inherit;
+}
+.chip:hover{ background:var(--surface-3); }
+
+.radio-row{ display:flex; gap:14px; padding:2px 0; }
+.radio-row label{ display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
+
+.slider-row{ display:flex; align-items:center; gap:10px; }
+.slider-row input[type=range]{ flex:1; accent-color:var(--accent-a); }
+.panel.b .slider-row input[type=range]{ accent-color:var(--accent-b); }
+.slider-val{ font-family:var(--font-mono); font-size:13px; min-width:44px; text-align:right; }
+
+.checkline{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-muted); padding:0 18px; }
+.checkline input{ accent-color:var(--accent-a); }
+
+/* ---------- events ---------- */
+.events{ padding:0 18px 6px; display:flex; flex-direction:column; gap:8px; }
+.event-row{
+  border:1px solid var(--border); border-radius:10px; padding:9px 10px; background:var(--surface-2);
+  display:flex; flex-wrap:wrap; align-items:end; gap:8px; position:relative;
+}
+.event-row.off{ opacity:.6; }
+.event-row .field{ min-width:96px; flex:1 1 96px; }
+.event-row .field.grow{ flex:2 1 140px; }
+.event-row .rm{
+  background:none; border:none; color:var(--ink-faint); cursor:pointer; font-size:16px; line-height:1;
+  padding:6px; margin-left:auto; border-radius:6px;
+}
+.event-row .rm:hover{ color:var(--critical); background:var(--critical-bg); }
+.event-badge{
+  font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:999px; letter-spacing:.02em;
+  align-self:center;
+}
+.event-badge.lost{ background:var(--critical-bg); color:var(--critical); }
+.event-badge.muted{ background:var(--surface-3); color:var(--ink-faint); }
+.add-event-row{ display:flex; flex-wrap:wrap; gap:8px; padding:2px 18px 14px; }
+.btn{
+  border:1px solid var(--border-strong); background:var(--surface-2); color:var(--ink);
+  border-radius:8px; padding:7px 12px; font-size:12.5px; cursor:pointer; font-family:inherit; font-weight:500;
+}
+.btn:hover{ background:var(--surface-3); }
+.btn.primary{ background:var(--accent-a); border-color:var(--accent-a); color:#fff; }
+.panel.b .btn.primary{ background:var(--accent-b); border-color:var(--accent-b); }
+
+.warning-banner{
+  margin:0 18px 14px; background:var(--warning-bg); border:1px solid var(--warning); color:var(--warning);
+  border-radius:10px; padding:10px 12px; font-size:12.5px; display:flex; gap:8px; align-items:flex-start;
+}
+.warning-banner b{ color:inherit; }
+.warning-banner .x{ flex:0 0 auto; }
+
+/* ---------- KPIs ---------- */
+.kpi-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--border); margin-top:2px; }
+.kpi{ background:var(--surface); padding:12px 16px; }
+.kpi .lbl{ font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; }
+.kpi .val{ font-family:var(--font-mono); font-size:17px; font-weight:600; margin-top:3px; }
+.kpi .val.small{ font-size:14px; font-weight:500; }
+.kpi .val.good{ color:var(--good); }
+.kpi .val.critical{ color:var(--critical); }
+
+/* ---------- comparison ---------- */
+.compare{
+  margin-top:18px; background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow);
+  padding:16px 18px 18px;
+}
+.compare h2{ font-size:17px; margin-bottom:12px; }
+.compare-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+@media (max-width:760px){ .compare-grid{ grid-template-columns:repeat(2,1fr); } }
+.compare-item{ display:flex; flex-direction:column; gap:4px; }
+.compare-item .lbl{ font-size:11.5px; color:var(--ink-muted); }
+.compare-item .val{ font-family:var(--font-mono); font-size:16px; font-weight:600; }
+.compare-item .who{ font-size:11px; color:var(--ink-faint); }
+.win-a{ color:var(--accent-a-ink); }
+.win-b{ color:var(--accent-b-ink); }
+
+/* ---------- chart ---------- */
+.chart-card{
+  margin-top:18px; background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow);
+  padding:16px 18px 10px;
+}
+.chart-head{ display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:6px; }
+.chart-head h2{ font-size:17px; }
+.seg{ display:flex; border:1px solid var(--border-strong); border-radius:999px; overflow:hidden; }
+.seg button{
+  border:none; background:var(--surface-2); color:var(--ink-muted); padding:6px 13px; font-size:12.5px; cursor:pointer; font-family:inherit;
+}
+.seg button.active{ background:var(--accent-a); color:#fff; }
+.legend{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-muted); }
+.legend .li{ display:flex; align-items:baseline; gap:7px; }
+.legend .sw{ width:14px; height:3px; border-radius:2px; flex:0 0 auto; position:relative; top:-3px; }
+.legend .leg-key{ font-weight:600; color:var(--ink); }
+.legend .leg-sum{ color:var(--ink-muted); }
+.chart-wrap{ overflow-x:auto; }
+.chart-wrap svg{ display:block; min-width:640px; width:100%; height:auto; }
+.chart-tt{
+  position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--border-strong);
+  border-radius:8px; padding:8px 10px; font-size:12px; box-shadow:var(--shadow); white-space:nowrap; z-index:5;
+}
+.chart-outer{ position:relative; }
+
+/* ---------- tables ---------- */
+.table-card{
+  margin-top:18px; background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow);
+  padding:16px 18px 20px;
+}
+.table-head{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+.table-head h2{ font-size:17px; }
+.table-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:10px; }
+table{ border-collapse:collapse; width:100%; font-size:13px; }
+table.sched-table{ table-layout:fixed; min-width:640px; }
+thead th{
+  text-align:right; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint);
+  background:var(--surface-2); padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+}
+thead th:first-child, tbody td:first-child{ text-align:left; }
+tbody td{ text-align:right; padding:7px 10px; border-bottom:1px solid var(--border); font-family:var(--font-mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+tbody tr:last-child td{ border-bottom:none; }
+tbody tr:hover{ background:var(--surface-2); }
+tbody td.evt{ font-family:var(--font-sans); text-align:left; color:var(--ink-muted); font-size:12px; white-space:normal; }
+.year-row{ cursor:pointer; }
+.year-row td{ font-weight:600; }
+.year-row.expanded{ background:var(--surface-2); }
+.month-row td:first-child{ padding-left:26px; color:var(--ink-muted); font-weight:400; }
+.chev{ display:inline-block; transition:transform .15s; margin-right:6px; color:var(--ink-faint); }
+.year-row.expanded .chev{ transform:rotate(90deg); }
+
+footer.foot{ margin-top:26px; font-size:12px; color:var(--ink-faint); text-align:center; }
+footer.foot p{ margin:5px 0; }
+
+.noscript-note{
+  max-width:60ch; margin:2.5rem auto; padding:0 1.25rem; line-height:1.6; color:var(--ink-muted);
+}
+
+@media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+
+<noscript>
+  <p class="noscript-note">
+    Kalkulator liczy wszystko w przeglądarce — nic nie jest wysyłane na serwer — więc bez
+    JavaScriptu nie ma czym policzyć. Kod źródłowy i opis modelu:
+    <a href="https://github.com/mkondratek/abkredyt">github.com/mkondratek/abkredyt</a>.
+  </p>
+</noscript>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow" id="eyebrow">Rodzinny Kredyt Mieszkaniowy · porównanie scenariuszy A/B</div>
+    <h1>Harmonogram spłaty i porównanie scenariuszy</h1>
+    <p id="lede">Kalkulator do porównania dwóch wariantów kredytu RKM na zakup mieszkania — z nadpłatami, spłatą rodzinną przy narodzinach dziecka i zmianami oprocentowania w czasie.</p>
+  </header>
+
+  <div class="mode-row">
+    <label class="sw-label"><input type="checkbox" id="rkm-toggle" checked> Kredyt w programie RKM</label>
+    <span class="hint" id="rkm-hint"></span>
+  </div>
+
+  <div class="info-note rkm-only">
+    <span class="dot"></span>
+    <div><b>Minimalny okres kredytowania w programie RKM to 15 lat.</b> Gwarancja BGK (domyślnie 100 000 zł) zabezpiecza brak wkładu własnego — reguła dot. utraty spłaty rodzinnej po przekroczeniu nadpłatami kwoty gwarancji w pierwszych miesiącach kredytu jest oznaczona niżej jako „do weryfikacji”: dokładne brzmienie przepisu należy potwierdzić w banku przed decyzją.</div>
+  </div>
+
+  <div class="scenarios" id="scenarios"></div>
+
+  <section class="compare" id="compare"></section>
+
+  <section class="chart-card">
+    <div class="chart-head">
+      <h2>Saldo kapitału w czasie</h2>
+      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+        <div class="legend" id="chart-legend"></div>
+        <div class="seg" id="chart-mode">
+          <button data-mode="saldo" class="active">Saldo</button>
+          <button data-mode="rata">Rata</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-outer">
+      <div class="chart-wrap"><svg id="chart-svg" viewBox="0 0 900 340"></svg></div>
+      <div class="chart-tt" id="chart-tt" hidden></div>
+    </div>
+  </section>
+
+  <section class="table-card">
+    <div class="table-head">
+      <h2>Harmonogram roczny</h2>
+      <div class="seg" id="table-scn">
+        <button data-scn="A" class="active">Scenariusz A</button>
+        <button data-scn="B">Scenariusz B</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="sched-table">
+        <colgroup>
+          <col style="width:22%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%">
+        </colgroup>
+        <thead>
+          <tr><th>Rok / miesiąc</th><th>Suma rat</th><th>Odsetki</th><th>Kapitał</th><th>Nadpłaty</th><th>Spłata rodz.</th><th>Saldo na koniec</th></tr>
+        </thead>
+        <tbody id="year-table-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p>Kalkulator poglądowy — nie stanowi oferty ani symulacji bankowej. Reguły RKM oznaczone „do weryfikacji” wymagają potwierdzenia w regulaminie programu.</p>
+    <p>Zasady RKM wg stanu na 2 września 2026 r. — ustawa jest nowelizowana; potwierdź w banku.</p>
+    <p><a href="/polityka-prywatnosci.html">Polityka prywatności</a> · <a href="https://github.com/mkondratek/abkredyt">Kod źródłowy</a></p>
+  </footer>
+</div>
+
+<script id="engine">
+/* ============================================================================
+   SILNIK — czysta logika, bez DOM i bez localStorage.
+   Ten blok jest wyodrębniany po `id="engine"` i uruchamiany w Node przez
+   tools/test-engine.mjs, więc nie wolno tu wprowadzać zależności od przeglądarki.
+   ========================================================================== */
+(function(){
+"use strict";
+
+function addMonthsUTC(dateStr, n){
+  const d = new Date(dateStr + "T00:00:00Z");
+  const total = d.getUTCFullYear()*12 + d.getUTCMonth() + n;
+  const y = Math.floor(total/12), m = total%12;
+  return new Date(Date.UTC(y,m,1));
+}
+
+/* Rata równa (annuitet), kapitalizacja miesięczna; r = stopa nominalna / 12. */
+function annuity(P,r,n){ if(n<=0) return P; return r===0 ? P/n : (P*r)/(1-Math.pow(1+r,-n)); }
+
+/* Ile miesięcy zostało przy danym saldzie, stopie i niezmienionej racie. */
+function solveMonths(balance,r,payment){
+  if(r===0) return Math.max(1,Math.ceil(balance/payment));
+  const x = 1-(r*balance)/payment;
+  if(x<=0) return 1;
+  return Math.max(1,Math.ceil(Math.log(1/x)/Math.log(1+r)));
+}
+
+function simulateScenario(cfg){
+  const {principal,ratePct,years,startDate,tryb,feePct,feeMonths,rkmThreshold,rkmMonths,ignorujRegule,events} = cfg;
+  let r = ratePct/100/12;
+  let n = Math.max(1, Math.round(years*12));
+  let balance = principal;
+  let currentRata = annuity(balance,r,n);
+  let remainingMonths = n;
+  const rataHistory = [{month:0, rata:currentRata}];
+  const monthsOut = [];
+  let cumVoluntary = 0, rkmBreachMonth = null;
+  let totalInterest=0, totalFees=0, totalNadplaty=0, totalSplataRodzinna=0;
+
+  const byMonth = {};
+  function push(m,e){ (byMonth[m] = byMonth[m]||[]).push(e); }
+  events.forEach(e=>{
+    if(e.type==="cykliczna"){
+      const end = Math.min(e.endMonth, n+600);
+      for(let m=e.startMonth; m<=end; m++) push(m,{type:"nadplata",amount:e.monthlyAmount,trybOverride:e.trybOverride,label:"Nadpłata cykliczna"});
+    } else if(e.type==="jednorazowa"){
+      push(e.month,{type:"nadplata",amount:e.amount,trybOverride:e.trybOverride,label:"Nadpłata jednorazowa"});
+    } else if(e.type==="dziecko"){
+      push(e.month,{type:"dziecko",amount:e.amount,trybOverride:e.trybOverride,childNumber:e.childNumber,label:"Spłata rodzinna"});
+    } else if(e.type==="zmiana_oprocentowania"){
+      // `note` (opcjonalne) opisuje skąd wzięła się nowa stopa nominalna, np. "wskaźnik 2,60 % + marża 1,90 %".
+      push(e.month,{type:"rate",newRatePct:e.newRatePct,note:e.note,label:"Zmiana oprocentowania"});
+    }
+  });
+
+  const maxMonths = 900;
+  const eventLog = [];
+  let m=0;
+  while(balance>0.5 && m<maxMonths){
+    m++;
+    const evts = byMonth[m]||[];
+    evts.filter(e=>e.type==="rate").forEach(e=>{
+      r = e.newRatePct/100/12;
+      currentRata = annuity(balance,r,remainingMonths);
+      rataHistory.push({month:m, rata:currentRata});
+      eventLog.push({month:m, type:"rate", text:"Zmiana oprocentowania na "+e.newRatePct+"%"+(e.note?" ("+e.note+")":"")+" → rata "+Math.round(currentRata)+" zł"});
+    });
+
+    let interest = balance*r;
+    let principalPaid = currentRata - interest;
+    let paymentThisMonth = currentRata;
+    if(principalPaid >= balance){ principalPaid = balance; paymentThisMonth = balance+interest; }
+    balance -= principalPaid;
+    remainingMonths = Math.max(0, remainingMonths-1);
+    totalInterest += interest;
+
+    let nadplataThisMonth=0, splataRodzThisMonth=0, feeThisMonth=0, lostChild=null;
+
+    evts.filter(e=>e.type==="nadplata").forEach(e=>{
+      if(balance<=0.5) return;
+      const amt = Math.min(e.amount, balance);
+      // Only voluntary nadpłaty (one-off + cykliczna) count toward the RKM guarantee
+      // threshold, and only within the first `rkmMonths` months — a higher contractual
+      // rata (e.g. a formally shorter term) is not a nadpłata and never touches this.
+      if(m<=rkmMonths){
+        cumVoluntary += amt;
+        if(cumVoluntary>rkmThreshold && rkmBreachMonth===null) rkmBreachMonth = m;
+      }
+      const fee = m<=feeMonths ? amt*(feePct/100) : 0;
+      feeThisMonth += fee; totalFees += fee;
+      balance -= amt; nadplataThisMonth += amt; totalNadplaty += amt;
+      const useTryb = (e.trybOverride && e.trybOverride!=="auto") ? e.trybOverride : tryb;
+      if(balance>0.5){
+        if(useTryb==="obniz") currentRata = annuity(balance,r,remainingMonths);
+        else remainingMonths = solveMonths(balance,r,currentRata);
+        rataHistory.push({month:m, rata:currentRata});
+      }
+      eventLog.push({month:m, type:"nadplata", text:e.label+": "+Math.round(amt).toLocaleString("pl-PL")+" zł"});
+    });
+
+    evts.filter(e=>e.type==="dziecko").forEach(e=>{
+      const blocked = !ignorujRegule && rkmBreachMonth!==null && m>=rkmBreachMonth;
+      if(balance<=0.5){
+        eventLog.push({month:m, type:"dziecko-zero", text:"Spłata rodzinna (dziecko "+e.childNumber+"): kredyt już spłacony — spłata rodzinna 0"});
+        return;
+      }
+      if(blocked){
+        lostChild = e.childNumber;
+        eventLog.push({month:m, type:"dziecko-lost", text:"Spłata rodzinna (dziecko "+e.childNumber+"): UTRACONA — przekroczono próg gwarancji"});
+        return;
+      }
+      const amt = Math.min(e.amount, balance);
+      balance -= amt; splataRodzThisMonth += amt; totalSplataRodzinna += amt;
+      const useTryb = (e.trybOverride && e.trybOverride!=="auto") ? e.trybOverride : tryb;
+      if(balance>0.5){
+        if(useTryb==="obniz") currentRata = annuity(balance,r,remainingMonths);
+        else remainingMonths = solveMonths(balance,r,currentRata);
+        rataHistory.push({month:m, rata:currentRata});
+      }
+      eventLog.push({month:m, type:"dziecko", text:"Spłata rodzinna (dziecko "+e.childNumber+"): "+Math.round(amt).toLocaleString("pl-PL")+" zł"});
+    });
+
+    monthsOut.push({
+      month:m, date:addMonthsUTC(startDate, m-1), rata:paymentThisMonth, odsetki:interest, kapital:principalPaid,
+      nadplata:nadplataThisMonth, splataRodzinna:splataRodzThisMonth, oplata:feeThisMonth, saldo:Math.max(0,balance), lostChild
+    });
+    if(balance<=0.5) break;
+  }
+  const last = monthsOut[monthsOut.length-1];
+  return {
+    months:monthsOut, rataHistory,
+    totalInterest, totalFees, totalNadplaty, totalSplataRodzinna,
+    totalCost: totalInterest+totalFees,
+    payoffDate: last? last.date : null,
+    payoffMonths: monthsOut.length,
+    initialRata: rataHistory[0].rata,
+    finalRata: rataHistory[rataHistory.length-1].rata,
+    rkmBreachMonth, voluntaryOverpayWindow: cumVoluntary, eventLog
+  };
+}
+
+const api = { simulateScenario, annuity, solveMonths, addMonthsUTC };
+if (typeof window !== "undefined") window.RKM = api;
+if (typeof globalThis !== "undefined") globalThis.RKM = api;
+})();
+</script>
+
+<script>
+/* ============================================================================
+   UI — czyta silnik z globalnego `RKM` (patrz <script id="engine">).
+   ========================================================================== */
+(function(){
+"use strict";
+
+const simulateScenario = RKM.simulateScenario;
+
+const MONTHS_PL = ["sty","lut","mar","kwi","maj","cze","lip","sie","wrz","paź","lis","gru"];
+function fmtDate(d){ return MONTHS_PL[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
+
+/* ============ helpers ============ */
+function money(n){
+  if(n===null||n===undefined||!isFinite(n)) return "—";
+  const sign = n<0?"-":"";
+  return sign + Math.round(Math.abs(n)).toLocaleString("pl-PL").replace(/ /g," ") + " zł";
+}
+function num(n, d){ return Number(n).toLocaleString("pl-PL",{maximumFractionDigits:d||0}).replace(/ /g," "); }
+function pct(v){ return Number(v).toFixed(2).replace(".",",") + " %"; }
+function plYears(y){ if(y===1) return "1 rok"; const last=y%10, last2=y%100; if(last>=2&&last<=4&&!(last2>=12&&last2<=14)) return y+" lata"; return y+" lat"; }
+function months2ym(m){ const y=Math.floor(m/12), r=m%12; if(y<=0) return r+" mies."; return plYears(y)+(r? " "+r+" mies.":""); }
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function round2(v){ return Math.round(v*100)/100; }
+function escapeXml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+/* Stopa nominalna = marża banku + wskaźnik referencyjny (WIBOR/WIRON). */
+function nominalRate(s){ return round2((Number(s.marza)||0) + (Number(s.wskaznik)||0)); }
+function principalOf(s){ return Math.max(0,(s.cena - s.wklad)) + Math.max(0, s.remont||0); }
+
+/* ============ default state ============ */
+/* Dane przykładowe (ilustracyjne): mieszkanie 500 000 zł, brak wkładu własnego
+   pokryty gwarancją BGK 100 000 zł, marża 1,90 % + wskaźnik 3,60 % = 5,50 %.
+   A i B różnią się tak, żeby pokazać dwie różne strategie. */
+function defaultScenario(which){
+  const common = {
+    cena:500000, wklad:0, gwarancja:100000, remont:0,
+    marza:1.9, wskaznik:3.6,
+    start:"2027-01", tryb:"skroc",
+    feePct:3, feeMonths:36,
+    rkmThreshold:100000, rkmMonths:36, ignorujRegule:false
+  };
+  if(which==="A"){
+    return Object.assign({}, common, {
+      years:30,
+      events:[
+        {id:uid(), type:"cykliczna", startMonth:1, endMonth:360, monthlyAmount:500, trybOverride:"auto"}
+      ]
+    });
+  }
+  return Object.assign({}, common, {
+    years:25,
+    events:[
+      {id:uid(), type:"dziecko", month:24, amount:20000, childNumber:2, trybOverride:"auto"}
+    ]
+  });
+}
+
+function defaultState(){
+  return { rkmOn:true, A: defaultScenario("A"), B: defaultScenario("B"), chartMode:"saldo", tableScn:"A" };
+}
+
+/* ============ persistence ============ */
+const STORAGE_KEY = "abkredyt-state-v2";
+
+/* Lekka kontrola kształtu — żeby stan z innej (starszej, spersonalizowanej)
+   wersji nie odżył po zmianie schematu. */
+function looksLikeScenario(s){
+  if(!s || typeof s!=="object") return false;
+  const nums = ["cena","wklad","marza","wskaznik","years","feePct","feeMonths","rkmThreshold","rkmMonths"];
+  if(!nums.every(k=>typeof s[k]==="number" && isFinite(s[k]))) return false;
+  if(typeof s.start!=="string" || !/^\d{4}-\d{2}$/.test(s.start)) return false;
+  if(!Array.isArray(s.events)) return false;
+  return s.events.every(e=>e && typeof e==="object" && typeof e.type==="string");
+}
+function looksLikeState(st){
+  return !!st && typeof st==="object" && typeof st.rkmOn==="boolean"
+    && looksLikeScenario(st.A) && looksLikeScenario(st.B);
+}
+
+let state = defaultState();
+try{
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if(saved){
+    const parsed = JSON.parse(saved);
+    if(looksLikeState(parsed)) state = parsed;
+  }
+}catch(e){ /* ignore */ }
+
+function persist(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ /* ignore */ }
+}
+
+/* ============ RKM mode ============ */
+function yearsMin(){ return state.rkmOn ? 15 : 5; }
+
+const HEAD_COPY = {
+  on: {
+    eyebrow: "Rodzinny Kredyt Mieszkaniowy · porównanie scenariuszy A/B",
+    lede: "Kalkulator do porównania dwóch wariantów kredytu RKM na zakup mieszkania — z nadpłatami, spłatą rodzinną przy narodzinach dziecka i zmianami oprocentowania w czasie.",
+    hint: "Włączone: spłata rodzinna po narodzinach dziecka, próg gwarancji BGK, licznik nadpłat w pierwszych miesiącach, okres 15–35 lat."
+  },
+  off: {
+    eyebrow: "Kalkulator kredytu hipotecznego · porównanie scenariuszy A/B",
+    lede: "Kalkulator do porównania dwóch wariantów spłaty kredytu hipotecznego — z nadpłatami jednorazowymi i cyklicznymi oraz zmianami wskaźnika referencyjnego w czasie.",
+    hint: "Wyłączone: bez spłaty rodzinnej i bez progu gwarancji BGK — zwykły kalkulator A/B, okres 5–35 lat."
+  }
+};
+
+function applyRkmMode(){
+  const copy = state.rkmOn ? HEAD_COPY.on : HEAD_COPY.off;
+  document.documentElement.setAttribute("data-rkm", state.rkmOn ? "on" : "off");
+  document.getElementById("eyebrow").textContent = copy.eyebrow;
+  document.getElementById("lede").textContent = copy.lede;
+  document.getElementById("rkm-hint").textContent = copy.hint;
+  document.getElementById("rkm-toggle").checked = state.rkmOn;
+}
+
+/* ============ scenario config -> engine input ============ */
+/* Poza programem RKM zdarzenia „narodziny dziecka" nie mają zastosowania —
+   nie trafiają do silnika (zostają w stanie, ale w UI są wyszarzone). */
+function activeEvents(s){
+  return state.rkmOn ? s.events : s.events.filter(e=>e.type!=="dziecko");
+}
+function toEngineConfig(s){
+  const nominal = nominalRate(s);
+  const events = activeEvents(s).map(e=>{
+    if(e.type==="dziecko") return {type:"dziecko", month:e.month, amount:e.amount, childNumber:e.childNumber, trybOverride:e.trybOverride};
+    if(e.type==="cykliczna") return {type:"cykliczna", startMonth:e.startMonth, endMonth:e.endMonth, monthlyAmount:e.monthlyAmount, trybOverride:e.trybOverride};
+    if(e.type==="zmiana_wskaznika") return {
+      type:"zmiana_oprocentowania", month:e.month,
+      newRatePct: round2((Number(s.marza)||0) + (Number(e.newWskaznik)||0)),
+      note: "wskaźnik "+pct(e.newWskaznik)+" + marża "+pct(s.marza)
+    };
+    return {type:"jednorazowa", month:e.month, amount:e.amount, trybOverride:e.trybOverride};
+  });
+  return {
+    principal: principalOf(s), ratePct:nominal, years:s.years, startDate:s.start+"-01",
+    tryb:s.tryb, feePct:s.feePct, feeMonths:s.feeMonths,
+    rkmThreshold:s.rkmThreshold, rkmMonths:s.rkmMonths,
+    ignorujRegule: state.rkmOn ? s.ignorujRegule : true,
+    events
+  };
+}
+function baselineConfig(s){ const c = toEngineConfig(s); c.events = []; return c; }
+
+/* ============ one-line scenario summary ============ */
+/* „500 000 zł · 30 lat · 5,50 % · nadpłata 500 zł/mies. od m. 1" — ma wystarczyć
+   do odczytania wykresu bez zaglądania w formularz. */
+function eventSummary(s, e){
+  if(e.type==="jednorazowa") return "nadpłata "+num(e.amount)+" zł w m. "+e.month;
+  if(e.type==="cykliczna") return "nadpłata "+num(e.monthlyAmount)+" zł/mies. od m. "+e.startMonth;
+  if(e.type==="dziecko") return (e.childNumber>=3?"3.":e.childNumber+".")+" dziecko w m. "+e.month+" (+"+num(e.amount)+" zł)";
+  if(e.type==="zmiana_wskaznika") return "wskaźnik "+pct(e.newWskaznik)+" od m. "+e.month;
+  return "";
+}
+function strategySummary(s){
+  const items = activeEvents(s).map(e=>eventSummary(s,e)).filter(Boolean);
+  if(items.length===0) return "bez wydarzeń";
+  const MAX = 3;
+  if(items.length<=MAX) return items.join(" + ");
+  return items.slice(0,MAX).join(" + ") + " + " + (items.length-MAX) + " więcej";
+}
+function summaryLine(s){
+  return [money(principalOf(s)), plYears(s.years), pct(nominalRate(s)), strategySummary(s)].join(" · ");
+}
+
+/* ============ rendering: scenario panels ============ */
+const scenariosEl = document.getElementById("scenarios");
+
+const TYPE_LABEL = {jednorazowa:"Nadpłata jednorazowa", cykliczna:"Nadpłata cykliczna", dziecko:"Narodziny dziecka", zmiana_wskaznika:"Zmiana wskaźnika"};
+function availableTypes(){
+  return Object.keys(TYPE_LABEL).filter(t=> state.rkmOn || t!=="dziecko");
+}
+
+function fieldEventControls(s, e){
+  const trybSel = e.type!=="zmiana_wskaznika" ? (
+    '<div class="field"><label>Tryb</label><select data-f="trybOverride">'+
+      ['auto','skroc','obniz'].map(v=>'<option value="'+v+'"'+(e.trybOverride===v?' selected':'')+'>'+({auto:"jak globalnie",skroc:"skróć okres",obniz:"obniż ratę"})[v]+'</option>').join('')+
+    '</select></div>'
+  ) : '';
+
+  if(e.type==="jednorazowa"){
+    return '<div class="field"><label>Miesiąc</label><input type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
+      '<div class="field grow"><label>Kwota</label><input type="number" min="0" step="1000" data-f="amount" value="'+e.amount+'"></div>'+trybSel;
+  }
+  if(e.type==="cykliczna"){
+    return '<div class="field"><label>Od mies.</label><input type="number" min="1" data-f="startMonth" value="'+e.startMonth+'"></div>'+
+      '<div class="field"><label>Do mies.</label><input type="number" min="1" data-f="endMonth" value="'+e.endMonth+'"></div>'+
+      '<div class="field grow"><label>Kwota / mies.</label><input type="number" min="0" step="100" data-f="monthlyAmount" value="'+e.monthlyAmount+'"></div>'+trybSel;
+  }
+  if(e.type==="dziecko"){
+    return '<div class="field"><label>Miesiąc</label><input type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
+      '<div class="field"><label>Dziecko nr</label><select data-f="childNumber">'+
+        [1,2,3].map(n=>'<option value="'+n+'"'+(e.childNumber===n?' selected':'')+'>'+(n===3?'3+':n)+'</option>').join('')+
+      '</select></div>'+
+      '<div class="field grow"><label>Kwota <span class="sub">(20k / 2. dziecko, 60k / 3.+)</span></label><input type="number" min="0" step="1000" data-f="amount" value="'+e.amount+'"></div>'+trybSel;
+  }
+  // zmiana_wskaznika — użytkownik podaje wskaźnik, obok pokazujemy wynikową stopę nominalną
+  const nominalAfter = round2((Number(s.marza)||0) + (Number(e.newWskaznik)||0));
+  return '<div class="field"><label>Od miesiąca</label><input type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
+    '<div class="field"><label>Nowy wskaźnik %</label><input type="number" min="0" step="0.01" data-f="newWskaznik" value="'+e.newWskaznik+'"></div>'+
+    '<div class="field grow"><label>Nominalnie <span class="sub">(+ marża '+pct(s.marza)+')</span></label><input type="text" class="mono" readonly value="'+pct(nominalAfter)+'"></div>';
+}
+
+function renderPanel(key, s, result, baseline){
+  const cls = key.toLowerCase();
+  const principal = principalOf(s);
+  const lostMonths = new Set(result.eventLog.filter(l=>l.type==="dziecko-lost").map(l=>l.month));
+  const types = availableTypes();
+
+  let html = '<div class="panel '+cls+'">';
+  html += '<div class="panel-head"><h2>Scenariusz '+key+'</h2><div class="panel-sum">'+escapeXml(summaryLine(s))+'</div></div>';
+
+  html += '<div class="section-title">Kredyt</div>';
+  html += '<div class="field-grid">';
+  html += field("Cena mieszkania","cena",s.cena,"number");
+  html += field("Wkład własny","wklad",s.wklad,"number");
+  if(state.rkmOn) html += field("Gwarancja BGK <span class=\'sub\'>(informacyjnie)</span>","gwarancja",s.gwarancja,"number");
+  html += field("Dodatkowa kwota kredytu <span class=\'sub\'>(np. wykończenie)</span>","remont",s.remont,"number");
+  html += '<div class="field span2"><label>Kwota kredytu (razem)</label><input type="text" class="mono" readonly value="'+money(principal)+'"></div>';
+  html += '</div>';
+
+  html += '<div class="section-title">Oprocentowanie</div>';
+  html += '<div class="field-grid">';
+  html += field("Marża %","marza",s.marza,"number",0.01);
+  html += field("Wskaźnik referencyjny <span class=\'sub\'>(WIBOR/WIRON)</span> %","wskaznik",s.wskaznik,"number",0.01);
+  html += '<div class="field"><label>Oprocentowanie nominalne <span class="sub">(marża + wskaźnik)</span></label><input type="text" class="mono" readonly value="'+pct(nominalRate(s))+'"></div>';
+  html += '<div class="field"><label>Okres — <span class="mono">'+s.years+'</span> lat</label><div class="slider-row"><input type="range" min="'+yearsMin()+'" max="35" step="1" data-f="years" value="'+s.years+'"></div></div>';
+  html += field2("Data uruchomienia","start",s.start,"month");
+  html += '<div class="field"><label>Tryb nadpłat (domyślny)</label><div class="radio-row">'+
+    '<label><input type="radio" name="tryb-'+key+'" value="skroc" data-f="tryb" '+(s.tryb==="skroc"?'checked':'')+'> skróć okres</label>'+
+    '<label><input type="radio" name="tryb-'+key+'" value="obniz" data-f="tryb" '+(s.tryb==="obniz"?'checked':'')+'> obniż ratę</label>'+
+    '</div></div>';
+  html += '</div>';
+
+  html += '<div class="section-title">Opłata za wcześniejszą spłatę '+(state.rkmOn?'<span style="text-transform:none;font-weight:400;">(nie dot. spłaty rodzinnej)</span>':'')+'</div>';
+  html += '<div class="field-grid">';
+  html += field("Opłata %","feePct",s.feePct,"number",0.5);
+  html += field("Obowiązuje przez (mies.)","feeMonths",s.feeMonths,"number");
+  html += '</div>';
+
+  if(state.rkmOn){
+    if(result.rkmBreachMonth!==null && !s.ignorujRegule){
+      html += '<div class="warning-banner"><span class="x">⚠</span><div><b>Ryzyko utraty spłaty rodzinnej</b> (do weryfikacji): nadpłaty dobrowolne w pierwszych '+s.rkmMonths+' mies. przekroczyły kwotę gwarancji ('+money(s.rkmThreshold)+') w miesiącu '+result.rkmBreachMonth+'. Kolejne zdarzenia „narodziny dziecka” od tego momentu liczone są jako utracone.</div></div>';
+    }
+    html += '<div class="section-title">Reguła RKM <span style="text-transform:none;font-weight:400;">(próg i okres do weryfikacji)</span></div>';
+    html += '<div class="field-grid">';
+    html += field("Próg gwarancji","rkmThreshold",s.rkmThreshold,"number");
+    html += field("Liczba miesięcy","rkmMonths",s.rkmMonths,"number");
+    html += '</div>';
+    html += '<label class="checkline"><input type="checkbox" data-f="ignorujRegule" '+(s.ignorujRegule?'checked':'')+'> ignoruj regułę (licz spłatę rodzinną mimo przekroczenia progu)</label>';
+    html += '<div style="padding:8px 18px 14px;font-size:11.5px;color:var(--ink-faint);line-height:1.5;">3 lata liczone od dnia udzielenia kredytu; próg = kwota objęta gwarancją BGK (wg art. 7 ust. 1 pkt 6 ustawy — do potwierdzenia w banku). Przy wkładzie ≥20% bez gwarancji próg wynosiłby 0 zł.</div>';
+  }
+
+  html += '<div class="section-title">Wydarzenia</div>';
+  html += '<div class="presets-row">';
+  if(state.rkmOn){
+    html += '<button type="button" class="chip" data-add-preset="dziecko2">2. dziecko w m. 24 (+20 000)</button>';
+    html += '<button type="button" class="chip" data-add-preset="dziecko3">3. dziecko w m. 36 (+60 000)</button>';
+  }
+  html += '<button type="button" class="chip" data-add-preset="nadplata50-12">Nadpłata 50 000 w m. 12</button>';
+  html += '<button type="button" class="chip" data-add-preset="nadplata50-37">Nadpłata 50 000 w m. 37 (po 3 latach)</button>';
+  html += '<button type="button" class="chip" data-add-preset="cyk1000">Nadpłacaj 1 000 zł/mies. od m. 1</button>';
+  html += '<button type="button" class="chip" data-add-preset="wskaznik-1">Wskaźnik −1 p.p. od m. 24</button>';
+  html += '</div>';
+
+  html += '<div class="events">';
+  s.events.forEach(e=>{
+    const isLost = e.type==="dziecko" && lostMonths.has(e.month);
+    const isOff = e.type==="dziecko" && !state.rkmOn;
+    html += '<div class="event-row'+(isOff?' off':'')+'" data-id="'+e.id+'">';
+    // typ zawsze zawiera aktualną wartość, żeby wyszarzony wiersz „dziecko" dał się przestawić
+    const typeOpts = types.indexOf(e.type)>=0 ? types : types.concat([e.type]);
+    html += '<div class="field"><label>Typ</label><select data-f="type">'+
+      typeOpts.map(t=>'<option value="'+t+'"'+(e.type===t?' selected':'')+'>'+TYPE_LABEL[t]+'</option>').join('')+
+      '</select></div>';
+    html += fieldEventControls(s,e);
+    if(isOff) html += '<span class="event-badge muted">ukryte — poza RKM</span>';
+    else if(isLost) html += '<span class="event-badge lost">utracona</span>';
+    html += '<button type="button" class="rm" title="Usuń" data-remove>×</button>';
+    html += '</div>';
+  });
+  if(s.events.length===0) html += '<div style="color:var(--ink-faint);font-size:12.5px;padding:6px 0;">Brak wydarzeń — dodaj nadpłatę, zmianę wskaźnika lub użyj presetu powyżej.</div>';
+  html += '</div>';
+  html += '<div class="add-event-row">';
+  html += '<button type="button" class="btn" data-add-event="jednorazowa">+ nadpłata jednorazowa</button>';
+  html += '<button type="button" class="btn" data-add-event="cykliczna">+ nadpłata cykliczna</button>';
+  if(state.rkmOn) html += '<button type="button" class="btn" data-add-event="dziecko">+ narodziny dziecka</button>';
+  html += '<button type="button" class="btn" data-add-event="zmiana_wskaznika">+ zmiana wskaźnika</button>';
+  html += '</div>';
+
+  // KPIs
+  const overThreshold = result.voluntaryOverpayWindow > s.rkmThreshold;
+  const kpis = [
+    ["Rata początkowa", money(result.initialRata)],
+    ["Rata po ostatnim wydarzeniu", money(result.finalRata)],
+    ["Suma odsetek", money(result.totalInterest)],
+    ["Łączny koszt (odsetki+opłaty)", money(result.totalCost)],
+    ["Data ostatniej raty", result.payoffDate? fmtDate(result.payoffDate) : "—"],
+    ["Oszczędność odsetek vs bez wydarzeń", money(baseline.totalInterest - result.totalInterest), "good"],
+    ["Skrócenie okresu", (baseline.payoffMonths - result.payoffMonths)>=0 ? months2ym(baseline.payoffMonths - result.payoffMonths)+" krócej" : months2ym(result.payoffMonths - baseline.payoffMonths)+" dłużej"],
+  ];
+  if(state.rkmOn){
+    kpis.push(["Nadpłaty dobrowolne w 1. "+s.rkmMonths+" mies.", num(result.voluntaryOverpayWindow)+" / "+num(s.rkmThreshold)+" zł", overThreshold?"critical":"good"]);
+  }
+  html += '<div class="kpi-grid">';
+  kpis.forEach(k=>{
+    html += '<div class="kpi"><div class="lbl">'+k[0]+'</div><div class="val'+(k[2]?' '+k[2]:'')+'">'+k[1]+'</div></div>';
+  });
+  html += '</div>';
+
+  html += '</div>';
+  return html;
+}
+function field(label, key, val, type, step){
+  return '<div class="field"><label>'+label+'</label><input type="'+type+'" data-f="'+key+'" value="'+val+'"'+(step?' step="'+step+'"':'')+'></div>';
+}
+function field2(label, key, val, type){
+  return '<div class="field"><label>'+label+'</label><input type="'+type+'" data-f="'+key+'" value="'+val+'"></div>';
+}
+
+/* ============ chart ============ */
+const SVG_MONO = "ui-monospace, Menlo, Consolas, monospace";
+
+function buildChart(resA, resB, mode, sA, sB){
+  const W=900,H=340, padL=64, padR=20, padT=18, padB=34;
+  const innerW = W-padL-padR, innerH = H-padT-padB;
+
+  let seriesA, seriesB, maxY, maxX;
+  if(mode==="saldo"){
+    seriesA = resA.months.map(mo=>({x:mo.month, y:mo.saldo}));
+    seriesB = resB.months.map(mo=>({x:mo.month, y:mo.saldo}));
+    maxY = Math.max(1, resA.months[0]?resA.months[0].saldo+resA.months[0].kapital:1, resB.months[0]?resB.months[0].saldo+resB.months[0].kapital:1);
+  } else {
+    seriesA = resA.rataHistory.map(r=>({x:r.month, y:r.rata}));
+    seriesB = resB.rataHistory.map(r=>({x:r.month, y:r.rata}));
+    maxY = Math.max(1, ...seriesA.map(p=>p.y), ...seriesB.map(p=>p.y));
+  }
+  maxX = Math.max(resA.payoffMonths, resB.payoffMonths, 1);
+  const x = m => padL + (m/maxX)*innerW;
+  const y = v => padT + innerH - (v/maxY)*innerH;
+
+  function toPath(series, stepLike){
+    if(series.length===0) return "";
+    let d = "M"+x(series[0].x).toFixed(1)+","+y(series[0].y).toFixed(1);
+    for(let i=1;i<series.length;i++){
+      if(stepLike){
+        d += " L"+x(series[i].x).toFixed(1)+","+y(series[i-1].y).toFixed(1);
+      }
+      d += " L"+x(series[i].x).toFixed(1)+","+y(series[i].y).toFixed(1);
+    }
+    return d;
+  }
+  const extSeriesA = mode==="rata" ? seriesA.concat([{x:resA.payoffMonths, y:seriesA[seriesA.length-1].y}]) : seriesA;
+  const extSeriesB = mode==="rata" ? seriesB.concat([{x:resB.payoffMonths, y:seriesB[seriesB.length-1].y}]) : seriesB;
+  const pathA = toPath(extSeriesA, mode==="rata");
+  const pathB = toPath(extSeriesB, mode==="rata");
+
+  // gridlines (y: 4 lines)
+  let grid = "";
+  const gridColor = "var(--border)";
+  for(let i=0;i<=4;i++){
+    const gy = padT + innerH*(i/4);
+    const val = maxY*(1-i/4);
+    grid += '<line x1="'+padL+'" x2="'+(W-padR)+'" y1="'+gy.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="'+gridColor+'" stroke-width="1"/>';
+    grid += '<text x="'+(padL-8)+'" y="'+(gy+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="var(--ink-faint)" font-family="'+SVG_MONO+'">'+ (val>=1000? Math.round(val/1000)+"k" : Math.round(val)) +'</text>';
+  }
+  // x axis labels: every ~5 years
+  let xAxis = "";
+  const yearsSpan = Math.ceil(maxX/12);
+  const step = yearsSpan>20 ? 5 : (yearsSpan>10 ? 2 : 1);
+  for(let yr=0; yr<=yearsSpan; yr+=step){
+    const mm = yr*12; if(mm>maxX) break;
+    xAxis += '<text x="'+x(mm).toFixed(1)+'" y="'+(H-padB+18)+'" text-anchor="middle" font-size="11" fill="var(--ink-faint)" font-family="'+SVG_MONO+'">rok '+yr+'</text>';
+  }
+
+  // event markers: one-off events get a short tick + dot; a cyclic nadpłata gets a
+  // single low-opacity band strictly clipped to [start, min(end, payoff)] — never a
+  // per-month mark, which is what produced the earlier thick dotted bar.
+  function markers(res, s, color){
+    let out = "";
+    const lostMonths = new Set(res.eventLog.filter(l=>l.type==="dziecko-lost").map(l=>l.month));
+    (s ? activeEvents(s) : []).forEach(e=>{
+      if(e.type==="cykliczna"){
+        const startM = clamp(e.startMonth, 0, res.payoffMonths);
+        const endM = Math.min(e.endMonth, res.payoffMonths);
+        if(endM <= 0 || startM > res.payoffMonths || endM < e.startMonth) return;
+        const x1 = x(startM), x2 = x(Math.max(startM, endM));
+        out += '<rect x="'+x1.toFixed(1)+'" y="'+padT+'" width="'+Math.max(1,x2-x1).toFixed(1)+'" height="'+innerH+'" fill="'+color+'" opacity="0.09"><title>'+escapeXml("Nadpłata cykliczna: "+num(e.monthlyAmount)+" zł/mies. od mies. "+e.startMonth+" do "+Math.min(e.endMonth,res.payoffMonths))+'</title></rect>';
+        out += '<line x1="'+x1.toFixed(1)+'" x2="'+x1.toFixed(1)+'" y1="'+padT+'" y2="'+(padT+9)+'" stroke="'+color+'" stroke-width="1.5" opacity="0.85"/>';
+        return;
+      }
+      let month, label, isLost=false;
+      if(e.type==="jednorazowa"){ month=e.month; label="Nadpłata jednorazowa: "+num(e.amount)+" zł"; }
+      else if(e.type==="dziecko"){ month=e.month; isLost=lostMonths.has(month); label = isLost ? "Spłata rodzinna: utracona (przekroczono próg gwarancji)" : "Spłata rodzinna: "+num(e.amount)+" zł"; }
+      else if(e.type==="zmiana_wskaznika"){
+        month=e.month;
+        label="Zmiana wskaźnika od mies. "+month+": "+pct(e.newWskaznik)+" → nominalnie "+pct(round2((Number(s.marza)||0)+(Number(e.newWskaznik)||0)));
+      }
+      else return;
+      if(month>res.payoffMonths) return;
+      const mx = x(month);
+      const c = isLost ? "var(--critical)" : color;
+      out += '<line x1="'+mx.toFixed(1)+'" x2="'+mx.toFixed(1)+'" y1="'+padT+'" y2="'+(padT+9)+'" stroke="'+c+'" stroke-width="1.5"/>';
+      out += '<circle cx="'+mx.toFixed(1)+'" cy="'+(padT+3)+'" r="3" fill="'+c+'"><title>'+escapeXml(label)+'</title></circle>';
+    });
+    return out;
+  }
+
+  let svg = '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="none"/>';
+  svg += grid + xAxis;
+  svg += markers(resA, sA, "var(--accent-a)");
+  svg += markers(resB, sB, "var(--accent-b)");
+  svg += '<path d="'+pathA+'" fill="none" stroke="var(--accent-a)" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>';
+  svg += '<path d="'+pathB+'" fill="none" stroke="var(--accent-b)" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>';
+  // endpoint dots
+  const lastA = extSeriesA[extSeriesA.length-1], lastB = extSeriesB[extSeriesB.length-1];
+  if(lastA){ svg += '<circle cx="'+x(lastA.x).toFixed(1)+'" cy="'+y(lastA.y).toFixed(1)+'" r="4" fill="var(--accent-a)" stroke="var(--surface)" stroke-width="1.5"/>'; }
+  if(lastB){ svg += '<circle cx="'+x(lastB.x).toFixed(1)+'" cy="'+y(lastB.y).toFixed(1)+'" r="4" fill="var(--accent-b)" stroke="var(--surface)" stroke-width="1.5"/>'; }
+
+  return {svg, x, y, maxX, maxY, seriesA:extSeriesA, seriesB:extSeriesB};
+}
+
+/* ============ yearly table ============ */
+function buildYearRows(res){
+  const years = {};
+  res.months.forEach(mo=>{
+    const yr = Math.ceil(mo.month/12);
+    if(!years[yr]) years[yr] = {rata:0,odsetki:0,kapital:0,nadplata:0,splata:0,months:[]};
+    years[yr].rata += mo.rata; years[yr].odsetki += mo.odsetki; years[yr].kapital += mo.kapital;
+    years[yr].nadplata += mo.nadplata; years[yr].splata += mo.splataRodzinna; years[yr].months.push(mo);
+  });
+  return years;
+}
+function renderYearTable(res){
+  const years = buildYearRows(res);
+  let html = "";
+  Object.keys(years).map(Number).sort((a,b)=>a-b).forEach(yr=>{
+    const y = years[yr];
+    const lastMonthOfYear = y.months[y.months.length-1];
+    html += '<tr class="year-row" data-year="'+yr+'">';
+    html += '<td><span class="chev">▶</span>Rok '+yr+'</td>';
+    html += '<td>'+money(y.rata)+'</td><td>'+money(y.odsetki)+'</td><td>'+money(y.kapital)+'</td><td>'+money(y.nadplata)+'</td><td>'+money(y.splata)+'</td><td>'+money(lastMonthOfYear.saldo)+'</td>';
+    html += '</tr>';
+    y.months.forEach(mo=>{
+      html += '<tr class="month-row" data-year-group="'+yr+'" hidden>';
+      html += '<td>'+fmtDate(mo.date)+'</td><td>'+money(mo.rata)+'</td><td>'+money(mo.odsetki)+'</td><td>'+money(mo.kapital)+'</td><td>'+(mo.nadplata?money(mo.nadplata):"—")+'</td><td>'+(mo.splataRodzinna?money(mo.splataRodzinna):"—")+'</td><td>'+money(mo.saldo)+'</td>';
+      html += '</tr>';
+    });
+  });
+  return html;
+}
+
+/* ============ comparison card ============ */
+function renderCompare(resA, resB){
+  const d1 = resA.initialRata - resB.initialRata;
+  const d2 = resA.totalInterest - resB.totalInterest;
+  const d3 = resA.totalCost - resB.totalCost;
+  const d4 = resA.payoffMonths - resB.payoffMonths;
+  function who(v, lowerIsBetter){
+    if(Math.abs(v) < 1) return '<span class="who">bez różnicy</span>';
+    const aBetter = lowerIsBetter ? v<0 : v>0;
+    return aBetter ? '<span class="who win-a">korzystniej A</span>' : '<span class="who win-b">korzystniej B</span>';
+  }
+  let html = '<h2>Porównanie A vs B</h2><div class="compare-grid">';
+  html += '<div class="compare-item"><div class="lbl">Rata początkowa</div><div class="val">'+money(resA.initialRata)+' <span style="color:var(--ink-faint);font-weight:400;">vs</span> '+money(resB.initialRata)+'</div>'+who(d1,true)+'</div>';
+  html += '<div class="compare-item"><div class="lbl">Suma odsetek</div><div class="val">Δ '+money(Math.abs(d2))+'</div>'+who(d2,true)+'</div>';
+  html += '<div class="compare-item"><div class="lbl">Łączny koszt</div><div class="val">Δ '+money(Math.abs(d3))+'</div>'+who(d3,true)+'</div>';
+  html += '<div class="compare-item"><div class="lbl">Data spłaty</div><div class="val">'+(resA.payoffDate?fmtDate(resA.payoffDate):"—")+' <span style="color:var(--ink-faint);font-weight:400;">vs</span> '+(resB.payoffDate?fmtDate(resB.payoffDate):"—")+'</div>'+who(d4,true)+'</div>';
+  html += '</div>';
+  return html;
+}
+
+/* ============ main render / recompute ============ */
+let lastResults = {A:null,B:null};
+
+function recompute(){
+  const resA = simulateScenario(toEngineConfig(state.A));
+  const resB = simulateScenario(toEngineConfig(state.B));
+  const baseA = simulateScenario(baselineConfig(state.A));
+  const baseB = simulateScenario(baselineConfig(state.B));
+  lastResults = {A:resA,B:resB,baseA,baseB};
+
+  scenariosEl.innerHTML = renderPanel("A", state.A, resA, baseA) + renderPanel("B", state.B, resB, baseB);
+  document.getElementById("compare").innerHTML = renderCompare(resA, resB);
+
+  // legenda = to samo jednolinijkowe streszczenie, żeby wykres dał się czytać bez formularza
+  const legend = document.getElementById("chart-legend");
+  legend.innerHTML =
+    '<span class="li"><span class="sw" style="background:var(--accent-a)"></span><span><span class="leg-key">A</span> <span class="leg-sum">'+escapeXml(summaryLine(state.A))+'</span></span></span>'+
+    '<span class="li"><span class="sw" style="background:var(--accent-b)"></span><span><span class="leg-key">B</span> <span class="leg-sum">'+escapeXml(summaryLine(state.B))+'</span></span></span>';
+
+  renderChart();
+
+  const tbody = document.getElementById("year-table-body");
+  tbody.innerHTML = renderYearTable(state.tableScn==="A"? resA : resB);
+
+  attachPanelHandlers();
+  persist();
+}
+
+let chartData = null;
+function renderChart(){
+  const svgEl = document.getElementById("chart-svg");
+  const built = buildChart(lastResults.A, lastResults.B, state.chartMode, state.A, state.B);
+  chartData = built;
+  svgEl.setAttribute("viewBox","0 0 900 340");
+  svgEl.innerHTML = built.svg;
+  document.querySelectorAll("#chart-mode button").forEach(b=> b.classList.toggle("active", b.dataset.mode===state.chartMode));
+}
+
+/* ============ static handlers (attached once, outside the re-rendered region) ============ */
+(function(){
+  const svgEl = document.getElementById("chart-svg");
+  const tt = document.getElementById("chart-tt");
+  const outer = svgEl.closest(".chart-outer");
+  svgEl.addEventListener("mousemove", (ev)=>{
+    if(!chartData) return;
+    const rect = svgEl.getBoundingClientRect();
+    const scaleX = 900/rect.width;
+    const px = (ev.clientX-rect.left)*scaleX;
+    const padL=64, innerW=900-64-20;
+    const frac = clamp((px-padL)/innerW,0,1);
+    const monthAtCursor = Math.round(frac*chartData.maxX);
+    const moA = lastResults.A.months[Math.min(monthAtCursor,lastResults.A.months.length-1)];
+    const moB = lastResults.B.months[Math.min(monthAtCursor,lastResults.B.months.length-1)];
+    const label = state.chartMode==="saldo" ? "saldo" : "rata";
+    const valA = state.chartMode==="saldo" ? (moA?moA.saldo:0) : (moA?moA.rata:0);
+    const valB = state.chartMode==="saldo" ? (moB?moB.saldo:0) : (moB?moB.rata:0);
+    tt.hidden = false;
+    tt.style.left = (ev.clientX - outer.getBoundingClientRect().left + 14)+"px";
+    tt.style.top = (ev.clientY - outer.getBoundingClientRect().top - 10)+"px";
+    tt.innerHTML = '<div style="color:var(--ink-faint);margin-bottom:4px;">mies. '+monthAtCursor+' · '+(moA?fmtDate(moA.date):"")+'</div>'+
+      '<div><span style="color:var(--accent-a);">●</span> A '+label+': <b>'+money(valA)+'</b></div>'+
+      '<div><span style="color:var(--accent-b);">●</span> B '+label+': <b>'+money(valB)+'</b></div>';
+  });
+  svgEl.addEventListener("mouseleave", ()=>{ tt.hidden = true; });
+  document.getElementById("chart-mode").addEventListener("click",(ev)=>{
+    const btn = ev.target.closest("button[data-mode]"); if(!btn) return;
+    state.chartMode = btn.dataset.mode;
+    renderChart(); persist();
+  });
+  document.getElementById("table-scn").addEventListener("click",(ev)=>{
+    const btn = ev.target.closest("button[data-scn]"); if(!btn) return;
+    state.tableScn = btn.dataset.scn;
+    document.querySelectorAll("#table-scn button").forEach(b=>b.classList.toggle("active", b===btn));
+    document.getElementById("year-table-body").innerHTML = renderYearTable(state.tableScn==="A"?lastResults.A:lastResults.B);
+    persist();
+  });
+  document.getElementById("year-table-body").addEventListener("click",(ev)=>{
+    const row = ev.target.closest(".year-row"); if(!row) return;
+    const yr = row.dataset.year;
+    const expanded = row.classList.toggle("expanded");
+    document.querySelectorAll('.month-row[data-year-group="'+yr+'"]').forEach(r=>{ r.hidden = !expanded; });
+  });
+
+  // Globalny przełącznik RKM — żyje poza `#scenarios`, więc recompute() go nie przerysowuje
+  // i nie gubi fokusu.
+  document.getElementById("rkm-toggle").addEventListener("change", (ev)=>{
+    state.rkmOn = ev.target.checked;
+    const min = yearsMin();
+    ["A","B"].forEach(k=>{ state[k].years = clamp(state[k].years, min, 35); });
+    applyRkmMode();
+    recompute();
+  });
+})();
+
+/* ============ input handlers (re-attached after every innerHTML render) ============ */
+function attachPanelHandlers(){
+  ["A","B"].forEach(key=>{
+    const panel = scenariosEl.querySelector(".panel."+key.toLowerCase());
+    if(!panel) return;
+    const s = state[key];
+
+    // top-level fields
+    panel.querySelectorAll(":scope > .field-grid input[data-f], :scope > .field-grid select[data-f]").forEach(inp=>{
+      const f = inp.dataset.f;
+      const handler = ()=>{
+        let v = inp.type==="number" ? parseFloat(inp.value)||0 : inp.value;
+        if(f==="years") v = clamp(Math.round(v),yearsMin(),35);
+        s[f] = v;
+        recompute();
+      };
+      inp.addEventListener(inp.tagName==="SELECT"||inp.type==="range" ? "input":"change", handler);
+    });
+    panel.querySelectorAll('input[type=range][data-f="years"]').forEach(inp=>{
+      inp.addEventListener("input", ()=>{ s.years = clamp(parseInt(inp.value,10),yearsMin(),35); recompute(); });
+    });
+    panel.querySelectorAll('input[data-f="tryb"]').forEach(r=>{
+      r.addEventListener("change", ()=>{ if(r.checked){ s.tryb = r.value; recompute(); } });
+    });
+    panel.querySelectorAll('input[data-f="ignorujRegule"]').forEach(c=>{
+      c.addEventListener("change", ()=>{ s.ignorujRegule = c.checked; recompute(); });
+    });
+
+    // event preset chips
+    panel.querySelectorAll("[data-add-preset]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const p = btn.dataset.addPreset;
+        if(p==="dziecko2") s.events.push({id:uid(),type:"dziecko",month:24,amount:20000,childNumber:2,trybOverride:"auto"});
+        if(p==="dziecko3") s.events.push({id:uid(),type:"dziecko",month:36,amount:60000,childNumber:3,trybOverride:"auto"});
+        if(p==="nadplata50-12") s.events.push({id:uid(),type:"jednorazowa",month:12,amount:50000,trybOverride:"auto"});
+        if(p==="nadplata50-37") s.events.push({id:uid(),type:"jednorazowa",month:37,amount:50000,trybOverride:"auto"});
+        if(p==="cyk1000") s.events.push({id:uid(),type:"cykliczna",startMonth:1,endMonth:s.years*12,monthlyAmount:1000,trybOverride:"auto"});
+        if(p==="wskaznik-1") s.events.push({id:uid(),type:"zmiana_wskaznika",month:24,newWskaznik:Math.max(0, round2(s.wskaznik-1))});
+        recompute();
+      });
+    });
+
+    // add event buttons
+    panel.querySelectorAll("[data-add-event]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const t = btn.dataset.addEvent;
+        if(t==="jednorazowa") s.events.push({id:uid(),type:"jednorazowa",month:1,amount:10000,trybOverride:"auto"});
+        if(t==="cykliczna") s.events.push({id:uid(),type:"cykliczna",startMonth:1,endMonth:s.years*12,monthlyAmount:500,trybOverride:"auto"});
+        if(t==="dziecko") s.events.push({id:uid(),type:"dziecko",month:24,amount:20000,childNumber:2,trybOverride:"auto"});
+        if(t==="zmiana_wskaznika") s.events.push({id:uid(),type:"zmiana_wskaznika",month:12,newWskaznik:s.wskaznik});
+        recompute();
+      });
+    });
+
+    // event rows
+    panel.querySelectorAll(".event-row").forEach(row=>{
+      const id = row.dataset.id;
+      const evt = s.events.find(e=>e.id===id);
+      if(!evt) return;
+      row.querySelector('[data-f="type"]').addEventListener("change", (ev)=>{
+        const newType = ev.target.value;
+        const base = {id:evt.id, trybOverride:evt.trybOverride||"auto"};
+        if(newType==="jednorazowa") Object.assign(base,{type:"jednorazowa",month:1,amount:10000});
+        if(newType==="cykliczna") Object.assign(base,{type:"cykliczna",startMonth:1,endMonth:12,monthlyAmount:1000});
+        if(newType==="dziecko") Object.assign(base,{type:"dziecko",month:24,amount:20000,childNumber:2});
+        if(newType==="zmiana_wskaznika") Object.assign(base,{type:"zmiana_wskaznika",month:12,newWskaznik:s.wskaznik});
+        const idx = s.events.findIndex(e=>e.id===id);
+        s.events[idx] = base;
+        recompute();
+      });
+      row.querySelectorAll("[data-f]").forEach(inp=>{
+        if(inp.dataset.f==="type") return;
+        inp.addEventListener("change", ()=>{
+          const f = inp.dataset.f;
+          let v = inp.tagName==="SELECT" && f!=="trybOverride" ? parseInt(inp.value,10) : (inp.type==="number"?parseFloat(inp.value)||0:inp.value);
+          if(f==="childNumber") v = parseInt(inp.value,10);
+          evt[f] = v;
+          recompute();
+        });
+      });
+      row.querySelector("[data-remove]").addEventListener("click", ()=>{
+        s.events = s.events.filter(e=>e.id!==id);
+        recompute();
+      });
+    });
+  });
+}
+
+applyRkmMode();
+recompute();
+})();
+</script>
+
+<!-- Cloudflare Web Analytics — bez cookies, bez śledzenia między stronami.
+     Token jest identyfikatorem publicznym, nie sekretem.
+
+     ⚠️ Właściciel podmienia poniższy placeholder CF_ANALYTICS_TOKEN na token
+     wygenerowany po dodaniu witryny w panelu Cloudflare (Web Analytics → Add a site).
+     Dopóki stoi placeholder, beacon nie jest wstrzykiwany wcale.
+
+     Beacon startuje wyłącznie na produkcyjnym hoście, więc podglądy z
+     *.pages.dev i z branchy nie dokładają się do statystyk.
+     Własne urządzenie wyłącza się raz, wchodząc na /?bez-statystyk=1
+     (i z powrotem włącza przez /?bez-statystyk=0). -->
+<script>
+(function () {
+  var TOKEN = 'CF_ANALYTICS_TOKEN';
+  if (TOKEN === 'CF_ANALYTICS_TOKEN') return; // token jeszcze nie ustawiony
+  var KLUCZ = 'abkredyt:bez-statystyk';
+  try {
+    var wybor = new URLSearchParams(location.search).get('bez-statystyk');
+    if (wybor === '1') localStorage.setItem(KLUCZ, '1');
+    else if (wybor === '0') localStorage.removeItem(KLUCZ);
+    if (localStorage.getItem(KLUCZ)) return;
+  } catch (e) {
+    // Tryb prywatny bez localStorage — trudno, ta wizyta się policzy.
+  }
+  if (location.hostname !== 'abkredyt.kondratek.pl') return;
+  var beacon = document.createElement('script');
+  beacon.defer = true;
+  beacon.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+  beacon.setAttribute('data-cf-beacon', '{"token": "' + TOKEN + '"}');
+  document.body.appendChild(beacon);
+})();
+</script>
+
+</body>
+</html>

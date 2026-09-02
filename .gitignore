@@ -1,0 +1,11 @@
+.DS_Store
+shot.png
+*.local
+.env
+.env.*
+
+# lokalna konfiguracja Claude Code (worktrees, launch.json)
+.claude/
+
+# research i notatki robocze — nie publikujemy (zostają lokalnie)
+docs/

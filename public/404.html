@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="robots" content="noindex" />
+    <title>Nie ma takiej strony — kalkulator RKM</title>
+    <style>
+      :root {
+        --tlo: #eef1ec;
+        --tekst: #1f2a26;
+        --tekst-cichy: #5c6b62;
+        --akcent: #0a8a68;
+        color-scheme: light dark;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --tlo: #141d19;
+          --tekst: #eef1ec;
+          --tekst-cichy: #a9b6ae;
+          --akcent: #3ea88a;
+        }
+      }
+
+      body {
+        margin: 0 auto;
+        max-width: 34rem;
+        padding: 6rem 1.25rem;
+        background: var(--tlo);
+        color: var(--tekst);
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.6;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.75rem;
+      }
+
+      p {
+        color: var(--tekst-cichy);
+        margin: 0 0 1.5rem;
+      }
+
+      a {
+        color: var(--akcent);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Nie ma takiej strony</h1>
+    <p>Pod tym adresem nic nie ma — być może literówka albo nieaktualny link.</p>
+    <p><a href="/">→ przejdź do kalkulatora</a></p>
+  </body>
+</html>
