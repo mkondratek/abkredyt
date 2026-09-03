@@ -55,6 +55,9 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   wyłączonym RKM zdarzenia `dziecko` i tak nie trafiają do silnika. Uproszczenie silnika: okno 36 mies. liczone od miesiąca uruchomienia kredytu, nie
   od dnia jego udzielenia (zawarcia umowy), jak dosłownie stanowi ustawa — to świadome
   uproszczenie (patrz lokalnie `docs/wnioski-modelu.md` dla wcześniejszego modelu).
+- Naruszenie reguły i spłata rodzinna w tym samym miesiącu: silnik przetwarza nadpłaty przed
+  zdarzeniem `dziecko`, więc taka spłata rodzinna jest już „utracona” — ustawa kolejności nie
+  rozstrzyga, to świadomy wybór po ostrożnej stronie.
 - Scenariusz nie ma już pól `rkmThreshold`/`rkmMonths` w stanie — próg to `gwarancja`
   (dynamiczny, patrz wyżej), a okno to stała silnika `RKM_WINDOW_MONTHS` (36 mies.).
 - Stan w `localStorage` (klucz `abkredyt-state-v4`), w try/catch, z kontrolą kształtu

@@ -253,6 +253,8 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 }
 .event-badge.lost{ background:var(--critical-bg); color:var(--critical); }
 .event-badge.muted{ background:var(--surface-3); color:var(--ink-faint); }
+/* Zdarzenie bez wpływu, bo wypada po spłacie kredytu — informacja, nie ostrzeżenie. */
+.event-badge.after{ background:var(--surface-3); color:var(--ink-muted); }
 .add-event-row{ display:flex; flex-wrap:wrap; gap:8px; padding:2px 18px 14px; }
 .btn{
   border:1px solid var(--border-strong); background:var(--surface-2); color:var(--ink);
@@ -460,6 +462,12 @@ function addMonthsUTC(dateStr, n){
    udzielenia kredytu. Wartość ustawowa — nie jest parametrem konfiguracji. */
 const RKM_WINDOW_MONTHS = 36;
 
+/* Jeden opis dla obu przypadków „dziecko po spłacie kredytu": w tym samym miesiącu,
+   w którym saldo doszło do zera, i w dowolnym miesiącu późniejszym. */
+function childAfterPayoffText(childNumber){
+  return "Spłata rodzinna (dziecko "+childNumber+"): kredyt spłacony przed narodzinami — spłata rodzinna nie przysługuje";
+}
+
 /* Rata równa (annuitet), kapitalizacja miesięczna; r = stopa nominalna / 12. */
 function annuity(P,r,n){ if(n<=0) return P; return r===0 ? P/n : (P*r)/(1-Math.pow(1+r,-n)); }
 
@@ -471,10 +479,21 @@ function solveMonths(balance,r,payment){
   return Math.max(1,Math.ceil(Math.log(1/x)/Math.log(1+r)));
 }
 
+/* Obrona w głąb przy wejściu do silnika: kwoty ujemne i bezsensowne (NaN, −5 zł,
+   miesiąc 0) nie mają w modelu żadnego znaczenia, a potrafią rozsypać całą
+   symulację. Warstwa UI przycina to samo przy wpisywaniu — tu jest druga bariera,
+   żeby silnik był bezpieczny także wywołany bezpośrednio (testy, link, konsola). */
+function nonNeg(v){ const x = Number(v); return isFinite(x) && x>0 ? x : 0; }
+function atLeastMonth1(v){ const x = Math.round(Number(v)); return isFinite(x) && x>1 ? x : 1; }
+
 function simulateScenario(cfg){
-  const {principal,ratePct,years,startDate,tryb,feePct,feeMonths,gwarancja,events} = cfg;
+  const {startDate,tryb,events} = cfg;
+  const principal = nonNeg(cfg.principal);
+  const ratePct = nonNeg(cfg.ratePct);
+  const feePct = nonNeg(cfg.feePct);
+  const feeMonths = Math.round(nonNeg(cfg.feeMonths));
   let r = ratePct/100/12;
-  let n = Math.max(1, Math.round(years*12));
+  let n = Math.max(1, Math.round(nonNeg(cfg.years)*12));
   let balance = principal;
   let currentRata = annuity(balance,r,n);
   let remainingMonths = n;
@@ -483,26 +502,31 @@ function simulateScenario(cfg){
   /* Art. 4a ust. 6: każda spłata części kapitałowej (rata, nadpłata, spłata rodzinna)
      zalicza się w pierwszej kolejności na poczet części objętej gwarancją i pomniejsza
      ją. `guaranteeLeft` to więc jednocześnie limit bezpiecznej nadpłaty dobrowolnej
-     w oknie 36 miesięcy. */
-  const gwarancjaKwota = Math.max(0, Number(gwarancja)||0);
-  let guaranteeLeft = gwarancjaKwota;
-  let guaranteeLeftAt36 = gwarancjaKwota;
+     w oknie 36 miesięcy. Gwarancja nigdy nie może przekraczać salda kredytu — BGK
+     poręcza część kredytu, więc wpisana kwota większa od kapitału jest przycinana
+     (na starcie i po każdej spłacie kapitału). */
+  const gwarancjaKwota = Math.min(nonNeg(cfg.gwarancja), principal);
+  let guaranteeLeft = Math.min(gwarancjaKwota, balance);
+  let guaranteeLeftAt36 = guaranteeLeft;
   let cumVoluntary = 0, rkmBreachMonth = null, rkmBreachAmount = 0, rkmBreachAllowance = 0;
+  let rkmBreachMonthTotal = 0, rkmBreachAllowanceAtMonthStart = 0;
   let totalInterest=0, totalFees=0, totalNadplaty=0, totalSplataRodzinna=0;
 
   const byMonth = {};
   function push(m,e){ (byMonth[m] = byMonth[m]||[]).push(e); }
-  events.forEach(e=>{
+  (Array.isArray(events)?events:[]).forEach(e=>{
     if(e.type==="cykliczna"){
-      const end = Math.min(e.endMonth, n+600);
-      for(let m=e.startMonth; m<=end; m++) push(m,{type:"nadplata",amount:e.monthlyAmount,trybOverride:e.trybOverride,label:"Nadpłata cykliczna"});
+      const start = atLeastMonth1(e.startMonth);
+      const end = Math.min(atLeastMonth1(e.endMonth), n+600);
+      const amount = nonNeg(e.monthlyAmount);
+      for(let m=start; m<=end; m++) push(m,{type:"nadplata",amount:amount,trybOverride:e.trybOverride,label:"Nadpłata cykliczna"});
     } else if(e.type==="jednorazowa"){
-      push(e.month,{type:"nadplata",amount:e.amount,trybOverride:e.trybOverride,label:"Nadpłata jednorazowa"});
+      push(atLeastMonth1(e.month),{type:"nadplata",amount:nonNeg(e.amount),trybOverride:e.trybOverride,label:"Nadpłata jednorazowa"});
     } else if(e.type==="dziecko"){
-      push(e.month,{type:"dziecko",amount:e.amount,trybOverride:e.trybOverride,childNumber:e.childNumber,label:"Spłata rodzinna"});
+      push(atLeastMonth1(e.month),{type:"dziecko",amount:nonNeg(e.amount),trybOverride:e.trybOverride,childNumber:e.childNumber,label:"Spłata rodzinna"});
     } else if(e.type==="zmiana_oprocentowania"){
       // `note` (opcjonalne) opisuje skąd wzięła się nowa stopa nominalna, np. "wskaźnik 2,60 % + marża 1,90 %".
-      push(e.month,{type:"rate",newRatePct:e.newRatePct,note:e.note,label:"Zmiana oprocentowania"});
+      push(atLeastMonth1(e.month),{type:"rate",newRatePct:nonNeg(e.newRatePct),note:e.note,label:"Zmiana oprocentowania"});
     }
   });
 
@@ -515,7 +539,10 @@ function simulateScenario(cfg){
     evts.filter(e=>e.type==="rate").forEach(e=>{
       r = e.newRatePct/100/12;
       currentRata = annuity(balance,r,remainingMonths);
-      rataHistory.push({month:m, rata:currentRata});
+      // Zmiana w 1. miesiącu zastępuje ratę wyjściową (ta pierwotna nigdy nie została
+      // zapłacona) — inaczej „rata początkowa" i wykres rat pokazywałyby ratę widmo.
+      if(m===1) rataHistory[0].rata = currentRata;
+      else rataHistory.push({month:m, rata:currentRata});
       eventLog.push({month:m, type:"rate", text:"Zmiana oprocentowania na "+e.newRatePct+"%"+(e.note?" ("+e.note+")":"")+" → rata "+Math.round(currentRata)+" zł"});
     });
 
@@ -526,15 +553,20 @@ function simulateScenario(cfg){
     balance -= principalPaid;
     // Rata umowna nie jest przedterminową spłatą — nigdy nie łamie reguły, ale zjada
     // część gwarantowaną, a więc i limit bezpiecznych nadpłat (art. 4a ust. 6).
-    guaranteeLeft = Math.max(0, guaranteeLeft - principalPaid);
+    guaranteeLeft = Math.min(Math.max(0, guaranteeLeft - principalPaid), balance);
     remainingMonths = Math.max(0, remainingMonths-1);
     totalInterest += interest;
 
     let nadplataThisMonth=0, splataRodzThisMonth=0, feeThisMonth=0, lostChild=null;
+    /* Zapas gwarancji na POCZĄTKU miesiąca (już po racie umownej, przed pierwszą
+       nadpłatą dobrowolną) — do komunikatu o przekroczeniu, żeby nie zależał od
+       kolejności zdarzeń w tym samym miesiącu. */
+    const allowanceAtMonthStart = guaranteeLeft;
 
     evts.filter(e=>e.type==="nadplata").forEach(e=>{
       if(balance<=0.5) return;
       const amt = Math.min(e.amount, balance);
+      if(amt<=0) return;
       // Reguła: nadpłata dobrowolna (jednorazowa/cykliczna) w pierwszych 36 miesiącach
       // jest bezpieczna tylko do wysokości POZOSTAŁEJ części objętej gwarancją. Wyższa
       // rata umowna (formalnie krótszy okres) nie jest nadpłatą i reguły nie łamie.
@@ -544,7 +576,7 @@ function simulateScenario(cfg){
           rkmBreachMonth = m; rkmBreachAmount = amt; rkmBreachAllowance = guaranteeLeft;
         }
       }
-      guaranteeLeft = Math.max(0, guaranteeLeft - amt);
+      guaranteeLeft = Math.min(Math.max(0, guaranteeLeft - amt), balance - amt);
       const fee = m<=feeMonths ? amt*(feePct/100) : 0;
       feeThisMonth += fee; totalFees += fee;
       balance -= amt; nadplataThisMonth += amt; totalNadplaty += amt;
@@ -557,12 +589,21 @@ function simulateScenario(cfg){
       eventLog.push({month:m, type:"nadplata", text:e.label+": "+Math.round(amt).toLocaleString("pl-PL")+" zł"});
     });
 
+    /* Atrybucja przekroczenia: suma nadpłat dobrowolnych tego miesiąca kontra zapas
+       z początku miesiąca. Test „amt > guaranteeLeft" powyżej jest równoważny
+       „suma nadpłat miesiąca > zapas na początku miesiąca", więc sam moment
+       przekroczenia nie zależy od kolejności — a te dwie liczby też już nie. */
+    if(rkmBreachMonth===m){
+      rkmBreachMonthTotal = nadplataThisMonth;
+      rkmBreachAllowanceAtMonthStart = allowanceAtMonthStart;
+    }
+
     evts.filter(e=>e.type==="dziecko").forEach(e=>{
       // Reguła RKM obowiązuje bezwarunkowo — po przekroczeniu przyszłe spłaty rodzinne
       // przepadają (art. 7 ust. 1 pkt 7); już wypłaconych BGK nie odbiera.
       const blocked = rkmBreachMonth!==null && m>=rkmBreachMonth;
       if(balance<=0.5){
-        eventLog.push({month:m, type:"dziecko-zero", text:"Spłata rodzinna (dziecko "+e.childNumber+"): kredyt już spłacony — spłata rodzinna 0"});
+        eventLog.push({month:m, type:"dziecko-zero", text:childAfterPayoffText(e.childNumber)});
         return;
       }
       if(blocked){
@@ -574,9 +615,9 @@ function simulateScenario(cfg){
       balance -= amt; splataRodzThisMonth += amt; totalSplataRodzinna += amt;
       // Spłata rodzinna jest wyłączona z reguły (art. 7 ust. 1 pkt 7), ale też pomniejsza
       // część objętą gwarancją (art. 4a ust. 6).
-      guaranteeLeft = Math.max(0, guaranteeLeft - amt);
+      guaranteeLeft = Math.min(Math.max(0, guaranteeLeft - amt), balance);
       const useTryb = (e.trybOverride && e.trybOverride!=="auto") ? e.trybOverride : tryb;
-      if(balance>0.5){
+      if(amt>0 && balance>0.5){
         if(useTryb==="obniz") currentRata = annuity(balance,r,remainingMonths);
         else remainingMonths = solveMonths(balance,r,currentRata);
         rataHistory.push({month:m, rata:currentRata});
@@ -594,15 +635,30 @@ function simulateScenario(cfg){
     if(balance<=0.5) break;
   }
   const last = monthsOut[monthsOut.length-1];
+  const payoffMonths = monthsOut.length;
+  const paidOff = balance<=0.5;
+  /* Dzieci, które „urodziły się" już po spłacie kredytu, nie mogą po prostu zniknąć
+     z podsumowania — bez wpisu użytkownik nie wie, czemu zdarzenie nic nie zmieniło. */
+  if(paidOff){
+    Object.keys(byMonth).map(Number).filter(mm=>mm>payoffMonths).sort((a,b)=>a-b).forEach(mm=>{
+      byMonth[mm].filter(e=>e.type==="dziecko").forEach(e=>{
+        eventLog.push({month:mm, type:"dziecko-zero", text:childAfterPayoffText(e.childNumber)});
+      });
+    });
+  }
   return {
     months:monthsOut, rataHistory,
     totalInterest, totalFees, totalNadplaty, totalSplataRodzinna,
     totalCost: totalInterest+totalFees,
     payoffDate: last? last.date : null,
-    payoffMonths: monthsOut.length,
-    initialRata: rataHistory[0].rata,
+    payoffMonths,
+    // Kredyt, którego rata nie pokrywa nawet odsetek, nigdy się nie amortyzuje —
+    // symulacja urywa się na `maxMonths`, a UI musi to pokazać wprost.
+    maxMonths, paidOff,
+    initialRata: monthsOut.length ? monthsOut[0].rata : rataHistory[0].rata,
     finalRata: rataHistory[rataHistory.length-1].rata,
     rkmBreachMonth, rkmBreachAmount, rkmBreachAllowance,
+    rkmBreachMonthTotal, rkmBreachAllowanceAtMonthStart,
     voluntaryOverpayWindow: cumVoluntary,
     gwarancja: gwarancjaKwota, guaranteeLeftAt36, rkmWindowMonths: RKM_WINDOW_MONTHS,
     eventLog
@@ -760,14 +816,43 @@ function num(n, d){ return Number(n).toLocaleString("pl-PL",{maximumFractionDigi
 function pct(v){ return Number(v).toFixed(2).replace(".",",") + " %"; }
 function plYears(y){ if(y===1) return "1 rok"; const last=y%10, last2=y%100; if(last>=2&&last<=4&&!(last2>=12&&last2<=14)) return y+" lata"; return y+" lat"; }
 function months2ym(m){ const y=Math.floor(m/12), r=m%12; if(y<=0) return r+" mies."; return plYears(y)+(r? " "+r+" mies.":""); }
+/* Kredyt, którego rata nie pokrywa nawet odsetek, nie amortyzuje się nigdy —
+   silnik urywa symulację na `maxMonths` (900 mies.). Data „spłaty" byłaby wtedy
+   fikcją, więc mówimy wprost, co się dzieje. */
+function neverPaysOff(res){ return !!res && res.paidOff===false && res.payoffMonths>=res.maxMonths; }
+function payoffLabel(res){
+  if(neverPaysOff(res)) return "nie spłaca się";
+  return res && res.payoffDate ? fmtDate(res.payoffDate) : "—";
+}
+/* Kolor tylko wtedy, gdy jest co kolorować: oszczędność dodatnia = dobrze,
+   ujemna (nadpłata w trybie „obniż ratę" + opłata) = źle, zero = neutralnie. */
+function savingTone(v){ return v>0.5 ? "good" : (v<-0.5 ? "critical" : ""); }
+function termDelta(d){
+  if(Math.abs(d)<1) return "bez zmian";
+  return d>0 ? months2ym(d)+" krócej" : months2ym(-d)+" dłużej";
+}
+/* Spłata rodzinna należy się dopiero od drugiego dziecka (art. 7 ust. 3), więc numer
+   dziecka to zawsze 2 albo „3+" — stan z wersji, w której dało się wybrać „1",
+   jest normalizowany przy wczytaniu. */
+const CHILD_AMOUNTS = {2:20000, 3:60000};
+function childNo(e){ return Number(e && e.childNumber)>=3 ? 3 : 2; }
+/* Pola zdarzeń liczone w miesiącach harmonogramu — zawsze ≥ 1 (miesiąc 0 nie istnieje). */
+const MONTH_FIELDS = ["month","startMonth","endMonth"];
 function uid(){ return Math.random().toString(36).slice(2,9); }
 function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
 function round2(v){ return Math.round(v*100)/100; }
 function escapeXml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
+/* Kwoty ujemne i bezsensowne (NaN, puste pole) nie mają w modelu znaczenia —
+   wszystko, co idzie do silnika, przechodzi przez `nn` (≥ 0) albo `mon` (≥ 1 mies.).
+   Silnik przycina to samo u siebie (obrona w głąb), a `min` na inputach nie
+   wystarcza: przeglądarka pozwala wpisać wartość poza zakresem. */
+function nn(v){ const x = Number(v); return isFinite(x) && x>0 ? x : 0; }
+function mon(v){ const x = Math.round(Number(v)); return isFinite(x) && x>1 ? x : 1; }
+
 /* Stopa nominalna = marża banku + wskaźnik referencyjny (WIBOR/WIRON). */
-function nominalRate(s){ return round2((Number(s.marza)||0) + (Number(s.wskaznik)||0)); }
-function principalOf(s){ return Math.max(0,(s.cena - s.wklad)) + Math.max(0, s.remont||0); }
+function nominalRate(s){ return round2(nn(s.marza) + nn(s.wskaznik)); }
+function principalOf(s){ return Math.max(0, nn(s.cena) - nn(s.wklad)) + nn(s.remont); }
 
 /* ============ default state ============ */
 /* Dane przykładowe (ilustracyjne): mieszkanie 500 000 zł, brak wkładu własnego
@@ -817,13 +902,24 @@ function looksLikeState(st){
   return !!st && typeof st==="object" && typeof st.rkmOn==="boolean"
     && looksLikeScenario(st.A) && looksLikeScenario(st.B);
 }
+/* Migracja w miejscu (bez podbijania klucza): stan zapisany, gdy select oferował
+   jeszcze „1. dziecko", dostaje numer 2 — pierwsze dziecko nie daje spłaty rodzinnej. */
+function normaliseState(st){
+  if(!st || typeof st!=="object") return st;
+  ["A","B"].forEach(k=>{
+    const s = st[k];
+    if(!s || !Array.isArray(s.events)) return;
+    s.events.forEach(e=>{ if(e && e.type==="dziecko") e.childNumber = childNo(e); });
+  });
+  return st;
+}
 
 let state = defaultState();
 try{
   const saved = localStorage.getItem(STORAGE_KEY);
   if(saved){
     const parsed = JSON.parse(saved);
-    if(looksLikeState(parsed)) state = parsed;
+    if(looksLikeState(parsed)) state = normaliseState(parsed);
   }
 }catch(e){ /* ignore */ }
 
@@ -914,23 +1010,35 @@ function activeEvents(s){
 function toEngineConfig(s){
   const nominal = nominalRate(s);
   const events = activeEvents(s).map(e=>{
-    if(e.type==="dziecko") return {type:"dziecko", month:e.month, amount:e.amount, childNumber:e.childNumber, trybOverride:e.trybOverride};
-    if(e.type==="cykliczna") return {type:"cykliczna", startMonth:e.startMonth, endMonth:e.endMonth, monthlyAmount:e.monthlyAmount, trybOverride:e.trybOverride};
+    if(e.type==="dziecko") return {type:"dziecko", month:mon(e.month), amount:nn(e.amount), childNumber:e.childNumber, trybOverride:e.trybOverride};
+    if(e.type==="cykliczna") return {type:"cykliczna", startMonth:mon(e.startMonth), endMonth:mon(e.endMonth), monthlyAmount:nn(e.monthlyAmount), trybOverride:e.trybOverride};
     if(e.type==="zmiana_wskaznika") return {
-      type:"zmiana_oprocentowania", month:e.month,
-      newRatePct: round2((Number(s.marza)||0) + (Number(e.newWskaznik)||0)),
-      note: "wskaźnik "+pct(e.newWskaznik)+" + marża "+pct(s.marza)
+      type:"zmiana_oprocentowania", month:mon(e.month),
+      newRatePct: round2(nn(s.marza) + nn(e.newWskaznik)),
+      note: "wskaźnik "+pct(nn(e.newWskaznik))+" + marża "+pct(nn(s.marza))
     };
-    return {type:"jednorazowa", month:e.month, amount:e.amount, trybOverride:e.trybOverride};
+    return {type:"jednorazowa", month:mon(e.month), amount:nn(e.amount), trybOverride:e.trybOverride};
   });
   return {
     principal: principalOf(s), ratePct:nominal, years:s.years, startDate:s.start+"-01",
-    tryb:s.tryb, feePct:s.feePct, feeMonths:s.feeMonths,
-    gwarancja: state.rkmOn ? (Number(s.gwarancja)||0) : 0,
+    tryb:s.tryb, feePct:nn(s.feePct), feeMonths:Math.round(nn(s.feeMonths)),
+    gwarancja: state.rkmOn ? nn(s.gwarancja) : 0,
     events
   };
 }
-function baselineConfig(s){ const c = toEngineConfig(s); c.events = []; return c; }
+/* Baza do KPI „oszczędność vs bez nadpłat": zostawiamy zmiany wskaźnika (ruch rynku
+   to nie decyzja użytkownika — inaczej KPI mierzyłoby zmianę stopy zamiast efektu
+   nadpłat), wycinamy tylko zdarzenia decyzyjne: nadpłaty i spłatę rodzinną. */
+function baselineConfig(s){
+  const c = toEngineConfig(s);
+  c.events = c.events.filter(e=>e.type==="zmiana_oprocentowania");
+  return c;
+}
+/* Czy scenariusz ma w ogóle jakieś zdarzenie decyzyjne — bez nich „oszczędność"
+   i „skrócenie okresu" nie mają się do czego odnosić. */
+function hasDecisionEvents(s){
+  return toEngineConfig(s).events.some(e=>e.type!=="zmiana_oprocentowania");
+}
 
 /* ============ one-line scenario summary ============ */
 /* „500 000 zł · 30 lat · 5,50 % · nadpłata 500 zł/mies. od m. 1" — ma wystarczyć
@@ -938,7 +1046,7 @@ function baselineConfig(s){ const c = toEngineConfig(s); c.events = []; return c
 function eventSummary(s, e){
   if(e.type==="jednorazowa") return "nadpłata "+num(e.amount)+" zł w m. "+e.month;
   if(e.type==="cykliczna") return "nadpłata "+num(e.monthlyAmount)+" zł/mies. od m. "+e.startMonth;
-  if(e.type==="dziecko") return (e.childNumber>=3?"3.":e.childNumber+".")+" dziecko w m. "+e.month+" (+"+num(e.amount)+" zł)";
+  if(e.type==="dziecko") return (childNo(e)===3?"3.":"2.")+" dziecko w m. "+e.month+" (+"+num(nn(e.amount))+" zł)";
   if(e.type==="zmiana_wskaznika") return "wskaźnik "+pct(e.newWskaznik)+" od m. "+e.month;
   return "";
 }
@@ -1035,7 +1143,7 @@ function fieldEventControls(s, e){
   if(e.type==="dziecko"){
     return '<div class="field"><label>Miesiąc</label><input type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
       '<div class="field"><label>Dziecko nr</label><select data-f="childNumber">'+
-        [1,2,3].map(n=>'<option value="'+n+'"'+(e.childNumber===n?' selected':'')+'>'+(n===3?'3+':n)+'</option>').join('')+
+        [2,3].map(n=>'<option value="'+n+'"'+(childNo(e)===n?' selected':'')+'>'+(n===3?'3+':n)+'</option>').join('')+
       '</select></div>'+
       '<div class="field grow"><label>Kwota <span class="sub">(20k / 2. dziecko, 60k / 3.+)</span></label><input type="number" min="0" step="1000" data-f="amount" value="'+e.amount+'"></div>'+trybSel;
   }
@@ -1050,6 +1158,16 @@ function renderPanel(key, s, result, baseline){
   const cls = key.toLowerCase();
   const principal = principalOf(s);
   const lostMonths = new Set(result.eventLog.filter(l=>l.type==="dziecko-lost").map(l=>l.month));
+  /* Zdarzenia, które w symulacji nie miały żadnego efektu, bo wypadły po spłacie
+     kredytu: dziecko urodzone po ostatniej racie (silnik loguje `dziecko-zero`)
+     oraz każde inne zdarzenie z miesiącem poza harmonogramem. Bez wyraźnej etykiety
+     użytkownik widzi tylko, że „nic się nie zmieniło". */
+  const zeroMonths = new Set(result.eventLog.filter(l=>l.type==="dziecko-zero").map(l=>l.month));
+  function isAfterPayoff(e){
+    if(e.type==="dziecko" && zeroMonths.has(mon(e.month))) return true;
+    const at = e.type==="cykliczna" ? mon(e.startMonth) : mon(e.month);
+    return result.paidOff && at > result.payoffMonths;
+  }
   const types = availableTypes();
 
   let html = '<div class="panel '+cls+'">';
@@ -1092,9 +1210,14 @@ function renderPanel(key, s, result, baseline){
 
   if(state.rkmOn){
     if(result.rkmBreachMonth!==null){
-      const excess = Math.max(0, result.rkmBreachAmount - result.rkmBreachAllowance);
+      /* Liczby z całego miesiąca (suma nadpłat vs zapas gwarancji na początku
+         miesiąca), nie z pojedynczego zdarzenia — inaczej komunikat zależałby od
+         kolejności dwóch nadpłat wpisanych w tym samym miesiącu. */
+      const total = result.rkmBreachMonthTotal;
+      const allowance = result.rkmBreachAllowanceAtMonthStart;
+      const excess = Math.max(0, total - allowance);
       html += '<div class="warning-banner"><span class="x">⚠</span><div><b>Utrata przyszłych spłat rodzinnych:</b> w miesiącu '+result.rkmBreachMonth+
-        ' nadpłata dobrowolna '+money(result.rkmBreachAmount)+' przekroczyła pozostałą wtedy część objętą gwarancją ('+money(result.rkmBreachAllowance)+') o '+money(excess)+
+        ' nadpłaty dobrowolne '+money(total)+' przekroczyły pozostałą część objętą gwarancją ('+money(allowance)+') o '+money(excess)+
         '. Spłaty rodzinne przypadające od tego miesiąca liczone są jako utracone; spłat już wypłaconych BGK nie odbiera.</div></div>';
     }
     html += '<div class="section-title">Reguła RKM</div>';
@@ -1114,8 +1237,9 @@ function renderPanel(key, s, result, baseline){
 
   html += '<div class="events">';
   s.events.forEach(e=>{
-    const isLost = e.type==="dziecko" && lostMonths.has(e.month);
+    const isLost = e.type==="dziecko" && lostMonths.has(mon(e.month));
     const isOff = e.type==="dziecko" && !state.rkmOn;
+    const isAfter = !isOff && !isLost && isAfterPayoff(e);
     html += '<div class="event-row'+(isOff?' off':'')+'" data-id="'+e.id+'">';
     // typ zawsze zawiera aktualną wartość, żeby wyszarzony wiersz „dziecko" dał się przestawić
     const typeOpts = types.indexOf(e.type)>=0 ? types : types.concat([e.type]);
@@ -1125,6 +1249,7 @@ function renderPanel(key, s, result, baseline){
     html += fieldEventControls(s,e);
     if(isOff) html += '<span class="event-badge muted">ukryte — poza RKM</span>';
     else if(isLost) html += '<span class="event-badge lost">utracona</span>';
+    else if(isAfter) html += '<span class="event-badge after" title="'+escapeXml(e.type==="dziecko" ? "Kredyt spłacony przed narodzinami — spłata rodzinna nie przysługuje" : "Miesiąc wypada po spłacie kredytu — zdarzenie nie ma wpływu")+'">po spłacie</span>';
     html += '<button type="button" class="rm" title="Usuń" data-remove>×</button>';
     html += '</div>';
   });
@@ -1139,14 +1264,20 @@ function renderPanel(key, s, result, baseline){
 
   // KPIs
   const breached = result.rkmBreachMonth!==null;
+  /* Baza porównania to ten sam kredyt z tymi samymi zmianami wskaźnika, ale bez
+     nadpłat i bez spłaty rodzinnej — więc KPI mierzy efekt decyzji, nie rynku.
+     Bez żadnego zdarzenia decyzyjnego nie ma czego porównywać: „—". */
+  const decisions = hasDecisionEvents(s);
+  const saving = baseline.totalInterest - result.totalInterest;
+  const shorter = baseline.payoffMonths - result.payoffMonths;
   const kpis = [
     ["Rata początkowa", money(result.initialRata)],
     ["Rata po ostatnim wydarzeniu", money(result.finalRata)],
     ["Suma odsetek", money(result.totalInterest)],
     ["Łączny koszt (odsetki+opłaty)", money(result.totalCost)],
-    ["Data ostatniej raty", result.payoffDate? fmtDate(result.payoffDate) : "—"],
-    ["Oszczędność odsetek vs bez wydarzeń", money(baseline.totalInterest - result.totalInterest), "good"],
-    ["Skrócenie okresu", (baseline.payoffMonths - result.payoffMonths)>=0 ? months2ym(baseline.payoffMonths - result.payoffMonths)+" krócej" : months2ym(result.payoffMonths - baseline.payoffMonths)+" dłużej"],
+    ["Data ostatniej raty", payoffLabel(result)],
+    ["Oszczędność odsetek vs bez nadpłat", decisions ? money(saving) : "—", decisions ? savingTone(saving) : ""],
+    ["Skrócenie okresu", decisions ? termDelta(shorter) : "—"],
   ];
   if(state.rkmOn){
     kpis.push(["Nadpłaty dobrowolne w 1. 3 latach", money(result.voluntaryOverpayWindow), breached?"critical":"good"]);
@@ -1167,8 +1298,11 @@ function renderPanel(key, s, result, baseline){
   html += '</div>';
   return html;
 }
+/* Wszystkie pola liczbowe kredytu to kwoty albo procenty — żadna nie ma sensu
+   ujemna, więc `min="0"` wchodzi z automatu (walidację i tak dubluje `nn()`). */
 function field(label, key, val, type, step){
-  return '<div class="field"><label>'+label+'</label><input type="'+type+'" data-f="'+key+'" value="'+val+'"'+(step?' step="'+step+'"':'')+'></div>';
+  const min = type==="number" ? ' min="0"' : '';
+  return '<div class="field"><label>'+label+'</label><input type="'+type+'" data-f="'+key+'" value="'+val+'"'+min+(step?' step="'+step+'"':'')+'></div>';
 }
 /* Data uruchomienia: własne selecty (miesiąc po polsku + rok) zamiast
    <input type="month">, którego picker jest lokalizowany przez przeglądarkę,
@@ -1253,24 +1387,33 @@ function buildChart(resA, resB, mode, sA, sB){
   function markers(res, s, color){
     let out = "";
     const lostMonths = new Set(res.eventLog.filter(l=>l.type==="dziecko-lost").map(l=>l.month));
+    const zeroMonths = new Set(res.eventLog.filter(l=>l.type==="dziecko-zero").map(l=>l.month));
     (s ? activeEvents(s) : []).forEach(e=>{
       if(e.type==="cykliczna"){
-        const startM = clamp(e.startMonth, 0, res.payoffMonths);
-        const endM = Math.min(e.endMonth, res.payoffMonths);
-        if(endM <= 0 || startM > res.payoffMonths || endM < e.startMonth) return;
+        const startM = clamp(mon(e.startMonth), 0, res.payoffMonths);
+        const endM = Math.min(mon(e.endMonth), res.payoffMonths);
+        if(endM <= 0 || startM > res.payoffMonths || endM < mon(e.startMonth)) return;
         const x1 = x(startM), x2 = x(Math.max(startM, endM));
         out += '<rect x="'+x1.toFixed(1)+'" y="'+padT+'" width="'+Math.max(1,x2-x1).toFixed(1)+'" height="'+innerH+'" fill="'+color+'" opacity="0.09"><title>'+escapeXml("Nadpłata cykliczna: "+num(e.monthlyAmount)+" zł/mies. od mies. "+e.startMonth+" do "+Math.min(e.endMonth,res.payoffMonths))+'</title></rect>';
         out += '<line x1="'+x1.toFixed(1)+'" x2="'+x1.toFixed(1)+'" y1="'+padT+'" y2="'+(padT+9)+'" stroke="'+color+'" stroke-width="1.5" opacity="0.85"/>';
         return;
       }
       let month, label, isLost=false;
-      if(e.type==="jednorazowa"){ month=e.month; label="Nadpłata jednorazowa: "+num(e.amount)+" zł"; }
-      else if(e.type==="dziecko"){ month=e.month; isLost=lostMonths.has(month); label = isLost ? "Spłata rodzinna: utracona (nadpłata dobrowolna w pierwszych 3 latach przekroczyła pozostałą część gwarantowaną)" : "Spłata rodzinna: "+num(e.amount)+" zł"; }
+      if(e.type==="jednorazowa"){ month=mon(e.month); label="Nadpłata jednorazowa: "+num(nn(e.amount))+" zł"; }
+      else if(e.type==="dziecko"){ month=mon(e.month); isLost=lostMonths.has(month); label = isLost ? "Spłata rodzinna: utracona (nadpłata dobrowolna w pierwszych 3 latach przekroczyła pozostałą część gwarantowaną)" : "Spłata rodzinna: "+num(nn(e.amount))+" zł"; }
       else if(e.type==="zmiana_wskaznika"){
-        month=e.month;
-        label="Zmiana wskaźnika od mies. "+month+": "+pct(e.newWskaznik)+" → nominalnie "+pct(round2((Number(s.marza)||0)+(Number(e.newWskaznik)||0)));
+        month=mon(e.month);
+        label="Zmiana wskaźnika od mies. "+month+": "+pct(nn(e.newWskaznik))+" → nominalnie "+pct(round2(nn(s.marza)+nn(e.newWskaznik)));
       }
       else return;
+      /* Dziecko po spłacie kredytu: pusty znacznik przy ostatniej racie, żeby
+         zdarzenie nie wyparowało z wykresu (etykieta „po spłacie" jest w panelu). */
+      if(e.type==="dziecko" && (zeroMonths.has(month) || (res.paidOff && month>res.payoffMonths))){
+        const zx = x(res.payoffMonths);
+        out += '<line x1="'+zx.toFixed(1)+'" x2="'+zx.toFixed(1)+'" y1="'+padT+'" y2="'+(padT+9)+'" stroke="var(--ink-faint)" stroke-width="1.5" opacity="0.7"/>';
+        out += '<circle cx="'+zx.toFixed(1)+'" cy="'+(padT+3)+'" r="3" fill="none" stroke="var(--ink-faint)" stroke-width="1.5"><title>'+escapeXml("Spłata rodzinna (dziecko "+childNo(e)+"): kredyt spłacony przed narodzinami — spłata rodzinna nie przysługuje")+'</title></circle>';
+        return;
+      }
       if(month>res.payoffMonths) return;
       const mx = x(month);
       const c = isLost ? "var(--critical)" : color;
@@ -1329,17 +1472,29 @@ function renderCompare(resA, resB){
   const d1 = resA.initialRata - resB.initialRata;
   const d2 = resA.totalInterest - resB.totalInterest;
   const d3 = resA.totalCost - resB.totalCost;
-  const d4 = resA.payoffMonths - resB.payoffMonths;
+  /* Data spłaty: porównujemy DATY (w dniach), nie numery miesięcy — scenariusze mogą
+     startować w różnych miesiącach, więc „mniej rat" nie znaczy „wcześniej”. */
+  const tA = resA.payoffDate ? resA.payoffDate.getTime() : null;
+  const tB = resB.payoffDate ? resB.payoffDate.getTime() : null;
+  const d4 = (tA!==null && tB!==null) ? (tA - tB)/86400000 : 0;
+  const bothNever = neverPaysOff(resA) && neverPaysOff(resB);
   function who(v, lowerIsBetter){
     if(Math.abs(v) < 1) return '<span class="who">bez różnicy</span>';
     const aBetter = lowerIsBetter ? v<0 : v>0;
     return aBetter ? '<span class="who win-a">korzystniej A</span>' : '<span class="who win-b">korzystniej B</span>';
   }
+  /* Rata początkowa nie ma „lepszej" strony: niższa rata to zwykle dłuższy okres
+     i więcej odsetek. Stąd sam fakt, bez oceny. */
+  function lowerAt(v){
+    if(Math.abs(v) < 1) return '<span class="who">bez różnicy</span>';
+    return v<0 ? '<span class="who win-a">niższa u A</span>' : '<span class="who win-b">niższa u B</span>';
+  }
   let html = '<h2>Porównanie A vs B</h2><div class="compare-grid">';
-  html += '<div class="compare-item"><div class="lbl">Rata początkowa</div><div class="val">'+money(resA.initialRata)+' <span style="color:var(--ink-faint);font-weight:400;">vs</span> '+money(resB.initialRata)+'</div>'+who(d1,true)+'</div>';
+  html += '<div class="compare-item"><div class="lbl">Rata początkowa</div><div class="val">'+money(resA.initialRata)+' <span style="color:var(--ink-faint);font-weight:400;">vs</span> '+money(resB.initialRata)+'</div>'+lowerAt(d1)+'</div>';
   html += '<div class="compare-item"><div class="lbl">Suma odsetek</div><div class="val">Δ '+money(Math.abs(d2))+'</div>'+who(d2,true)+'</div>';
   html += '<div class="compare-item"><div class="lbl">Łączny koszt</div><div class="val">Δ '+money(Math.abs(d3))+'</div>'+who(d3,true)+'</div>';
-  html += '<div class="compare-item"><div class="lbl">Data spłaty</div><div class="val">'+(resA.payoffDate?fmtDate(resA.payoffDate):"—")+' <span style="color:var(--ink-faint);font-weight:400;">vs</span> '+(resB.payoffDate?fmtDate(resB.payoffDate):"—")+'</div>'+who(d4,true)+'</div>';
+  html += '<div class="compare-item"><div class="lbl">Data spłaty</div><div class="val">'+payoffLabel(resA)+' <span style="color:var(--ink-faint);font-weight:400;">vs</span> '+payoffLabel(resB)+'</div>'+
+    (bothNever ? '<span class="who">brak spłaty w obu</span>' : who(d4,true))+'</div>';
   html += '</div>';
   return html;
 }
@@ -1476,7 +1631,10 @@ function attachPanelHandlers(){
     panel.querySelectorAll(":scope > .field-grid input[data-f], :scope > .field-grid select[data-f]").forEach(inp=>{
       const f = inp.dataset.f;
       const handler = ()=>{
-        let v = inp.type==="number" ? parseFloat(inp.value)||0 : inp.value;
+        /* Puste pole to nie zero — samo skasowanie zawartości nie może po cichu
+           wyzerować kwoty kredytu. Przywracamy poprzednią wartość i nie liczymy. */
+        if(inp.type==="number" && inp.value.trim()===""){ inp.value = s[f]; return; }
+        let v = inp.type==="number" ? Math.max(0, parseFloat(inp.value)||0) : inp.value;
         if(f==="years") v = clamp(Math.round(v),yearsMin(),35);
         s[f] = v;
         recompute();
@@ -1545,8 +1703,18 @@ function attachPanelHandlers(){
         if(inp.dataset.f==="type") return;
         inp.addEventListener("change", ()=>{
           const f = inp.dataset.f;
-          let v = inp.tagName==="SELECT" && f!=="trybOverride" ? parseInt(inp.value,10) : (inp.type==="number"?parseFloat(inp.value)||0:inp.value);
-          if(f==="childNumber") v = parseInt(inp.value,10);
+          if(inp.type==="number" && inp.value.trim()===""){ inp.value = evt[f]; return; }
+          let v;
+          if(inp.tagName==="SELECT") v = f==="trybOverride" ? inp.value : parseInt(inp.value,10);
+          else v = inp.type==="number" ? Math.max(0, parseFloat(inp.value)||0) : inp.value;
+          if(MONTH_FIELDS.indexOf(f)>=0) v = Math.max(1, Math.round(v));
+          if(f==="childNumber"){
+            v = v>=3 ? 3 : 2;
+            /* Kwota idzie za numerem dziecka, ale tylko gdy stoi na drugiej wartości
+               ustawowej — własnej kwoty użytkownika nie nadpisujemy. */
+            const other = CHILD_AMOUNTS[v===2?3:2];
+            if(Number(evt.amount)===other) evt.amount = CHILD_AMOUNTS[v];
+          }
           evt[f] = v;
           recompute();
         });
@@ -1578,7 +1746,7 @@ function boot(){
 if((location.hash||"").indexOf(HASH_PREFIX)===0){
   stateFromHash().then(fromLink=>{
     if(fromLink && fromLink.v===STATE_VERSION && looksLikeState(fromLink)){
-      state = fromLink;
+      state = normaliseState(fromLink);
       persist();
     } else {
       showLinkNote();

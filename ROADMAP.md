@@ -35,3 +35,6 @@
 
 ## Pomysły dalsze
 - Trzeci scenariusz; eksport CSV harmonogramu; rata malejąca; transze (kredyt na budowę/remont).
+- Zaciąganie aktualnych limitów cen mieszkań w RKM (limit ceny za m² zależny od lokalizacji,
+  ogłaszany na podstawie wskaźnika przeliczeniowego) i sprawdzanie, czy wpisana cena się w nich
+  mieści — pomysł z 02.09.2026, świadomie nie na teraz.
