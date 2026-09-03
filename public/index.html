@@ -195,7 +195,7 @@ header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:
 .field-grid.wide{ grid-template-columns:1fr; }
 .field{ display:flex; flex-direction:column; gap:4px; }
 .field.span2{ grid-column:1/-1; }
-.field label{ font-size:12px; color:var(--ink-muted); }
+.field label, .field .field-group-label{ font-size:12px; color:var(--ink-muted); }
 .field label .sub{ color:var(--ink-faint); font-weight:400; }
 .field-hint{ font-size:11.5px; color:var(--ink-faint); line-height:1.4; }
 .rule-note{ padding:8px 18px 14px; font-size:11.5px; color:var(--ink-faint); line-height:1.55; }
@@ -215,9 +215,20 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 .chip:hover{ background:var(--surface-3); }
 /* Preset, który nie ma sensu dla aktualnych parametrów kredytu (miesiąc poza okresem,
    kwota większa od kredytu, wskaźnik poniżej 1 p.p., zdarzenie już dodane) —
-   wyłączony, z wyjaśnieniem w `title`. */
-.chip:disabled{ color:var(--ink-faint); background:var(--surface-2); border-color:var(--border); cursor:not-allowed; opacity:.65; }
-.chip:disabled:hover{ background:var(--surface-2); }
+   wyłączony (aria-disabled, nie atrybut disabled, żeby przycisk zostawał
+   focusowalny i czytał opis w aria-describedby), z wyjaśnieniem w `title`
+   i dodatkowo w `.chip-reason-note` po dotknięciu/kliknięciu (patrz UI). */
+.chip.is-disabled{ color:var(--ink-faint); background:var(--surface-2); border-color:var(--border); cursor:not-allowed; opacity:.65; }
+.chip.is-disabled:hover{ background:var(--surface-2); }
+.chip-reason-note{ font-size:11.5px; color:var(--ink-faint); padding:0 18px 8px; }
+.chip-reason-note[hidden]{ display:none; }
+
+/* Tekst dostępny tylko dla czytników ekranu — wizualnie ukryty, ale nie
+   `display:none` (screen readery by go pominęły). */
+.sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
 
 /* Data uruchomienia: miesiąc (szerszy) + rok, zamiast <input type="month"> —
    przeglądarkowy picker bywa po angielsku i nie da się go zlokalizować. */
@@ -312,13 +323,22 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 .legend .sw{ width:14px; height:3px; border-radius:2px; flex:0 0 auto; position:relative; top:-3px; }
 .legend .leg-key{ font-weight:600; color:var(--ink); }
 .legend .leg-sum{ color:var(--ink-muted); }
-.chart-wrap{ overflow-x:auto; }
+.chart-wrap{ overflow-x:auto; position:relative; touch-action:pan-y; }
 .chart-wrap svg{ display:block; min-width:640px; width:100%; height:auto; }
 .chart-tt{
   position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--border-strong);
   border-radius:8px; padding:8px 10px; font-size:12px; box-shadow:var(--shadow); white-space:nowrap; z-index:5;
 }
 .chart-outer{ position:relative; }
+
+/* Podpowiedź przewijania w poziomie na mobile: delikatny gradient przy prawej
+   krawędzi, widoczny tylko dopóki jest jeszcze coś do przewinięcia (klasa
+   `.has-more` przełączana w JS na podstawie scrollWidth/scrollLeft). */
+.chart-wrap.has-more::after, .table-scroll.has-more::after{
+  content:""; position:absolute; top:0; right:0; bottom:0; width:28px;
+  background:linear-gradient(to right, transparent, var(--surface));
+  pointer-events:none;
+}
 
 /* ---------- tables ---------- */
 .table-card{
@@ -327,7 +347,7 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 }
 .table-head{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
 .table-head h2{ font-size:17px; }
-.table-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:10px; }
+.table-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:10px; position:relative; }
 table{ border-collapse:collapse; width:100%; font-size:13px; }
 table.sched-table{ table-layout:fixed; min-width:640px; }
 thead th{
@@ -343,6 +363,7 @@ tbody td.evt{ font-family:var(--font-sans); text-align:left; color:var(--ink-mut
 .year-row{ cursor:pointer; }
 .year-row td{ font-weight:600; }
 .year-row.expanded{ background:var(--surface-2); }
+.year-row:focus-visible{ outline:2px solid var(--focus); outline-offset:-2px; }
 .month-row td:first-child{ padding-left:26px; color:var(--ink-muted); font-weight:400; }
 .chev{ display:inline-block; transition:transform .15s; margin-right:6px; color:var(--ink-faint); }
 .year-row.expanded .chev{ transform:rotate(90deg); }
@@ -380,10 +401,10 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
     <span class="hint" id="rkm-hint"></span>
     <span class="spacer"></span>
     <button type="button" class="btn" id="copy-link">Kopiuj link do tego porównania</button>
-    <span class="copied" id="copy-ok" hidden>Skopiowano</span>
+    <span class="copied" id="copy-ok" hidden role="status" aria-live="polite">Skopiowano</span>
   </div>
 
-  <div class="link-note" id="link-note" hidden>
+  <div class="link-note" id="link-note" hidden role="status">
     <span>Nie udało się odczytać linku — pokazuję ostatni zapisany stan.</span>
     <button type="button" class="x" id="link-note-x" aria-label="Zamknij">×</button>
   </div>
@@ -393,6 +414,7 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
     <div><b>Okres kredytowania w programie RKM to co najmniej 15 lat</b> (ustawa nie wyznacza maksimum — 35 lat to praktyka banków), a kredyty są udzielane do 31 grudnia 2030 r. Spłata rodzinna wynosi 20 000 zł za drugie i 60 000 zł za trzecie oraz każde kolejne dziecko, które dołączyło do gospodarstwa domowego po udzieleniu kredytu. Nadpłata dobrowolna w pierwszych 3 latach ponad pozostałą część kredytu objętą gwarancją BGK odbiera prawo do przyszłych spłat rodzinnych.</div>
   </div>
 
+  <main>
   <div class="scenarios" id="scenarios"></div>
 
   <section class="compare" id="compare"></section>
@@ -409,7 +431,7 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
       </div>
     </div>
     <div class="chart-outer">
-      <div class="chart-wrap"><svg id="chart-svg" viewBox="0 0 900 340"></svg></div>
+      <div class="chart-wrap"><svg id="chart-svg" role="img" viewBox="0 0 900 340"></svg></div>
       <div class="chart-tt" id="chart-tt" hidden></div>
     </div>
   </section>
@@ -434,6 +456,7 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
       </table>
     </div>
   </section>
+  </main>
 
   <footer class="foot">
     <p>Kalkulator poglądowy — nie stanowi oferty, symulacji bankowej ani porady. Zasady RKM wg tekstu jednolitego ustawy (Dz.U. 2024 poz. 1724); sprawdzono 2 września 2026 r., nowelizacja z 2026 r. (Dz.U. 2026 poz. 635) nieuwzględniona. Przed decyzją potwierdź warunki w banku.</p>
@@ -1116,6 +1139,77 @@ function presetDisabledReason(s, e){
   return null;
 }
 
+/* ============ przywracanie fokusu wokół innerHTML w #scenarios ============ */
+/* `recompute()` przerysowuje panele przez `scenariosEl.innerHTML = …`, co gubi
+   fokus (ląduje na <body>) i — bez preventScroll — potrafi skoczyć widokiem.
+   Klucz identyfikujący pole musi przetrwać przerysowanie: panel (A/B),
+   `data-f` (plus wartość dla radiów), `data-id` wiersza zdarzenia gdy pole w
+   nim siedzi, `data-start-part` dla selectów daty uruchomienia, albo
+   `data-add-preset`/`data-add-event`/`data-key` dla chipów i przycisków.
+   Szczególny przypadek: `change` odpala się na blur, czyli fokus jest już na
+   NASTĘPNYM polu (np. po Tab) — to pole zdąży zniknąć w przerysowaniu, zanim
+   handler zdąży się odpalić. Dlatego stan fokusu jest łapany na samym początku
+   `recompute()`: to, co wtedy jest `document.activeElement`, JEST już tym
+   następnym polem. */
+function focusKeyFor(panelEl, el){
+  const key = {};
+  const row = el.closest(".event-row");
+  if(row) key.id = row.dataset.id;
+  if(el.dataset.addPreset !== undefined) key.addPreset = el.dataset.addPreset;
+  else if(el.dataset.addEvent !== undefined) key.addEvent = el.dataset.addEvent;
+  else if(el.dataset.key !== undefined) key.dataKey = el.dataset.key;
+  else if(el.dataset.startPart !== undefined) key.startPart = el.dataset.startPart;
+  else if(el.dataset.f !== undefined){
+    key.f = el.dataset.f;
+    if(el.type==="radio") key.value = el.value;
+  } else if(el.id) key.id2 = el.id; // pola readonly (bez data-f) — np. Kwota kredytu
+  return key;
+}
+function findByFocusKey(panelKey, key){
+  const panel = scenariosEl.querySelector(".panel."+panelKey.toLowerCase());
+  if(!panel) return null;
+  let scope = panel;
+  if(key.id !== undefined){
+    scope = panel.querySelector('.event-row[data-id="'+key.id+'"]');
+    if(!scope) return null;
+  }
+  if(key.addPreset !== undefined) return panel.querySelector('[data-add-preset="'+key.addPreset+'"]');
+  if(key.addEvent !== undefined) return panel.querySelector('[data-add-event="'+key.addEvent+'"]');
+  if(key.dataKey !== undefined) return scope.querySelector('[data-key="'+key.dataKey+'"]');
+  if(key.startPart !== undefined) return panel.querySelector('[data-start-part="'+key.startPart+'"]');
+  if(key.f !== undefined){
+    let sel = '[data-f="'+key.f+'"]';
+    if(key.value !== undefined) sel += '[value="'+key.value+'"]';
+    return scope.querySelector(sel);
+  }
+  if(key.id2 !== undefined) return document.getElementById(key.id2);
+  return null;
+}
+/* Łapane TYLKO wewnątrz #scenarios (zakres tego audytu) — reszta strony
+   (wykres, tabela, przełącznik RKM) żyje poza obszarem przerysowywanym przez
+   `recompute()` albo ma własną obsługę. */
+function captureFocusState(){
+  const active = document.activeElement;
+  if(!active || active===document.body || !scenariosEl.contains(active)) return null;
+  const panelEl = active.closest(".panel");
+  if(!panelEl) return null;
+  const panelKey = panelEl.classList.contains("a") ? "A" : "B";
+  const state = {panelKey, key: focusKeyFor(panelEl, active)};
+  if((active.tagName==="INPUT") && (active.type==="text"||active.type==="number") && typeof active.selectionStart==="number"){
+    try{ state.selStart = active.selectionStart; state.selEnd = active.selectionEnd; }catch(e){ /* np. Chrome na input[type=number] */ }
+  }
+  return state;
+}
+function restoreFocusState(saved){
+  if(!saved) return;
+  const el = findByFocusKey(saved.panelKey, saved.key);
+  if(!el) return;
+  el.focus({preventScroll:true});
+  if(saved.selStart!=null && typeof el.setSelectionRange==="function"){
+    try{ el.setSelectionRange(saved.selStart, saved.selEnd); }catch(e){ /* jw. */ }
+  }
+}
+
 /* ============ rendering: scenario panels ============ */
 const scenariosEl = document.getElementById("scenarios");
 
@@ -1124,34 +1218,43 @@ function availableTypes(){
   return Object.keys(TYPE_LABEL).filter(t=> state.rkmOn || t!=="dziecko");
 }
 
+/* Id pola zdarzenia = `${eventId}-${dataF}` (stabilny, unikalny w całym
+   dokumencie, bo `e.id` jest unikalne globalnie) — używany zarówno do
+   <label for> (p. 4 audytu), jak i do klucza przywracania fokusu (p. 1). */
+function evtFieldId(e, key){ return e.id+"-"+key; }
 function fieldEventControls(s, e){
+  const trybId = evtFieldId(e,"trybOverride");
   const trybSel = e.type!=="zmiana_wskaznika" ? (
-    '<div class="field"><label>Tryb</label><select data-f="trybOverride">'+
+    '<div class="field"><label for="'+trybId+'">Tryb</label><select id="'+trybId+'" data-f="trybOverride">'+
       ['auto','skroc','obniz'].map(v=>'<option value="'+v+'"'+(e.trybOverride===v?' selected':'')+'>'+({auto:"jak globalnie",skroc:"skróć okres",obniz:"obniż ratę"})[v]+'</option>').join('')+
     '</select></div>'
   ) : '';
 
   if(e.type==="jednorazowa"){
-    return '<div class="field"><label>Miesiąc</label><input type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
-      '<div class="field grow"><label>Kwota</label><input type="number" min="0" step="1000" data-f="amount" value="'+e.amount+'"></div>'+trybSel;
+    const monthId = evtFieldId(e,"month"), amountId = evtFieldId(e,"amount");
+    return '<div class="field"><label for="'+monthId+'">Miesiąc</label><input id="'+monthId+'" type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
+      '<div class="field grow"><label for="'+amountId+'">Kwota</label><input id="'+amountId+'" type="number" min="0" step="1000" data-f="amount" value="'+e.amount+'"></div>'+trybSel;
   }
   if(e.type==="cykliczna"){
-    return '<div class="field"><label>Od mies.</label><input type="number" min="1" data-f="startMonth" value="'+e.startMonth+'"></div>'+
-      '<div class="field"><label>Do mies.</label><input type="number" min="1" data-f="endMonth" value="'+e.endMonth+'"></div>'+
-      '<div class="field grow"><label>Kwota / mies.</label><input type="number" min="0" step="100" data-f="monthlyAmount" value="'+e.monthlyAmount+'"></div>'+trybSel;
+    const startId = evtFieldId(e,"startMonth"), endId = evtFieldId(e,"endMonth"), amtId = evtFieldId(e,"monthlyAmount");
+    return '<div class="field"><label for="'+startId+'">Od mies.</label><input id="'+startId+'" type="number" min="1" data-f="startMonth" value="'+e.startMonth+'"></div>'+
+      '<div class="field"><label for="'+endId+'">Do mies.</label><input id="'+endId+'" type="number" min="1" data-f="endMonth" value="'+e.endMonth+'"></div>'+
+      '<div class="field grow"><label for="'+amtId+'">Kwota / mies.</label><input id="'+amtId+'" type="number" min="0" step="100" data-f="monthlyAmount" value="'+e.monthlyAmount+'"></div>'+trybSel;
   }
   if(e.type==="dziecko"){
-    return '<div class="field"><label>Miesiąc</label><input type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
-      '<div class="field"><label>Dziecko nr</label><select data-f="childNumber">'+
+    const monthId = evtFieldId(e,"month"), childId = evtFieldId(e,"childNumber"), amountId = evtFieldId(e,"amount");
+    return '<div class="field"><label for="'+monthId+'">Miesiąc</label><input id="'+monthId+'" type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
+      '<div class="field"><label for="'+childId+'">Dziecko nr</label><select id="'+childId+'" data-f="childNumber">'+
         [2,3].map(n=>'<option value="'+n+'"'+(childNo(e)===n?' selected':'')+'>'+(n===3?'3+':n)+'</option>').join('')+
       '</select></div>'+
-      '<div class="field grow"><label>Kwota <span class="sub">(20k / 2. dziecko, 60k / 3.+)</span></label><input type="number" min="0" step="1000" data-f="amount" value="'+e.amount+'"></div>'+trybSel;
+      '<div class="field grow"><label for="'+amountId+'">Kwota <span class="sub">(20k / 2. dziecko, 60k / 3.+)</span></label><input id="'+amountId+'" type="number" min="0" step="1000" data-f="amount" value="'+e.amount+'"></div>'+trybSel;
   }
   // zmiana_wskaznika — użytkownik podaje wskaźnik, obok pokazujemy wynikową stopę nominalną
+  const monthId = evtFieldId(e,"month"), wskId = evtFieldId(e,"newWskaznik"), nomId = evtFieldId(e,"nominalAfter");
   const nominalAfter = round2((Number(s.marza)||0) + (Number(e.newWskaznik)||0));
-  return '<div class="field"><label>Od miesiąca</label><input type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
-    '<div class="field"><label>Nowy wskaźnik %</label><input type="number" min="0" step="0.01" data-f="newWskaznik" value="'+e.newWskaznik+'"></div>'+
-    '<div class="field grow"><label>Nominalnie <span class="sub">(+ marża '+pct(s.marza)+')</span></label><input type="text" class="mono" readonly value="'+pct(nominalAfter)+'"></div>';
+  return '<div class="field"><label for="'+monthId+'">Od miesiąca</label><input id="'+monthId+'" type="number" min="1" data-f="month" value="'+e.month+'"></div>'+
+    '<div class="field"><label for="'+wskId+'">Nowy wskaźnik %</label><input id="'+wskId+'" type="number" min="0" step="0.01" data-f="newWskaznik" value="'+e.newWskaznik+'"></div>'+
+    '<div class="field grow"><label for="'+nomId+'">Nominalnie <span class="sub">(+ marża '+pct(s.marza)+')</span></label><input id="'+nomId+'" type="text" class="mono" readonly value="'+pct(nominalAfter)+'"></div>';
 }
 
 function renderPanel(key, s, result, baseline){
@@ -1175,26 +1278,30 @@ function renderPanel(key, s, result, baseline){
 
   html += '<div class="section-title">Kredyt</div>';
   html += '<div class="field-grid">';
-  html += field("Cena mieszkania","cena",s.cena,"number");
-  html += field("Wkład własny","wklad",s.wklad,"number");
+  html += field(key,"Cena mieszkania","cena",s.cena,"number");
+  html += field(key,"Wkład własny","wklad",s.wklad,"number");
   if(state.rkmOn){
     // Gwarancja nie zmienia kwoty kredytu, ale wyznacza limit bezpiecznych nadpłat
     // w pierwszych 3 latach — dlatego siedzi w bloku „Kredyt”, a nie w regule.
-    html += '<div class="field"><label>Gwarancja BGK</label>'+
-      '<input type="number" min="0" step="1000" data-f="gwarancja" value="'+s.gwarancja+'">'+
+    const gwId = fieldId(key,"gwarancja");
+    html += '<div class="field"><label for="'+gwId+'">Gwarancja BGK</label>'+
+      '<input id="'+gwId+'" type="number" min="0" step="1000" data-f="gwarancja" value="'+s.gwarancja+'">'+
       (Number(s.gwarancja)>0 ? '' : '<div class="field-hint">Bez gwarancji (wkład własny ≥ 20 %) każda nadpłata dobrowolna w pierwszych 3 latach odbiera przyszłe spłaty rodzinne.</div>')+
       '</div>';
   }
-  html += field("Dodatkowa kwota kredytu <span class=\'sub\'>(np. wykończenie)</span>","remont",s.remont,"number");
-  html += '<div class="field span2"><label>Kwota kredytu (razem)</label><input type="text" class="mono" readonly value="'+money(principal)+'"></div>';
+  html += field(key,"Dodatkowa kwota kredytu <span class=\'sub\'>(np. wykończenie)</span>","remont",s.remont,"number");
+  const principalId = fieldId(key,"principal");
+  html += '<div class="field span2"><label for="'+principalId+'">Kwota kredytu (razem)</label><input id="'+principalId+'" type="text" class="mono" readonly value="'+money(principal)+'"></div>';
   html += '</div>';
 
   html += '<div class="section-title">Oprocentowanie</div>';
   html += '<div class="field-grid">';
-  html += field("Marża %","marza",s.marza,"number",0.01);
-  html += field("Wskaźnik referencyjny <span class=\'sub\'>(WIBOR/WIRON)</span> %","wskaznik",s.wskaznik,"number",0.01);
-  html += '<div class="field"><label>Oprocentowanie nominalne <span class="sub">(marża + wskaźnik)</span></label><input type="text" class="mono" readonly value="'+pct(nominalRate(s))+'"></div>';
-  html += '<div class="field"><label>Okres — <span class="mono">'+s.years+'</span> lat</label><div class="slider-row"><input type="range" min="'+yearsMin()+'" max="35" step="1" data-f="years" value="'+s.years+'"></div></div>';
+  html += field(key,"Marża %","marza",s.marza,"number",0.01);
+  html += field(key,"Wskaźnik referencyjny <span class=\'sub\'>(WIBOR/WIRON)</span> %","wskaznik",s.wskaznik,"number",0.01);
+  const nominalId = fieldId(key,"nominalRate");
+  html += '<div class="field"><label for="'+nominalId+'">Oprocentowanie nominalne <span class="sub">(marża + wskaźnik)</span></label><input id="'+nominalId+'" type="text" class="mono" readonly value="'+pct(nominalRate(s))+'"></div>';
+  const yearsId = fieldId(key,"years");
+  html += '<div class="field"><label for="'+yearsId+'">Okres — <span class="mono">'+s.years+'</span> lat</label><div class="slider-row"><input id="'+yearsId+'" type="range" min="'+yearsMin()+'" max="35" step="1" data-f="years" value="'+s.years+'"></div></div>';
   html += startField(s);
   html += '<div class="field"><label>Tryb nadpłat (domyślny)</label><div class="radio-row">'+
     '<label><input type="radio" name="tryb-'+key+'" value="skroc" data-f="tryb" '+(s.tryb==="skroc"?'checked':'')+'> skróć okres</label>'+
@@ -1204,8 +1311,8 @@ function renderPanel(key, s, result, baseline){
 
   html += '<div class="section-title">Opłata za wcześniejszą spłatę '+(state.rkmOn?'<span style="text-transform:none;font-weight:400;">(nie dot. spłaty rodzinnej)</span>':'')+'</div>';
   html += '<div class="field-grid">';
-  html += field("Opłata %","feePct",s.feePct,"number",0.5);
-  html += field("Obowiązuje przez (mies.)","feeMonths",s.feeMonths,"number");
+  html += field(key,"Opłata %","feePct",s.feePct,"number",0.5);
+  html += field(key,"Obowiązuje przez (mies.)","feeMonths",s.feeMonths,"number");
   html += '</div>';
 
   if(state.rkmOn){
@@ -1216,7 +1323,7 @@ function renderPanel(key, s, result, baseline){
       const total = result.rkmBreachMonthTotal;
       const allowance = result.rkmBreachAllowanceAtMonthStart;
       const excess = Math.max(0, total - allowance);
-      html += '<div class="warning-banner"><span class="x">⚠</span><div><b>Utrata przyszłych spłat rodzinnych:</b> w miesiącu '+result.rkmBreachMonth+
+      html += '<div class="warning-banner" role="status"><span class="x">⚠</span><div><b>Utrata przyszłych spłat rodzinnych:</b> w miesiącu '+result.rkmBreachMonth+
         ' nadpłaty dobrowolne '+money(total)+' przekroczyły pozostałą część objętą gwarancją ('+money(allowance)+') o '+money(excess)+
         '. Spłaty rodzinne przypadające od tego miesiąca liczone są jako utracone; spłat już wypłaconych BGK nie odbiera.</div></div>';
     }
@@ -1226,14 +1333,26 @@ function renderPanel(key, s, result, baseline){
 
   html += '<div class="section-title">Wydarzenia</div>';
   html += '<div class="presets-row">';
+  let presetsReasons = '';
   PRESETS.forEach(p=>{
     if(p.rkmOnly && !state.rkmOn) return;
     const why = presetDisabledReason(s, p.make(s));
-    html += '<button type="button" class="chip" data-add-preset="'+p.key+'"'+
-      (why ? ' disabled title="'+escapeXml("Nie dotyczy tego scenariusza: "+why)+'"' : '')+
-      '>'+p.label+'</button>';
+    if(why){
+      // Bez atrybutu `disabled` — przycisk zostaje focusowalny i klikalny (tak
+      // słyszy go i aktywuje czytnik ekranu), a `aria-describedby` wiąże go
+      // z ukrytym tekstem powodu; handler w JS ignoruje aktywację i pokazuje
+      // ten sam tekst chwilowo pod rzędem chipów (p. 6 audytu).
+      const reasonId = key.toLowerCase()+"-preset-reason-"+p.key;
+      const reasonText = "Nie dotyczy tego scenariusza: "+why;
+      html += '<button type="button" class="chip is-disabled" data-add-preset="'+p.key+'" aria-disabled="true" aria-describedby="'+reasonId+'" title="'+escapeXml(reasonText)+'">'+p.label+'</button>';
+      presetsReasons += '<span class="sr-only" id="'+reasonId+'">'+escapeXml(reasonText)+'</span>';
+    } else {
+      html += '<button type="button" class="chip" data-add-preset="'+p.key+'">'+p.label+'</button>';
+    }
   });
+  html += presetsReasons;
   html += '</div>';
+  html += '<div class="chip-reason-note" id="'+key.toLowerCase()+'-chip-reason-note" hidden role="status"></div>';
 
   html += '<div class="events">';
   s.events.forEach(e=>{
@@ -1243,14 +1362,15 @@ function renderPanel(key, s, result, baseline){
     html += '<div class="event-row'+(isOff?' off':'')+'" data-id="'+e.id+'">';
     // typ zawsze zawiera aktualną wartość, żeby wyszarzony wiersz „dziecko" dał się przestawić
     const typeOpts = types.indexOf(e.type)>=0 ? types : types.concat([e.type]);
-    html += '<div class="field"><label>Typ</label><select data-f="type">'+
+    const typeId = evtFieldId(e,"type");
+    html += '<div class="field"><label for="'+typeId+'">Typ</label><select id="'+typeId+'" data-f="type">'+
       typeOpts.map(t=>'<option value="'+t+'"'+(e.type===t?' selected':'')+'>'+TYPE_LABEL[t]+'</option>').join('')+
       '</select></div>';
     html += fieldEventControls(s,e);
     if(isOff) html += '<span class="event-badge muted">ukryte — poza RKM</span>';
     else if(isLost) html += '<span class="event-badge lost">utracona</span>';
     else if(isAfter) html += '<span class="event-badge after" title="'+escapeXml(e.type==="dziecko" ? "Kredyt spłacony przed narodzinami — spłata rodzinna nie przysługuje" : "Miesiąc wypada po spłacie kredytu — zdarzenie nie ma wpływu")+'">po spłacie</span>';
-    html += '<button type="button" class="rm" title="Usuń" data-remove>×</button>';
+    html += '<button type="button" class="rm" title="Usuń" data-remove data-key="remove">×</button>';
     html += '</div>';
   });
   if(s.events.length===0) html += '<div style="color:var(--ink-faint);font-size:12.5px;padding:6px 0;">Brak wydarzeń — dodaj nadpłatę, zmianę wskaźnika lub użyj presetu powyżej.</div>';
@@ -1299,11 +1419,14 @@ function renderPanel(key, s, result, baseline){
   return html;
 }
 /* Wszystkie pola liczbowe kredytu to kwoty albo procenty — żadna nie ma sensu
-   ujemna, więc `min="0"` wchodzi z automatu (walidację i tak dubluje `nn()`). */
-function field(label, key, val, type, step){
+   ujemna, więc `min="0"` wchodzi z automatu (walidację i tak dubluje `nn()`).
+   `panelKey` + `key` dają stabilne, unikalne id — do <label for> (p. 4 audytu). */
+function field(panelKey, label, key, val, type, step){
   const min = type==="number" ? ' min="0"' : '';
-  return '<div class="field"><label>'+label+'</label><input type="'+type+'" data-f="'+key+'" value="'+val+'"'+min+(step?' step="'+step+'"':'')+'></div>';
+  const id = fieldId(panelKey, key);
+  return '<div class="field"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="'+type+'" data-f="'+key+'" value="'+val+'"'+min+(step?' step="'+step+'"':'')+'></div>';
 }
+function fieldId(panelKey, key){ return panelKey.toLowerCase()+"-"+key; }
 /* Data uruchomienia: własne selecty (miesiąc po polsku + rok) zamiast
    <input type="month">, którego picker jest lokalizowany przez przeglądarkę,
    nie przez stronę. `state.start` zostaje w formacie "YYYY-MM". */
@@ -1316,7 +1439,10 @@ function startField(s){
   const years = [];
   for(let y=now-2; y<=now+10; y++) years.push(y);
   if(years.indexOf(yy)<0){ years.push(yy); years.sort((a,b)=>a-b); }
-  return '<div class="field"><label>Data uruchomienia</label><div class="date-row">'+
+  // Grupa dwóch selectów (miesiąc + rok) — nagłówek to <span>, nie <label for>
+  // (jeden label nie może celować w dwa inputy); accessible name każdego selecta
+  // dają jego własne aria-label niżej.
+  return '<div class="field"><span class="field-group-label">Data uruchomienia</span><div class="date-row">'+
     '<select class="mo" data-start-part="month" aria-label="Miesiąc uruchomienia">'+
       MONTH_NAMES_PL.map((nm,i)=>'<option value="'+(i+1)+'"'+(mm===i+1?' selected':'')+'>'+nm+'</option>').join('')+
     '</select>'+
@@ -1454,8 +1580,8 @@ function renderYearTable(res){
   Object.keys(years).map(Number).sort((a,b)=>a-b).forEach(yr=>{
     const y = years[yr];
     const lastMonthOfYear = y.months[y.months.length-1];
-    html += '<tr class="year-row" data-year="'+yr+'">';
-    html += '<td><span class="chev">▶</span>Rok '+yr+'</td>';
+    html += '<tr class="year-row" data-year="'+yr+'" tabindex="0" role="button" aria-expanded="false">';
+    html += '<td><span class="chev" aria-hidden="true">▶</span>Rok '+yr+'</td>';
     html += '<td>'+money(y.rata)+'</td><td>'+money(y.odsetki)+'</td><td>'+money(y.kapital)+'</td><td>'+money(y.nadplata)+'</td><td>'+money(y.splata)+'</td><td>'+money(lastMonthOfYear.saldo)+'</td>';
     html += '</tr>';
     y.months.forEach(mo=>{
@@ -1465,6 +1591,13 @@ function renderYearTable(res){
     });
   });
   return html;
+}
+/* Współdzielone przez klik i klawiaturę (Enter/Spacja na tabindex="0" role="button"). */
+function toggleYearRow(row){
+  const yr = row.dataset.year;
+  const expanded = row.classList.toggle("expanded");
+  row.setAttribute("aria-expanded", expanded ? "true" : "false");
+  document.querySelectorAll('.month-row[data-year-group="'+yr+'"]').forEach(r=>{ r.hidden = !expanded; });
 }
 
 /* ============ comparison card ============ */
@@ -1502,7 +1635,34 @@ function renderCompare(resA, resB){
 /* ============ main render / recompute ============ */
 let lastResults = {A:null,B:null};
 
+/* `recompute()` jest wołane m.in. z handlera `change`, który na Tab odpala się
+   ZANIM przeglądarka faktycznie przełoży fokus na kolejne pole (potwierdzone
+   empirycznie: `document.activeElement` w handlerze `change` bywa jeszcze
+   puste/`<body>` — przełożenie fokusu na następny element to osobny krok
+   przeglądarki, który kończy się dopiero w kolejnej klatce). Gdyby
+   `scenariosEl.innerHTML=…` wykonało się synchronicznie tu i teraz, zniszczyłoby
+   węzeł, na który przeglądarka miała za chwilę przełożyć fokus, i fokus
+   spadłby na `<body>` — właśnie to jest źródłem zgłoszonego błędu. Dlatego
+   właściwe przerysowanie (`doRecompute`) jest odłożone o jedną klatkę
+   (`requestAnimationFrame`) — do tego momentu naturalny mechanizm fokusu
+   przeglądarki zdąży się dokończyć, więc `captureFocusState()` na starcie
+   `doRecompute()` już poprawnie widzi następne pole. Wielokrotne wywołania
+   `recompute()` w tej samej klatce (np. duplikat listenerów na suwaku lat)
+   są zwijane do jednego `doRecompute()`. */
+let recomputeScheduled = false;
 function recompute(){
+  if(recomputeScheduled) return;
+  recomputeScheduled = true;
+  requestAnimationFrame(()=>{
+    recomputeScheduled = false;
+    doRecompute();
+  });
+}
+
+function doRecompute(){
+  // Łapane PRZED przerysowaniem — patrz komentarz przy captureFocusState (p. 1 audytu).
+  const focusState = captureFocusState();
+
   const resA = simulateScenario(toEngineConfig(state.A));
   const resB = simulateScenario(toEngineConfig(state.B));
   const baseA = simulateScenario(baselineConfig(state.A));
@@ -1524,6 +1684,8 @@ function recompute(){
   tbody.innerHTML = renderYearTable(state.tableScn==="A"? resA : resB);
 
   attachPanelHandlers();
+  restoreFocusState(focusState);
+  updateAllScrollFades();
   persist();
 }
 
@@ -1534,7 +1696,28 @@ function renderChart(){
   chartData = built;
   svgEl.setAttribute("viewBox","0 0 900 340");
   svgEl.innerHTML = built.svg;
+  // Nazwa dostępna wykresu (role="img" w HTML) — to samo jednolinijkowe
+  // streszczenie co legenda, więc czytnik ekranu dostaje sens wykresu bez
+  // zaglądania w formularz (p. 5 audytu).
+  const modeLabel = state.chartMode==="saldo" ? "salda kapitału" : "raty";
+  svgEl.setAttribute("aria-label", "Wykres "+modeLabel+" w czasie: A — "+summaryLine(state.A)+"; B — "+summaryLine(state.B));
   document.querySelectorAll("#chart-mode button").forEach(b=> b.classList.toggle("active", b.dataset.mode===state.chartMode));
+  updateScrollFade(chartWrapEl);
+}
+
+/* ============ podpowiedź przewijania w poziomie (mobile) ============ */
+/* `.has-more` włącza gradient przy prawej krawędzi (CSS) dopóki jest jeszcze
+   coś do przewinięcia — sprawdzane po każdym przerysowaniu i przy scrollu/
+   resize (p. 7 audytu). */
+const chartWrapEl = document.querySelector(".chart-wrap");
+const tableScrollEl = document.querySelector(".table-scroll");
+function updateScrollFade(el){
+  if(!el) return;
+  el.classList.toggle("has-more", el.scrollWidth - el.clientWidth - el.scrollLeft > 2);
+}
+function updateAllScrollFades(){
+  updateScrollFade(chartWrapEl);
+  updateScrollFade(tableScrollEl);
 }
 
 /* ============ static handlers (attached once, outside the re-rendered region) ============ */
@@ -1542,27 +1725,76 @@ function renderChart(){
   const svgEl = document.getElementById("chart-svg");
   const tt = document.getElementById("chart-tt");
   const outer = svgEl.closest(".chart-outer");
-  svgEl.addEventListener("mousemove", (ev)=>{
+  let pinned = false;
+
+  /* Buduje i pokazuje tooltip przy pozycji (clientX, clientY). Indeks miesiąca:
+     `months[i].month === i+1` (miesiące w tablicy są 1-indeksowane), więc żeby
+     trafić we właściwy wiersz trzeba odjąć 1 od pozycji kursora i dopiero to
+     przyciąć do [0, len-1] — inaczej powstaje off-by-one (p. 3c audytu).
+     Wyświetlana etykieta „mies. N” to N = displayMonth (zawsze ≥ 1, więc dla
+     kursora na samym początku wykresu pokazuje „mies. 1”, nie „mies. 0”). */
+  function showTooltipAt(clientX, clientY){
     if(!chartData) return;
     const rect = svgEl.getBoundingClientRect();
     const scaleX = 900/rect.width;
-    const px = (ev.clientX-rect.left)*scaleX;
+    const px = (clientX-rect.left)*scaleX;
     const padL=64, innerW=900-64-20;
     const frac = clamp((px-padL)/innerW,0,1);
     const monthAtCursor = Math.round(frac*chartData.maxX);
-    const moA = lastResults.A.months[Math.min(monthAtCursor,lastResults.A.months.length-1)];
-    const moB = lastResults.B.months[Math.min(monthAtCursor,lastResults.B.months.length-1)];
+    const displayMonth = clamp(monthAtCursor, 1, chartData.maxX);
+    const idxA = clamp(displayMonth-1, 0, lastResults.A.months.length-1);
+    const idxB = clamp(displayMonth-1, 0, lastResults.B.months.length-1);
+    const moA = lastResults.A.months[idxA];
+    const moB = lastResults.B.months[idxB];
     const label = state.chartMode==="saldo" ? "saldo" : "rata";
     const valA = state.chartMode==="saldo" ? (moA?moA.saldo:0) : (moA?moA.rata:0);
     const valB = state.chartMode==="saldo" ? (moB?moB.saldo:0) : (moB?moB.rata:0);
     tt.hidden = false;
-    tt.style.left = (ev.clientX - outer.getBoundingClientRect().left + 14)+"px";
-    tt.style.top = (ev.clientY - outer.getBoundingClientRect().top - 10)+"px";
-    tt.innerHTML = '<div style="color:var(--ink-faint);margin-bottom:4px;">mies. '+monthAtCursor+' · '+(moA?fmtDate(moA.date):"")+'</div>'+
+    tt.innerHTML = '<div style="color:var(--ink-faint);margin-bottom:4px;">mies. '+displayMonth+' · '+(moA?fmtDate(moA.date):"")+'</div>'+
       '<div><span style="color:var(--accent-a);">●</span> A '+label+': <b>'+money(valA)+'</b></div>'+
       '<div><span style="color:var(--accent-b);">●</span> B '+label+': <b>'+money(valB)+'</b></div>';
+    positionTooltip(clientX, clientY);
+  }
+  /* Domyślnie po prawej/pod kursorem; jeśli by to wystawało poza prawą krawędź
+     `.chart-outer`, tooltip przeskakuje na lewo od kursora (mierzone dopiero PO
+     ustawieniu treści — `offsetWidth` zależy od tekstu). Górna krawędź: nigdy
+     ujemny `top` (p. 3b audytu). */
+  function positionTooltip(clientX, clientY){
+    const outerRect = outer.getBoundingClientRect();
+    const ttWidth = tt.offsetWidth;
+    let left = clientX - outerRect.left + 14;
+    if(left + ttWidth > outerRect.width){
+      left = clientX - outerRect.left - ttWidth - 14;
+      if(left < 0) left = Math.max(0, outerRect.width - ttWidth);
+    }
+    let top = clientY - outerRect.top - 10;
+    if(top < 0) top = 0;
+    tt.style.left = left+"px";
+    tt.style.top = top+"px";
+  }
+
+  /* pointermove/pointerdown/pointerleave zamiast mousemove/mouseleave (p. 3a
+     audytu) — na dotyku ruch palca nie pokazuje tooltipu (byłby losowy podczas
+     przewijania), tylko sam tap: pierwszy tap przypina tooltip w tym miejscu,
+     kolejny tap na wykresie przypina go w nowym miejscu, tap poza wykresem chowa. */
+  svgEl.addEventListener("pointermove", (ev)=>{
+    if(ev.pointerType==="touch") return;
+    showTooltipAt(ev.clientX, ev.clientY);
   });
-  svgEl.addEventListener("mouseleave", ()=>{ tt.hidden = true; });
+  svgEl.addEventListener("pointerdown", (ev)=>{
+    if(ev.pointerType!=="touch") return;
+    pinned = true;
+    showTooltipAt(ev.clientX, ev.clientY);
+  });
+  svgEl.addEventListener("pointerleave", (ev)=>{
+    if(ev.pointerType==="touch" || pinned) return;
+    tt.hidden = true;
+  });
+  document.addEventListener("pointerdown", (ev)=>{
+    if(!pinned || ev.target===svgEl || svgEl.contains(ev.target)) return;
+    pinned = false;
+    tt.hidden = true;
+  });
   document.getElementById("chart-mode").addEventListener("click",(ev)=>{
     const btn = ev.target.closest("button[data-mode]"); if(!btn) return;
     state.chartMode = btn.dataset.mode;
@@ -1573,13 +1805,23 @@ function renderChart(){
     state.tableScn = btn.dataset.scn;
     document.querySelectorAll("#table-scn button").forEach(b=>b.classList.toggle("active", b===btn));
     document.getElementById("year-table-body").innerHTML = renderYearTable(state.tableScn==="A"?lastResults.A:lastResults.B);
+    updateScrollFade(tableScrollEl);
     persist();
   });
+  if(chartWrapEl) chartWrapEl.addEventListener("scroll", ()=>updateScrollFade(chartWrapEl));
+  if(tableScrollEl) tableScrollEl.addEventListener("scroll", ()=>updateScrollFade(tableScrollEl));
+  window.addEventListener("resize", updateAllScrollFades);
   document.getElementById("year-table-body").addEventListener("click",(ev)=>{
     const row = ev.target.closest(".year-row"); if(!row) return;
-    const yr = row.dataset.year;
-    const expanded = row.classList.toggle("expanded");
-    document.querySelectorAll('.month-row[data-year-group="'+yr+'"]').forEach(r=>{ r.hidden = !expanded; });
+    toggleYearRow(row);
+  });
+  // Wiersz roku jest teraz tabindex="0" role="button" (p. 2 audytu) — Enter/Spacja
+  // działają tak samo jak klik.
+  document.getElementById("year-table-body").addEventListener("keydown",(ev)=>{
+    if(ev.key!=="Enter" && ev.key!==" " && ev.key!=="Spacebar") return;
+    const row = ev.target.closest(".year-row"); if(!row) return;
+    ev.preventDefault();
+    toggleYearRow(row);
   });
 
   // „Kopiuj link do tego porównania" — schowek, a gdy niedostępny, prompt do ręcznego
@@ -1620,6 +1862,22 @@ function renderChart(){
   });
 })();
 
+/* Pokazuje powód wyłączenia chipa (ten sam tekst co w aria-describedby/title)
+   pod rzędem presetów na ok. 3 s — dociera do dotyku/kliknięcia, nie tylko
+   do hover (p. 6 audytu). */
+function showChipReasonNote(panel, btn){
+  const note = panel.querySelector(".chip-reason-note");
+  if(!note) return;
+  const reasonId = btn.getAttribute("aria-describedby");
+  const reasonEl = reasonId ? document.getElementById(reasonId) : null;
+  const text = reasonEl ? reasonEl.textContent : (btn.getAttribute("title")||"");
+  if(!text) return;
+  note.textContent = text;
+  note.hidden = false;
+  if(note._hideTimer) clearTimeout(note._hideTimer);
+  note._hideTimer = setTimeout(()=>{ note.hidden = true; }, 3000);
+}
+
 /* ============ input handlers (re-attached after every innerHTML render) ============ */
 function attachPanelHandlers(){
   ["A","B"].forEach(key=>{
@@ -1647,10 +1905,15 @@ function attachPanelHandlers(){
     panel.querySelectorAll('input[data-f="tryb"]').forEach(r=>{
       r.addEventListener("change", ()=>{ if(r.checked){ s.tryb = r.value; recompute(); } });
     });
-    // presety wydarzeń — wyłączony chip nic nie robi także po stronie handlera
+    // presety wydarzeń — chip „wyłączony” nie ma atrybutu disabled (p. 6 audytu:
+    // zostaje focusowalny i czytelny dla czytnika ekranu), więc handler sam
+    // sprawdza aria-disabled i zamiast dodać zdarzenie pokazuje powód.
     panel.querySelectorAll("[data-add-preset]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
-        if(btn.disabled) return;
+        if(btn.getAttribute("aria-disabled")==="true"){
+          showChipReasonNote(panel, btn);
+          return;
+        }
         const e = presetEvent(s, btn.dataset.addPreset);
         if(!e || presetDisabledReason(s, e)) return;
         e.id = uid();

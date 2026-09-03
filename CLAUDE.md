@@ -145,3 +145,9 @@ niepotwierdzone.
 - Tekst ustawy RKM jest dostępny do pobrania przez Sejmowe API ELI, mimo że isap.sejm.gov.pl
   jest CAPTCHA-gated dla skryptów: `curl https://api.sejm.gov.pl/eli/acts/DU/2024/1724/text.html`.
 - Wdrożenie na Cloudflare Pages: checklista krok po kroku w `DEPLOY.md`.
+- Kontrakt przywracania fokusu: każde przerysowanie `#scenarios` (`scenariosEl.innerHTML = …`
+  w `recompute()`) musi zachować fokus i pozycję scrolla — złap `document.activeElement` PRZED
+  przerysowaniem (patrz `captureFocusState()`), odtwórz PO nim przez `el.focus({preventScroll:true})`
+  (`restoreFocusState()`). Klucz identyfikujący pole: `data-f` (+ `value` dla radiów), `data-id`
+  wiersza zdarzenia gdy pole w nim siedzi, `data-start-part` dla selectów daty uruchomienia, albo
+  `data-add-preset`/`data-add-event`/`data-key` dla chipów i przycisków.
