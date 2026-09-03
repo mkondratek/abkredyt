@@ -11,6 +11,10 @@ Rodzinny Kredyt Mieszkaniowy: spłatę rodzinną po urodzeniu dziecka i limit na
 dobrowolnych w pierwszych 3 latach kredytu. Wyłączenie przełącznika zostawia zwykły
 porównywacz A/B — kalkulator działa też dla kredytów spoza programu.
 
+Przycisk „Kopiuj link do tego porównania” pakuje cały stan (oba scenariusze, wszystkie
+wydarzenia, tryb RKM) do fragmentu adresu — link można komuś wysłać albo zapisać w notatkach
+i wrócić do dokładnie tego samego porównania.
+
 Strona: <https://abkredyt.kondratek.pl>
 
 ## Dlaczego to istnieje
@@ -33,16 +37,23 @@ spłaca się szybciej) i „obniż ratę" (okres bez zmian, rata maleje). Zmiana
 zawsze przelicza ratę na nowo. Opłata za wcześniejszą spłatę (% przez pierwsze N miesięcy)
 dotyczy wyłącznie nadpłat dobrowolnych — nie spłaty rodzinnej.
 
+Presety wydarzeń („2. dziecko w m. 24”, „nadpłata 50 000 w m. 12”, …) mają kwoty i miesiące
+podane wprost. Preset, który dla aktualnych parametrów scenariusza nie ma sensu — miesiąc poza
+okresem kredytu, kwota nadpłaty nie mniejsza niż sam kredyt, nadpłata miesięczna nie mniejsza
+niż rata, „wskaźnik −1 p.p.” przy wskaźniku poniżej 1 p.p., zdarzenie już dodane — jest
+wyłączony, z powodem widocznym po najechaniu.
+
 Reguła RKM: część kredytu objęta gwarancją BGK **maleje z każdą spłatą kapitału** —
 ratą, nadpłatą dobrowolną i spłatą rodzinną. W ciągu pierwszych 36 miesięcy od
 uruchomienia kredytu nadpłata dobrowolna jest bezpieczna tylko do wysokości tej
 *aktualnej* (bieżącej, a nie początkowej) części gwarantowanej; nadpłata ją
 przekraczająca oznacza spłaty rodzinne przypadające po przekroczeniu jako „utracona"
-i pomija je w wyliczeniu — z checkboksem pozwalającym regułę zignorować. Rata spłacana
-zgodnie z harmonogramem nigdy sama w sobie nie narusza progu (to nie jest nadpłata),
-ale zmniejsza gwarantowaną część i tym samym zużywa dostępny zapas na przyszłe
-nadpłaty — formalnie krótszy okres jest więc neutralny wobec reguły, tylko zmienia
-tempo, w jakim ten zapas maleje. Przy zerowej gwarancji BGK (wkład własny ≥ 20%) próg
+i pomija je w wyliczeniu. Reguła obowiązuje bezwarunkowo — nie ma przełącznika, który
+kazałby ją zignorować. Rata spłacana zgodnie z harmonogramem nigdy sama w sobie nie
+narusza progu (to nie jest nadpłata), ale zmniejsza gwarantowaną część i tym samym
+zużywa dostępny zapas na przyszłe nadpłaty — krótszy okres nie jest więc wobec reguły
+obojętny: sam jej nie łamie, ale szybciej topi limit na ewentualne późniejsze nadpłaty.
+Przy zerowej gwarancji BGK (wkład własny ≥ 20%) próg
 wynosi zero — każda nadpłata w pierwszych 36 miesiącach narusza regułę. Uproszczenie
 świadome: silnik liczy te 36 miesięcy od miesiąca uruchomienia kredytu, podczas gdy
 ustawa liczy od dnia jego udzielenia (zawarcia umowy) — to zwykle bliskie, ale nie
@@ -50,12 +61,17 @@ identyczne daty.
 
 ### Liczby kontrolne
 
-Silnik jest zweryfikowany na kredycie 579 200 zł / 5,39%:
+Silnik jest zweryfikowany na kredycie ilustracyjnym 500 000 zł / 5,50 %:
 
 | Okres | Rata |
 |---|---|
-| 30 lat | 3 249 zł |
-| 15 lat | 4 699 zł |
+| 30 lat | 2 839 zł |
+| 25 lat | 3 070 zł |
+| 15 lat | 4 085 zł |
+
+Testy w `tools/test-engine.mjs` nie przepisują liczb z silnika: ratę liczą z wzoru na
+annuitet zapisanego wprost w teście, a sumy odsetek i miesiąc spłaty — z niezależnej
+symulacji referencyjnej (zwykła pętla miesiąc po miesiącu) w tym samym pliku.
 
 ## Zasady RKM — skrót
 
@@ -87,8 +103,12 @@ zapisem ustawy.
 ## Prywatność
 
 Wszystko liczy się w przeglądarce — nic z tego, co wpisujesz, nie opuszcza Twojego
-urządzenia. Stan porównania zapisuje się w `localStorage` (klucz `abkredyt-state-v3`),
+urządzenia. Stan porównania zapisuje się w `localStorage` (klucz `abkredyt-state-v4`),
 żeby przetrwał odświeżenie strony; usuwa się razem z danymi strony w przeglądarce.
+Przycisk „Kopiuj link do tego porównania” zaszywa parametry (kwoty, oprocentowanie,
+wydarzenia) w **fragmencie** adresu — a fragment, w odróżnieniu od query stringu,
+nigdy nie jest wysyłany na serwer ani do logów proxy; link powstaje w całości
+w przeglądarce. Sam link zawiera więc Twoje dane: komu go wyślesz, to Twoja decyzja.
 Na produkcyjnym hoście działa wyłącznie bezcookiesowy Cloudflare Web Analytics, z opcją
 wyłączenia przez `?bez-statystyk=1`. Pełny opis: [`public/polityka-prywatnosci.html`](public/polityka-prywatnosci.html).
 

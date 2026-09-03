@@ -23,8 +23,11 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
 - Czysta logika (bez DOM/localStorage) siedzi w osobnym `<script id="engine">` i jest
   wystawiona jako `globalThis.RKM`; `tools/test-engine.mjs` wycina ten blok regexem i
   odpala go w Node — każdą zmianę silnika dokładaj z przypadkiem regresyjnym tam.
-- Rata równa (annuitet), kapitalizacja miesięczna, `r = nominal/12`. Weryfikacja: 579 200 zł /
-  5,39% / 30 lat → 3 249 zł; 15 lat → 4 699 zł.
+- Rata równa (annuitet), kapitalizacja miesięczna, `r = nominal/12`. Weryfikacja na kredycie
+  ilustracyjnym 500 000 zł / 5,50 %: 30 lat → 2 839 zł; 25 lat → 3 070 zł; 15 lat → 4 085 zł.
+  Testy nie przepisują liczb z silnika: rata bierze się z wzoru na annuitet zapisanego wprost
+  w `tools/test-engine.mjs`, a sumy odsetek i miesiąc spłaty z niezależnej symulacji
+  referencyjnej w tym samym pliku (zgodność ±1 zł / ±1 mies.).
 - Oprocentowanie w UI = marża + wskaźnik referencyjny (WIBOR/WIRON); silnik dostaje stopę
   nominalną. Presetów banków nie ma i nie dodawaj ich (to była personalizacja).
 - Wydarzenia: nadpłata jednorazowa, nadpłata cykliczna (od–do miesiąca), narodziny dziecka →
@@ -47,14 +50,40 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   (wkład ≥ 20%) próg wynosi zero: każda przedterminowa spłata w oknie narusza regułę. Skutek
   naruszenia to WYŁĄCZNIE utrata przyszłych spłat rodzinnych — już wypłacone nie podlegają
   zwrotowi (art. 8 ust. 7 nie wymienia tego jako podstawy zwrotu). Spłaty rodzinne
-  przypadające po naruszeniu są oznaczane „utracona” i pomijane; checkbox „ignoruj regułę”
-  zostaje. Uproszczenie silnika: okno 36 mies. liczone od miesiąca uruchomienia kredytu, nie
+  przypadające po naruszeniu są oznaczane „utracona” i pomijane. Reguła obowiązuje
+  bezwarunkowo — checkboksa „ignoruj regułę” (ani pola `ignorujRegule`) już nie ma, bo przy
+  wyłączonym RKM zdarzenia `dziecko` i tak nie trafiają do silnika. Uproszczenie silnika: okno 36 mies. liczone od miesiąca uruchomienia kredytu, nie
   od dnia jego udzielenia (zawarcia umowy), jak dosłownie stanowi ustawa — to świadome
   uproszczenie (patrz lokalnie `docs/wnioski-modelu.md` dla wcześniejszego modelu).
 - Scenariusz nie ma już pól `rkmThreshold`/`rkmMonths` w stanie — próg to `gwarancja`
   (dynamiczny, patrz wyżej), a okno to stała silnika `RKM_WINDOW_MONTHS` (36 mies.).
-- Stan w `localStorage` (klucz `abkredyt-state-v3`), w try/catch, z kontrolą kształtu
-  (`looksLikeState`) — przy zmianie schematu stanu podbij sufiks klucza.
+- Stan w `localStorage` (klucz `abkredyt-state-v4`), w try/catch, z kontrolą kształtu
+  (`looksLikeState`) — przy zmianie schematu stanu podbij sufiks klucza **i** stałą
+  `RKM.STATE_VERSION` (siedzi w silniku, stan nosi ją jako pole `v`).
+- Stan w linku: przycisk „Kopiuj link do tego porównania” koduje `{v, rkmOn, chartMode,
+  tableScn, A, B}` jako JSON ze skróconymi (jednoznakowymi) kluczami → `deflate-raw`
+  (`CompressionStream`) → base64url → fragment `#s=d.<ładunek>`. Gdy przeglądarka nie ma
+  `CompressionStream`, powstaje wariant `#s=j.<base64url JSON-a>`; dekoder przyjmuje oba.
+  Mapy kluczy i base64url są w silniku (`RKM.shortenState/expandState/encodeStateJson/
+  decodeStateJson/bytesToB64url/b64urlToBytes`) i mają test round-tripu; sama kompresja
+  zostaje w UI, bo to API przeglądarki. `id` zdarzeń nie jedzie w linku — jest lokalnym
+  uchwytem UI i po dekodowaniu nadaje się je od nowa.
+- Pierwszeństwo: link > `localStorage`. Poprawny `#s=` nadpisuje zapisany stan, od razu go
+  utrwala i **czyści fragment** (`history.replaceState`), żeby kolejne edycje i odświeżenia
+  nie wracały do stanu z linku. Zły ładunek albo inna wersja (`v`) → link ignorowany i pokazuje
+  się notka do zamknięcia „Nie udało się odczytać linku…”. Świadomie fragment, nie query
+  string: fragment nigdy nie idzie na serwer ani do logów proxy, a parametry kredytu to dane
+  wrażliwe. Konsekwencja: pierwszy render przy obecnym `#s=` jest asynchroniczny
+  (`DecompressionStream`), więc `boot()` odpala się z promisy.
+- Presety wydarzeń zostają z kwotami bezwzględnymi (celowo — nie parametryzuj ich), ale chip,
+  który nie ma sensu dla scenariusza, renderuje się jako `disabled` z powodem w `title`
+  (`PRESETS` + `presetDisabledReason` w UI): miesiąc poza okresem kredytu, kwota nadpłaty
+  jednorazowej ≥ kwota kredytu, nadpłata cykliczna ≥ rata początkowa, „wskaźnik −1 p.p.”
+  przy wskaźniku < 1, identyczne zdarzenie już dodane (`EVENT_IDENTITY`); chipy dziecka tylko
+  w trybie RKM. Handler dodatkowo ignoruje klik w wyłączony chip.
+- „Data uruchomienia” to dwa własne `<select>` (miesiąc po polsku + rok: od bieżącego −2 do
+  +10, plus rok ze stanu, jeśli wypada poza zakresem) zamiast `<input type="month">`, którego
+  picker lokalizuje przeglądarka, a nie strona; `state.start` zostaje w formacie `"YYYY-MM"`.
 
 ## Zasady RKM — skrót (pełny research z cytatami: lokalnie `docs/zasady-rkm.md`)
 Zweryfikowane 02.09.2026 z tekstem jednolitym ustawy z 1.10.2021 o rodzinnym kredycie
@@ -94,6 +123,13 @@ niepotwierdzone.
   `/?bez-statystyk=1`. Jeśli token zostanie zastąpiony placeholderem `CF_ANALYTICS_TOKEN`,
   beacon się nie ładuje wcale.
 - Motyw jasny/ciemny przez tokeny CSS na `:root` (+ `prefers-color-scheme`, `[data-theme]`).
+  Paleta ciemna jest zapisana DWA razy (pod `prefers-color-scheme` i pod `[data-theme="dark"]`)
+  — obie kopie muszą zostać identyczne. Kontrast: każdy token użyty jako kolor tekstu ma
+  ≥ 4.5:1 (WCAG AA, mały tekst) na każdym tle, na którym występuje, w obu paletach — najciaśniej
+  jest przy `--ink-faint` na `--surface-3` (4,56 jasny / 4,53 ciemny), więc to on pierwszy się
+  psuje przy zmianie odcieni. `--accent-a`/`--accent-b` zostają bez zmian, bo to kolory linii
+  wykresu, nie tekstu; dla wypełnień z tekstem (segmenty, przyciski primary, `::selection`)
+  są `--accent-a-solid`/`--accent-b-solid` + `--on-accent`.
 - Formatowanie liczb: spacje jako separator tysięcy, „zł”.
 - Test: `python3 tools/shot.py` robi pełny screenshot `public/index.html` przez Playwright
   (chromium) i zgłasza błędy konsoli, kończąc się kodem != 0, gdy są jakiekolwiek — to on

@@ -28,25 +28,32 @@
   --font-serif:ui-serif, Georgia, "Times New Roman", serif;
   --font-mono:ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
+  /* Kontrast: wszystkie tokeny użyte jako kolor TEKSTU mają ≥ 4.5:1 (WCAG AA, mały
+     tekst) na każdym tle, na którym występują — sprawdzone w obu paletach.
+     --accent-a / --accent-b zostają bez zmian: to kolory linii wykresu, nie tekstu;
+     dla wypełnień z tekstem są osobne --accent-*-solid + --on-accent. */
   --bg:#eef1ec;
   --surface:#ffffff;
   --surface-2:#f5f6f1;
   --surface-3:#e7ebe4;
-  --border:#d7ddd0;
-  --border-strong:#c2ccb9;
+  --border:#c3cdb9;
+  --border-strong:#b3bfa9;
   --ink:#1f2a26;
-  --ink-muted:#5c6b62;
-  --ink-faint:#8b988f;
+  --ink-muted:#4a5750;
+  --ink-faint:#5f6c64;
   --accent-a:#0a8a68;
   --accent-a-ink:#066049;
   --accent-a-bg:#e2f2ec;
+  --accent-a-solid:#08795b;
   --accent-b:#c1622b;
   --accent-b-ink:#8f471d;
   --accent-b-bg:#f8e9de;
-  --good:#2f8f5b;
-  --warning:#a8710a;
+  --accent-b-solid:#a85220;
+  --on-accent:#ffffff;
+  --good:#27754b;
+  --warning:#8c5e08;
   --warning-bg:#fbf0d9;
-  --critical:#b3402f;
+  --critical:#a83a2a;
   --critical-bg:#f8e3de;
   --focus:#0a8a68;
   --shadow:0 1px 2px rgba(31,42,38,.06), 0 6px 20px -8px rgba(31,42,38,.12);
@@ -57,21 +64,24 @@
     --surface:#1b2622;
     --surface-2:#20302a;
     --surface-3:#263a32;
-    --border:#33453b;
-    --border-strong:#3f5548;
+    --border:#43594d;
+    --border-strong:#4a6355;
     --ink:#eef1ec;
-    --ink-muted:#a9b6ae;
-    --ink-faint:#788c81;
+    --ink-muted:#b6c3bb;
+    --ink-faint:#8fa398;
     --accent-a:#3ea88a;
     --accent-a-ink:#8fe0c6;
     --accent-a-bg:#1c332b;
+    --accent-a-solid:#3ea88a;
     --accent-b:#d4793a;
     --accent-b-ink:#f0b581;
     --accent-b-bg:#372620;
+    --accent-b-solid:#d4793a;
+    --on-accent:#0f1714;
     --good:#4caf7d;
     --warning:#d9a02e;
     --warning-bg:#3a2f14;
-    --critical:#e0685a;
+    --critical:#e57468;
     --critical-bg:#3a1f1c;
     --focus:#3ea88a;
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5);
@@ -82,21 +92,24 @@
   --surface:#1b2622;
   --surface-2:#20302a;
   --surface-3:#263a32;
-  --border:#33453b;
-  --border-strong:#3f5548;
+  --border:#43594d;
+  --border-strong:#4a6355;
   --ink:#eef1ec;
-  --ink-muted:#a9b6ae;
-  --ink-faint:#788c81;
+  --ink-muted:#b6c3bb;
+  --ink-faint:#8fa398;
   --accent-a:#3ea88a;
   --accent-a-ink:#8fe0c6;
   --accent-a-bg:#1c332b;
+  --accent-a-solid:#3ea88a;
   --accent-b:#d4793a;
   --accent-b-ink:#f0b581;
   --accent-b-bg:#372620;
+  --accent-b-solid:#d4793a;
+  --on-accent:#0f1714;
   --good:#4caf7d;
   --warning:#d9a02e;
   --warning-bg:#3a2f14;
-  --critical:#e0685a;
+  --critical:#e57468;
   --critical-bg:#3a1f1c;
   --focus:#3ea88a;
   --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5);
@@ -108,11 +121,11 @@ body{
   background:var(--bg);
   color:var(--ink);
   font-family:var(--font-sans);
-  font-size:14.5px;
+  font-size:15px;
   line-height:1.5;
   -webkit-font-smoothing:antialiased;
 }
-::selection{ background:var(--accent-a); color:#fff; }
+::selection{ background:var(--accent-a-solid); color:var(--on-accent); }
 h1,h2,h3{ font-family:var(--font-serif); font-weight:600; text-wrap:balance; margin:0; color:var(--ink); }
 .mono, .tabular, input, select, table{ font-variant-numeric:tabular-nums; }
 .mono{ font-family:var(--font-mono); }
@@ -138,6 +151,17 @@ header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:
 .mode-row .sw-label{ display:flex; align-items:center; gap:9px; font-size:14px; font-weight:600; cursor:pointer; }
 .mode-row input[type="checkbox"]{ width:17px; height:17px; accent-color:var(--accent-a); cursor:pointer; }
 .mode-row .hint{ font-size:12px; color:var(--ink-muted); max-width:70ch; }
+.mode-row .spacer{ flex:1 1 auto; }
+.mode-row .copied{ font-size:12px; color:var(--good); font-weight:600; }
+
+/* Nieudane odczytanie stanu z linku (#s=…) — notka do zamknięcia, nie alert. */
+.link-note{
+  display:flex; gap:10px; align-items:center; margin-top:12px;
+  background:var(--warning-bg); border:1px solid var(--warning); color:var(--warning);
+  border-radius:10px; padding:9px 12px; font-size:12.5px;
+}
+.link-note[hidden]{ display:none; }
+.link-note .x{ margin-left:auto; background:none; border:none; color:inherit; cursor:pointer; font-size:16px; line-height:1; padding:2px 6px; border-radius:6px; }
 
 .info-note{
   display:flex; gap:10px; align-items:flex-start;
@@ -164,7 +188,7 @@ header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:
 .panel-sum .mono{ font-variant-numeric:tabular-nums; }
 
 .section-title{
-  font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:600;
+  font-size:11.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:600;
   padding:14px 18px 4px;
 }
 .field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; padding:0 18px 8px; }
@@ -173,9 +197,9 @@ header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:
 .field.span2{ grid-column:1/-1; }
 .field label{ font-size:12px; color:var(--ink-muted); }
 .field label .sub{ color:var(--ink-faint); font-weight:400; }
-.field-hint{ font-size:11px; color:var(--ink-faint); line-height:1.4; }
+.field-hint{ font-size:11.5px; color:var(--ink-faint); line-height:1.4; }
 .rule-note{ padding:8px 18px 14px; font-size:11.5px; color:var(--ink-faint); line-height:1.55; }
-input[type="text"], input[type="number"], input[type="month"], select{
+input[type="text"], input[type="number"], select{
   background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
   padding:7px 9px; font-size:13.5px; color:var(--ink); font-family:inherit; width:100%;
 }
@@ -189,6 +213,17 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
   border-radius:999px; padding:5px 11px; font-size:12px; cursor:pointer; font-family:inherit;
 }
 .chip:hover{ background:var(--surface-3); }
+/* Preset, który nie ma sensu dla aktualnych parametrów kredytu (miesiąc poza okresem,
+   kwota większa od kredytu, wskaźnik poniżej 1 p.p., zdarzenie już dodane) —
+   wyłączony, z wyjaśnieniem w `title`. */
+.chip:disabled{ color:var(--ink-faint); background:var(--surface-2); border-color:var(--border); cursor:not-allowed; opacity:.65; }
+.chip:disabled:hover{ background:var(--surface-2); }
+
+/* Data uruchomienia: miesiąc (szerszy) + rok, zamiast <input type="month"> —
+   przeglądarkowy picker bywa po angielsku i nie da się go zlokalizować. */
+.date-row{ display:flex; gap:8px; }
+.date-row select.mo{ flex:1.7 1 0; }
+.date-row select.yr{ flex:1 1 0; }
 
 .radio-row{ display:flex; gap:14px; padding:2px 0; }
 .radio-row label{ display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; }
@@ -197,9 +232,6 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 .slider-row input[type=range]{ flex:1; accent-color:var(--accent-a); }
 .panel.b .slider-row input[type=range]{ accent-color:var(--accent-b); }
 .slider-val{ font-family:var(--font-mono); font-size:13px; min-width:44px; text-align:right; }
-
-.checkline{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-muted); padding:0 18px; }
-.checkline input{ accent-color:var(--accent-a); }
 
 /* ---------- events ---------- */
 .events{ padding:0 18px 6px; display:flex; flex-direction:column; gap:8px; }
@@ -216,7 +248,7 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 }
 .event-row .rm:hover{ color:var(--critical); background:var(--critical-bg); }
 .event-badge{
-  font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:999px; letter-spacing:.02em;
+  font-size:11px; font-weight:600; padding:2px 7px; border-radius:999px; letter-spacing:.02em;
   align-self:center;
 }
 .event-badge.lost{ background:var(--critical-bg); color:var(--critical); }
@@ -227,8 +259,8 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
   border-radius:8px; padding:7px 12px; font-size:12.5px; cursor:pointer; font-family:inherit; font-weight:500;
 }
 .btn:hover{ background:var(--surface-3); }
-.btn.primary{ background:var(--accent-a); border-color:var(--accent-a); color:#fff; }
-.panel.b .btn.primary{ background:var(--accent-b); border-color:var(--accent-b); }
+.btn.primary{ background:var(--accent-a-solid); border-color:var(--accent-a-solid); color:var(--on-accent); }
+.panel.b .btn.primary{ background:var(--accent-b-solid); border-color:var(--accent-b-solid); }
 
 .warning-banner{
   margin:0 18px 14px; background:var(--warning-bg); border:1px solid var(--warning); color:var(--warning);
@@ -240,7 +272,7 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 /* ---------- KPIs ---------- */
 .kpi-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--border); margin-top:2px; }
 .kpi{ background:var(--surface); padding:12px 16px; }
-.kpi .lbl{ font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; }
+.kpi .lbl{ font-size:11.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; }
 .kpi .val{ font-family:var(--font-mono); font-size:17px; font-weight:600; margin-top:3px; }
 .kpi .val.small{ font-size:14px; font-weight:500; }
 .kpi .val.good{ color:var(--good); }
@@ -257,7 +289,7 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 .compare-item{ display:flex; flex-direction:column; gap:4px; }
 .compare-item .lbl{ font-size:11.5px; color:var(--ink-muted); }
 .compare-item .val{ font-family:var(--font-mono); font-size:16px; font-weight:600; }
-.compare-item .who{ font-size:11px; color:var(--ink-faint); }
+.compare-item .who{ font-size:11.5px; color:var(--ink-faint); }
 .win-a{ color:var(--accent-a-ink); }
 .win-b{ color:var(--accent-b-ink); }
 
@@ -272,7 +304,7 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 .seg button{
   border:none; background:var(--surface-2); color:var(--ink-muted); padding:6px 13px; font-size:12.5px; cursor:pointer; font-family:inherit;
 }
-.seg button.active{ background:var(--accent-a); color:#fff; }
+.seg button.active{ background:var(--accent-a-solid); color:var(--on-accent); }
 .legend{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-muted); }
 .legend .li{ display:flex; align-items:baseline; gap:7px; }
 .legend .sw{ width:14px; height:3px; border-radius:2px; flex:0 0 auto; position:relative; top:-3px; }
@@ -297,7 +329,7 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 table{ border-collapse:collapse; width:100%; font-size:13px; }
 table.sched-table{ table-layout:fixed; min-width:640px; }
 thead th{
-  text-align:right; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint);
+  text-align:right; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint);
   background:var(--surface-2); padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis;
 }
@@ -344,6 +376,14 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
   <div class="mode-row">
     <label class="sw-label"><input type="checkbox" id="rkm-toggle" checked> Kredyt w programie RKM</label>
     <span class="hint" id="rkm-hint"></span>
+    <span class="spacer"></span>
+    <button type="button" class="btn" id="copy-link">Kopiuj link do tego porównania</button>
+    <span class="copied" id="copy-ok" hidden>Skopiowano</span>
+  </div>
+
+  <div class="link-note" id="link-note" hidden>
+    <span>Nie udało się odczytać linku — pokazuję ostatni zapisany stan.</span>
+    <button type="button" class="x" id="link-note-x" aria-label="Zamknij">×</button>
   </div>
 
   <div class="info-note rkm-only">
@@ -432,7 +472,7 @@ function solveMonths(balance,r,payment){
 }
 
 function simulateScenario(cfg){
-  const {principal,ratePct,years,startDate,tryb,feePct,feeMonths,gwarancja,ignorujRegule,events} = cfg;
+  const {principal,ratePct,years,startDate,tryb,feePct,feeMonths,gwarancja,events} = cfg;
   let r = ratePct/100/12;
   let n = Math.max(1, Math.round(years*12));
   let balance = principal;
@@ -518,7 +558,9 @@ function simulateScenario(cfg){
     });
 
     evts.filter(e=>e.type==="dziecko").forEach(e=>{
-      const blocked = !ignorujRegule && rkmBreachMonth!==null && m>=rkmBreachMonth;
+      // Reguła RKM obowiązuje bezwarunkowo — po przekroczeniu przyszłe spłaty rodzinne
+      // przepadają (art. 7 ust. 1 pkt 7); już wypłaconych BGK nie odbiera.
+      const blocked = rkmBreachMonth!==null && m>=rkmBreachMonth;
       if(balance<=0.5){
         eventLog.push({month:m, type:"dziecko-zero", text:"Spłata rodzinna (dziecko "+e.childNumber+"): kredyt już spłacony — spłata rodzinna 0"});
         return;
@@ -567,7 +609,129 @@ function simulateScenario(cfg){
   };
 }
 
-const api = { simulateScenario, annuity, solveMonths, addMonthsUTC, RKM_WINDOW_MONTHS };
+/* ============================================================================
+   KODEK STANU DO LINKU (#s=…) — czyste funkcje, bez DOM.
+   Skracanie kluczy (żeby link był krótki) + base64url. Kompresję (deflate-raw
+   przez CompressionStream) robi warstwa UI; tutaj tylko część przenośna,
+   testowana w tools/test-engine.mjs.
+   ========================================================================== */
+const STATE_VERSION = 4;
+
+const STATE_KEYS = { v:"v", rkmOn:"k", chartMode:"c", tableScn:"t", A:"a", B:"b" };
+const SCN_KEYS = {
+  cena:"p", wklad:"w", gwarancja:"g", remont:"d", marza:"m", wskaznik:"x",
+  start:"s", tryb:"y", feePct:"f", feeMonths:"n", years:"l", events:"e"
+};
+/* `id` zdarzenia świadomie NIE trafia do linku — jest lokalnym uchwytem UI
+   i po odczytaniu linku nadawany jest od nowa. */
+const EVT_KEYS = {
+  type:"t", month:"m", amount:"a", startMonth:"s", endMonth:"n",
+  monthlyAmount:"q", childNumber:"c", trybOverride:"o", newWskaznik:"x"
+};
+const EVT_TYPES = { jednorazowa:"1", cykliczna:"2", dziecko:"3", zmiana_wskaznika:"4" };
+const TRYB_VALS = { skroc:"s", obniz:"o", auto:"a" };
+const CHART_VALS = { saldo:"s", rata:"r" };
+function invert(m){ const o={}; Object.keys(m).forEach(k=>{ o[m[k]]=k; }); return o; }
+const EVT_TYPES_R = invert(EVT_TYPES), TRYB_R = invert(TRYB_VALS), CHART_R = invert(CHART_VALS);
+
+let idSeq = 0;
+function linkEventId(){ idSeq++; return "l" + idSeq.toString(36); }
+
+function shortenScenario(s){
+  const o = {};
+  Object.keys(SCN_KEYS).forEach(k=>{ if(k!=="events" && s[k]!==undefined) o[SCN_KEYS[k]] = s[k]; });
+  if(s.tryb!==undefined) o[SCN_KEYS.tryb] = TRYB_VALS[s.tryb] || s.tryb;
+  o[SCN_KEYS.events] = (Array.isArray(s.events)?s.events:[]).map(e=>{
+    const x = {};
+    Object.keys(EVT_KEYS).forEach(k=>{ if(e[k]!==undefined) x[EVT_KEYS[k]] = e[k]; });
+    if(e.type!==undefined) x[EVT_KEYS.type] = EVT_TYPES[e.type] || e.type;
+    if(e.trybOverride!==undefined) x[EVT_KEYS.trybOverride] = TRYB_VALS[e.trybOverride] || e.trybOverride;
+    return x;
+  });
+  return o;
+}
+function expandScenario(o){
+  const s = {};
+  if(!o || typeof o!=="object") return s;
+  Object.keys(SCN_KEYS).forEach(k=>{ if(k!=="events" && o[SCN_KEYS[k]]!==undefined) s[k] = o[SCN_KEYS[k]]; });
+  if(s.tryb!==undefined) s.tryb = TRYB_R[s.tryb] || s.tryb;
+  const evts = Array.isArray(o[SCN_KEYS.events]) ? o[SCN_KEYS.events] : [];
+  s.events = evts.map(x=>{
+    const e = { id: linkEventId() };
+    Object.keys(EVT_KEYS).forEach(k=>{ if(x[EVT_KEYS[k]]!==undefined) e[k] = x[EVT_KEYS[k]]; });
+    if(e.type!==undefined) e.type = EVT_TYPES_R[e.type] || e.type;
+    if(e.trybOverride!==undefined) e.trybOverride = TRYB_R[e.trybOverride] || e.trybOverride;
+    return e;
+  });
+  return s;
+}
+function shortenState(st){
+  return {
+    v: (st && st.v) || STATE_VERSION,
+    k: !!(st && st.rkmOn),
+    c: CHART_VALS[st && st.chartMode] || (st && st.chartMode),
+    t: st && st.tableScn,
+    a: shortenScenario((st && st.A) || {}),
+    b: shortenScenario((st && st.B) || {})
+  };
+}
+function expandState(o){
+  if(!o || typeof o!=="object") return null;
+  return {
+    v: o.v,
+    rkmOn: !!o.k,
+    chartMode: CHART_R[o.c] || o.c || "saldo",
+    tableScn: o.t || "A",
+    A: expandScenario(o.a),
+    B: expandScenario(o.b)
+  };
+}
+
+const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+function bytesToB64url(bytes){
+  let out = "";
+  for(let i=0;i<bytes.length;i+=3){
+    const b0 = bytes[i], b1 = bytes[i+1], b2 = bytes[i+2];
+    out += B64URL[b0>>2];
+    out += B64URL[((b0&3)<<4) | ((b1===undefined?0:b1)>>4)];
+    if(b1===undefined) break;
+    out += B64URL[((b1&15)<<2) | ((b2===undefined?0:b2)>>6)];
+    if(b2===undefined) break;
+    out += B64URL[b2&63];
+  }
+  return out;
+}
+function b64urlToBytes(str){
+  const txt = String(str).replace(/=+$/,"");
+  const out = [];
+  let buf = 0, bits = 0;
+  for(let i=0;i<txt.length;i++){
+    const v = B64URL.indexOf(txt.charAt(i));
+    if(v<0) throw new Error("base64url: nieprawidłowy znak");
+    buf = (buf<<6) | v; bits += 6;
+    if(bits>=8){ bits -= 8; out.push((buf>>bits) & 255); }
+  }
+  return new Uint8Array(out);
+}
+
+/* Wariant nieskompresowany linku (#s=j.…) — awaryjny, gdy przeglądarka nie ma
+   CompressionStream. Ta sama mapa kluczy, tylko bez deflate. */
+function encodeStateJson(st){
+  const json = JSON.stringify(shortenState(st));
+  return bytesToB64url(new TextEncoder().encode(json));
+}
+function decodeStateJson(payload){
+  try{
+    const json = new TextDecoder().decode(b64urlToBytes(payload));
+    return expandState(JSON.parse(json));
+  }catch(e){ return null; }
+}
+
+const api = {
+  simulateScenario, annuity, solveMonths, addMonthsUTC, RKM_WINDOW_MONTHS,
+  STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson,
+  bytesToB64url, b64urlToBytes
+};
 if (typeof window !== "undefined") window.RKM = api;
 if (typeof globalThis !== "undefined") globalThis.RKM = api;
 })();
@@ -581,6 +745,7 @@ if (typeof globalThis !== "undefined") globalThis.RKM = api;
 "use strict";
 
 const simulateScenario = RKM.simulateScenario;
+const STATE_VERSION = RKM.STATE_VERSION;
 
 const MONTHS_PL = ["sty","lut","mar","kwi","maj","cze","lip","sie","wrz","paź","lis","gru"];
 function fmtDate(d){ return MONTHS_PL[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
@@ -613,8 +778,7 @@ function defaultScenario(which){
     cena:500000, wklad:0, gwarancja:100000, remont:0,
     marza:1.9, wskaznik:3.6,
     start:"2027-01", tryb:"skroc",
-    feePct:3, feeMonths:36,
-    ignorujRegule:false
+    feePct:3, feeMonths:36
   };
   if(which==="A"){
     return Object.assign({}, common, {
@@ -633,11 +797,11 @@ function defaultScenario(which){
 }
 
 function defaultState(){
-  return { rkmOn:true, A: defaultScenario("A"), B: defaultScenario("B"), chartMode:"saldo", tableScn:"A" };
+  return { v:STATE_VERSION, rkmOn:true, A: defaultScenario("A"), B: defaultScenario("B"), chartMode:"saldo", tableScn:"A" };
 }
 
 /* ============ persistence ============ */
-const STORAGE_KEY = "abkredyt-state-v3";
+const STORAGE_KEY = "abkredyt-state-v4";
 
 /* Lekka kontrola kształtu — żeby stan z innej (starszej, spersonalizowanej)
    wersji nie odżył po zmianie schematu. */
@@ -665,6 +829,55 @@ try{
 
 function persist(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ /* ignore */ }
+}
+
+/* ============ stan w linku (fragment #s=…) ============ */
+/* Świadomie fragment, nie query string: fragment nigdy nie jest wysyłany na serwer
+   ani do logów proxy, a parametry kredytu to dane wrażliwe. Dwa warianty ładunku:
+   „d.” = deflate-raw + base64url (CompressionStream), „j.” = sam base64url JSON-a
+   (gdy przeglądarka nie ma CompressionStream). Dekoder przyjmuje oba. */
+const HASH_PREFIX = "#s=";
+
+async function deflateToB64url(bytes){
+  const cs = new CompressionStream("deflate-raw");
+  const writer = cs.writable.getWriter();
+  writer.write(bytes); writer.close();
+  const buf = await new Response(cs.readable).arrayBuffer();
+  return RKM.bytesToB64url(new Uint8Array(buf));
+}
+async function inflateFromB64url(payload){
+  const ds = new DecompressionStream("deflate-raw");
+  const writer = ds.writable.getWriter();
+  writer.write(RKM.b64urlToBytes(payload)); writer.close();
+  const buf = await new Response(ds.readable).arrayBuffer();
+  return new TextDecoder().decode(new Uint8Array(buf));
+}
+
+async function buildShareUrl(){
+  let payload;
+  if(typeof CompressionStream === "function"){
+    const json = JSON.stringify(RKM.shortenState(state));
+    payload = "d." + await deflateToB64url(new TextEncoder().encode(json));
+  } else {
+    payload = "j." + RKM.encodeStateJson(state);
+  }
+  return location.origin + location.pathname + HASH_PREFIX + payload;
+}
+
+async function stateFromHash(){
+  const hash = location.hash || "";
+  if(hash.indexOf(HASH_PREFIX)!==0) return null;
+  const raw = hash.slice(HASH_PREFIX.length);
+  const kind = raw.slice(0,2);
+  const payload = raw.slice(2);
+  try{
+    if(kind==="j.") return RKM.decodeStateJson(payload);
+    if(kind==="d."){
+      if(typeof DecompressionStream !== "function") return null;
+      return RKM.expandState(JSON.parse(await inflateFromB64url(payload)));
+    }
+  }catch(e){ return null; }
+  return null;
 }
 
 /* ============ RKM mode ============ */
@@ -714,7 +927,6 @@ function toEngineConfig(s){
     principal: principalOf(s), ratePct:nominal, years:s.years, startDate:s.start+"-01",
     tryb:s.tryb, feePct:s.feePct, feeMonths:s.feeMonths,
     gwarancja: state.rkmOn ? (Number(s.gwarancja)||0) : 0,
-    ignorujRegule: state.rkmOn ? s.ignorujRegule : true,
     events
   };
 }
@@ -739,6 +951,61 @@ function strategySummary(s){
 }
 function summaryLine(s){
   return [money(principalOf(s)), plYears(s.years), pct(nominalRate(s)), strategySummary(s)].join(" · ");
+}
+
+/* ============ presety wydarzeń ============ */
+/* Kwoty i miesiące zostają bezwzględne (tak są czytelniejsze niż „10 % kredytu”),
+   ale preset, który dla aktualnych parametrów scenariusza nie ma sensu, jest
+   wyłączany — z powodem w `title`. */
+const PRESETS = [
+  {key:"dziecko2", rkmOnly:true, label:"2. dziecko w m. 24 (+20 000)",
+   make:()=>({type:"dziecko", month:24, amount:20000, childNumber:2, trybOverride:"auto"})},
+  {key:"dziecko3", rkmOnly:true, label:"3. dziecko w m. 36 (+60 000)",
+   make:()=>({type:"dziecko", month:36, amount:60000, childNumber:3, trybOverride:"auto"})},
+  {key:"nadplata50-12", label:"Nadpłata 50 000 w m. 12",
+   make:()=>({type:"jednorazowa", month:12, amount:50000, trybOverride:"auto"})},
+  {key:"nadplata50-37", label:"Nadpłata 50 000 w m. 37 (po 3 latach)",
+   make:()=>({type:"jednorazowa", month:37, amount:50000, trybOverride:"auto"})},
+  {key:"cyk1000", label:"Nadpłacaj 1 000 zł/mies. od m. 1",
+   make:(s)=>({type:"cykliczna", startMonth:1, endMonth:s.years*12, monthlyAmount:1000, trybOverride:"auto"})},
+  {key:"wskaznik-1", label:"Wskaźnik −1 p.p. od m. 24",
+   make:(s)=>({type:"zmiana_wskaznika", month:24, newWskaznik:Math.max(0, round2(s.wskaznik-1))})}
+];
+function presetEvent(s, key){
+  const def = PRESETS.filter(p=>p.key===key)[0];
+  return def ? def.make(s) : null;
+}
+/* Pola, po których rozpoznajemy „to samo zdarzenie” (bez `id` i bez trybu). */
+const EVENT_IDENTITY = {
+  jednorazowa:["month","amount"],
+  cykliczna:["startMonth","endMonth","monthlyAmount"],
+  dziecko:["month","amount","childNumber"],
+  zmiana_wskaznika:["month","newWskaznik"]
+};
+function sameEvent(a, b){
+  if(a.type!==b.type) return false;
+  return (EVENT_IDENTITY[a.type]||[]).every(k=>Number(a[k])===Number(b[k]));
+}
+/* Rata początkowa scenariusza — do oceny, czy nadpłata cykliczna nie jest
+   większa od samej raty (wtedy preset nie ma sensu). */
+function initialRataOf(s){
+  const n = Math.max(1, Math.round(s.years*12));
+  return RKM.annuity(principalOf(s), nominalRate(s)/100/12, n);
+}
+/* Zwraca null (preset użyteczny) albo powód po polsku, dlaczego jest wyłączony. */
+function presetDisabledReason(s, e){
+  if(!e) return "nieznany preset";
+  const n = Math.max(1, Math.round(s.years*12));
+  const at = e.month!==undefined ? e.month : e.startMonth;
+  if(at!==undefined && at>n) return "poza okresem kredytu ("+n+" mies.)";
+  if(e.type==="jednorazowa" && e.amount>=principalOf(s)) return "kwota nie mniejsza niż kredyt";
+  if(e.type==="cykliczna"){
+    const rata = initialRataOf(s);
+    if(e.monthlyAmount>=rata) return "nadpłata nie mniejsza niż rata ("+money(rata)+")";
+  }
+  if(e.type==="zmiana_wskaznika" && Number(s.wskaznik)<1) return "wskaźnik jest niższy niż 1 p.p.";
+  if(s.events.some(x=>sameEvent(x,e))) return "już dodane";
+  return null;
 }
 
 /* ============ rendering: scenario panels ============ */
@@ -810,7 +1077,7 @@ function renderPanel(key, s, result, baseline){
   html += field("Wskaźnik referencyjny <span class=\'sub\'>(WIBOR/WIRON)</span> %","wskaznik",s.wskaznik,"number",0.01);
   html += '<div class="field"><label>Oprocentowanie nominalne <span class="sub">(marża + wskaźnik)</span></label><input type="text" class="mono" readonly value="'+pct(nominalRate(s))+'"></div>';
   html += '<div class="field"><label>Okres — <span class="mono">'+s.years+'</span> lat</label><div class="slider-row"><input type="range" min="'+yearsMin()+'" max="35" step="1" data-f="years" value="'+s.years+'"></div></div>';
-  html += field2("Data uruchomienia","start",s.start,"month");
+  html += startField(s);
   html += '<div class="field"><label>Tryb nadpłat (domyślny)</label><div class="radio-row">'+
     '<label><input type="radio" name="tryb-'+key+'" value="skroc" data-f="tryb" '+(s.tryb==="skroc"?'checked':'')+'> skróć okres</label>'+
     '<label><input type="radio" name="tryb-'+key+'" value="obniz" data-f="tryb" '+(s.tryb==="obniz"?'checked':'')+'> obniż ratę</label>'+
@@ -824,27 +1091,25 @@ function renderPanel(key, s, result, baseline){
   html += '</div>';
 
   if(state.rkmOn){
-    if(result.rkmBreachMonth!==null && !s.ignorujRegule){
+    if(result.rkmBreachMonth!==null){
       const excess = Math.max(0, result.rkmBreachAmount - result.rkmBreachAllowance);
       html += '<div class="warning-banner"><span class="x">⚠</span><div><b>Utrata przyszłych spłat rodzinnych:</b> w miesiącu '+result.rkmBreachMonth+
         ' nadpłata dobrowolna '+money(result.rkmBreachAmount)+' przekroczyła pozostałą wtedy część objętą gwarancją ('+money(result.rkmBreachAllowance)+') o '+money(excess)+
         '. Spłaty rodzinne przypadające od tego miesiąca liczone są jako utracone; spłat już wypłaconych BGK nie odbiera.</div></div>';
     }
     html += '<div class="section-title">Reguła RKM</div>';
-    html += '<label class="checkline"><input type="checkbox" data-f="ignorujRegule" '+(s.ignorujRegule?'checked':'')+'> ignoruj regułę (licz spłatę rodzinną mimo przekroczenia)</label>';
     html += '<div class="rule-note">Spłaty kapitału — raty, nadpłaty i sama spłata rodzinna — zaliczają się najpierw na poczet części objętej gwarancją i ją pomniejszają, więc limit topi się z każdą złotówką kapitału. Nadpłata dobrowolna w pierwszych 3 latach jest bezpieczna tylko w granicach części gwarantowanej pozostałej w tym momencie; przekroczenie odbiera przyszłe spłaty rodzinne (już wypłaconych BGK nie odbiera), a bez gwarancji odbiera je każda nadpłata w tym okresie. Podstawa: art. 7 ust. 1 pkt 7 w zw. z art. 4a ust. 6 ustawy o rodzinnym kredycie mieszkaniowym i bezpiecznym kredycie 2% (t.j. Dz.U. 2024 poz. 1724); kalkulator liczy 3 lata od miesiąca uruchomienia, ustawa — od dnia udzielenia kredytu (zwykle ten sam miesiąc albo nieco wcześniej).</div>';
   }
 
   html += '<div class="section-title">Wydarzenia</div>';
   html += '<div class="presets-row">';
-  if(state.rkmOn){
-    html += '<button type="button" class="chip" data-add-preset="dziecko2">2. dziecko w m. 24 (+20 000)</button>';
-    html += '<button type="button" class="chip" data-add-preset="dziecko3">3. dziecko w m. 36 (+60 000)</button>';
-  }
-  html += '<button type="button" class="chip" data-add-preset="nadplata50-12">Nadpłata 50 000 w m. 12</button>';
-  html += '<button type="button" class="chip" data-add-preset="nadplata50-37">Nadpłata 50 000 w m. 37 (po 3 latach)</button>';
-  html += '<button type="button" class="chip" data-add-preset="cyk1000">Nadpłacaj 1 000 zł/mies. od m. 1</button>';
-  html += '<button type="button" class="chip" data-add-preset="wskaznik-1">Wskaźnik −1 p.p. od m. 24</button>';
+  PRESETS.forEach(p=>{
+    if(p.rkmOnly && !state.rkmOn) return;
+    const why = presetDisabledReason(s, p.make(s));
+    html += '<button type="button" class="chip" data-add-preset="'+p.key+'"'+
+      (why ? ' disabled title="'+escapeXml("Nie dotyczy tego scenariusza: "+why)+'"' : '')+
+      '>'+p.label+'</button>';
+  });
   html += '</div>';
 
   html += '<div class="events">';
@@ -873,7 +1138,7 @@ function renderPanel(key, s, result, baseline){
   html += '</div>';
 
   // KPIs
-  const breached = result.rkmBreachMonth!==null && !s.ignorujRegule;
+  const breached = result.rkmBreachMonth!==null;
   const kpis = [
     ["Rata początkowa", money(result.initialRata)],
     ["Rata po ostatnim wydarzeniu", money(result.finalRata)],
@@ -905,8 +1170,26 @@ function renderPanel(key, s, result, baseline){
 function field(label, key, val, type, step){
   return '<div class="field"><label>'+label+'</label><input type="'+type+'" data-f="'+key+'" value="'+val+'"'+(step?' step="'+step+'"':'')+'></div>';
 }
-function field2(label, key, val, type){
-  return '<div class="field"><label>'+label+'</label><input type="'+type+'" data-f="'+key+'" value="'+val+'"></div>';
+/* Data uruchomienia: własne selecty (miesiąc po polsku + rok) zamiast
+   <input type="month">, którego picker jest lokalizowany przez przeglądarkę,
+   nie przez stronę. `state.start` zostaje w formacie "YYYY-MM". */
+const MONTH_NAMES_PL = ["styczeń","luty","marzec","kwiecień","maj","czerwiec","lipiec","sierpień","wrzesień","październik","listopad","grudzień"];
+function startField(s){
+  const parts = String(s.start||"").split("-");
+  const yy = parseInt(parts[0],10) || new Date().getFullYear();
+  const mm = clamp(parseInt(parts[1],10) || 1, 1, 12);
+  const now = new Date().getFullYear();
+  const years = [];
+  for(let y=now-2; y<=now+10; y++) years.push(y);
+  if(years.indexOf(yy)<0){ years.push(yy); years.sort((a,b)=>a-b); }
+  return '<div class="field"><label>Data uruchomienia</label><div class="date-row">'+
+    '<select class="mo" data-start-part="month" aria-label="Miesiąc uruchomienia">'+
+      MONTH_NAMES_PL.map((nm,i)=>'<option value="'+(i+1)+'"'+(mm===i+1?' selected':'')+'>'+nm+'</option>').join('')+
+    '</select>'+
+    '<select class="yr" data-start-part="year" aria-label="Rok uruchomienia">'+
+      years.map(y=>'<option value="'+y+'"'+(yy===y?' selected':'')+'>'+y+'</option>').join('')+
+    '</select>'+
+    '</div></div>';
 }
 
 /* ============ chart ============ */
@@ -953,7 +1236,7 @@ function buildChart(resA, resB, mode, sA, sB){
     const gy = padT + innerH*(i/4);
     const val = maxY*(1-i/4);
     grid += '<line x1="'+padL+'" x2="'+(W-padR)+'" y1="'+gy.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="'+gridColor+'" stroke-width="1"/>';
-    grid += '<text x="'+(padL-8)+'" y="'+(gy+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="var(--ink-faint)" font-family="'+SVG_MONO+'">'+ (val>=1000? Math.round(val/1000)+"k" : Math.round(val)) +'</text>';
+    grid += '<text x="'+(padL-8)+'" y="'+(gy+4).toFixed(1)+'" text-anchor="end" font-size="11.5" fill="var(--ink-faint)" font-family="'+SVG_MONO+'">'+ (val>=1000? Math.round(val/1000)+"k" : Math.round(val)) +'</text>';
   }
   // x axis labels: every ~5 years
   let xAxis = "";
@@ -961,7 +1244,7 @@ function buildChart(resA, resB, mode, sA, sB){
   const step = yearsSpan>20 ? 5 : (yearsSpan>10 ? 2 : 1);
   for(let yr=0; yr<=yearsSpan; yr+=step){
     const mm = yr*12; if(mm>maxX) break;
-    xAxis += '<text x="'+x(mm).toFixed(1)+'" y="'+(H-padB+18)+'" text-anchor="middle" font-size="11" fill="var(--ink-faint)" font-family="'+SVG_MONO+'">rok '+yr+'</text>';
+    xAxis += '<text x="'+x(mm).toFixed(1)+'" y="'+(H-padB+18)+'" text-anchor="middle" font-size="11.5" fill="var(--ink-faint)" font-family="'+SVG_MONO+'">rok '+yr+'</text>';
   }
 
   // event markers: one-off events get a short tick + dot; a cyclic nadpłata gets a
@@ -1144,6 +1427,33 @@ function renderChart(){
     document.querySelectorAll('.month-row[data-year-group="'+yr+'"]').forEach(r=>{ r.hidden = !expanded; });
   });
 
+  // „Kopiuj link do tego porównania" — schowek, a gdy niedostępny, prompt do ręcznego
+  // skopiowania (np. przeglądarka bez Clipboard API albo bez zgody na zapis).
+  const copyBtn = document.getElementById("copy-link");
+  const copyOk = document.getElementById("copy-ok");
+  let copyTimer = null;
+  function flashCopied(){
+    if(!copyOk) return;
+    copyOk.hidden = false;
+    if(copyTimer) clearTimeout(copyTimer);
+    copyTimer = setTimeout(()=>{ copyOk.hidden = true; }, 2000);
+  }
+  copyBtn.addEventListener("click", async ()=>{
+    let url;
+    try{ url = await buildShareUrl(); }
+    catch(e){ window.prompt("Nie udało się zbudować linku.", location.href); return; }
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(url);
+        flashCopied();
+        return;
+      }
+    }catch(e){ /* brak zgody albo brak API — niżej awaryjny prompt */ }
+    window.prompt("Skopiuj link (Ctrl/Cmd + C):", url);
+  });
+  const noteX = document.getElementById("link-note-x");
+  if(noteX) noteX.addEventListener("click", ()=>{ document.getElementById("link-note").hidden = true; });
+
   // Globalny przełącznik RKM — żyje poza `#scenarios`, więc recompute() go nie przerysowuje
   // i nie gubi fokusu.
   document.getElementById("rkm-toggle").addEventListener("change", (ev)=>{
@@ -1179,20 +1489,26 @@ function attachPanelHandlers(){
     panel.querySelectorAll('input[data-f="tryb"]').forEach(r=>{
       r.addEventListener("change", ()=>{ if(r.checked){ s.tryb = r.value; recompute(); } });
     });
-    panel.querySelectorAll('input[data-f="ignorujRegule"]').forEach(c=>{
-      c.addEventListener("change", ()=>{ s.ignorujRegule = c.checked; recompute(); });
-    });
-
-    // event preset chips
+    // presety wydarzeń — wyłączony chip nic nie robi także po stronie handlera
     panel.querySelectorAll("[data-add-preset]").forEach(btn=>{
       btn.addEventListener("click", ()=>{
-        const p = btn.dataset.addPreset;
-        if(p==="dziecko2") s.events.push({id:uid(),type:"dziecko",month:24,amount:20000,childNumber:2,trybOverride:"auto"});
-        if(p==="dziecko3") s.events.push({id:uid(),type:"dziecko",month:36,amount:60000,childNumber:3,trybOverride:"auto"});
-        if(p==="nadplata50-12") s.events.push({id:uid(),type:"jednorazowa",month:12,amount:50000,trybOverride:"auto"});
-        if(p==="nadplata50-37") s.events.push({id:uid(),type:"jednorazowa",month:37,amount:50000,trybOverride:"auto"});
-        if(p==="cyk1000") s.events.push({id:uid(),type:"cykliczna",startMonth:1,endMonth:s.years*12,monthlyAmount:1000,trybOverride:"auto"});
-        if(p==="wskaznik-1") s.events.push({id:uid(),type:"zmiana_wskaznika",month:24,newWskaznik:Math.max(0, round2(s.wskaznik-1))});
+        if(btn.disabled) return;
+        const e = presetEvent(s, btn.dataset.addPreset);
+        if(!e || presetDisabledReason(s, e)) return;
+        e.id = uid();
+        s.events.push(e);
+        recompute();
+      });
+    });
+
+    // data uruchomienia — dwa selecty składane w "YYYY-MM"
+    panel.querySelectorAll("[data-start-part]").forEach(sel=>{
+      sel.addEventListener("change", ()=>{
+        const mo = panel.querySelector('[data-start-part="month"]');
+        const yr = panel.querySelector('[data-start-part="year"]');
+        if(!mo || !yr) return;
+        const mm = clamp(parseInt(mo.value,10)||1, 1, 12);
+        s.start = (parseInt(yr.value,10)||new Date().getFullYear()) + "-" + (mm<10?"0":"") + mm;
         recompute();
       });
     });
@@ -1243,8 +1559,36 @@ function attachPanelHandlers(){
   });
 }
 
-applyRkmMode();
-recompute();
+function showLinkNote(){
+  const note = document.getElementById("link-note");
+  if(note) note.hidden = false;
+}
+function stripHash(){
+  try{ history.replaceState(null, "", location.pathname + location.search); }
+  catch(e){ /* starsze przeglądarki — zostaje hash, nic się nie psuje */ }
+}
+
+function boot(){
+  applyRkmMode();
+  recompute();
+}
+
+/* Link ma pierwszeństwo nad localStorage; po odczytaniu od razu zapisujemy stan
+   i czyścimy fragment, żeby kolejne edycje i odświeżenia nie wracały do linku. */
+if((location.hash||"").indexOf(HASH_PREFIX)===0){
+  stateFromHash().then(fromLink=>{
+    if(fromLink && fromLink.v===STATE_VERSION && looksLikeState(fromLink)){
+      state = fromLink;
+      persist();
+    } else {
+      showLinkNote();
+    }
+    stripHash();
+    boot();
+  }).catch(()=>{ showLinkNote(); stripHash(); boot(); });
+} else {
+  boot();
+}
 })();
 </script>
 
