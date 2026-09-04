@@ -281,6 +281,11 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 }
 .warning-banner b{ color:inherit; }
 .warning-banner .x{ flex:0 0 auto; }
+.warning-banner ul{ margin:5px 0 0; padding-left:18px; }
+.warning-banner li{ margin:2px 0; }
+/* Naruszone limity ustawowe RKM (wkład własny / gwarancja) — ta sama forma, ale
+   paleta krytyczna, bo to nie ostrzeżenie o skutku decyzji, a niespełniony warunek. */
+.warning-banner.critical{ background:var(--critical-bg); border-color:var(--critical); color:var(--critical); }
 
 /* ---------- KPIs ---------- */
 .kpi-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--border); margin-top:2px; }
@@ -509,6 +514,73 @@ function solveMonths(balance,r,payment){
 function nonNeg(v){ const x = Number(v); return isFinite(x) && x>0 ? x : 0; }
 function atLeastMonth1(v){ const x = Math.round(Number(v)); return isFinite(x) && x>1 ? x : 1; }
 
+/* ============================================================================
+   LIMITY WKŁADU WŁASNEGO I GWARANCJI BGK — czyste funkcje, wyliczane z ceny,
+   wkładu i dodatkowej kwoty kredytu. Gwarancja NIE jest parametrem wpisywanym
+   przez użytkownika: ustawa wyznacza ją jednoznacznie.
+     • art. 3 ust. 3 pkt 1 — wkład własny nie wyższy niż 200 000 zł (albo brak),
+     • art. 3 ust. 3b — gdy wkład < 20 % całkowitej kwoty wydatków, gwarancją objęta
+       jest CZĘŚĆ KREDYTU stanowiąca różnicę między 20 % wydatków a wkładem,
+     • art. 4a ust. 3 — sama gwarancja maks. 100 000 zł,
+     • art. 4a ust. 2 — gwarancja + wkład łącznie maks. 200 000 zł i maks. 20 % wydatków,
+     • art. 5 ust. 1 pkt 5 — wkład własny nie przekracza 20 % wydatków (stopa zmienna)
+       albo 30 % (stopa stała na co najmniej 5 lat).
+   „Całkowita kwota wydatków" w kalkulatorze = cena + dodatkowa kwota kredytu
+   (wykończenie/remont finansowane tym samym kredytem).
+   Świadomie NIE modelowane (opisane w dokumentacji): art. 5 ust. 2 (rodzina z dwojgiem
+   dzieci posiadająca jedno mieszkanie — wkład ≤ 10 %), art. 3 ust. 3a w zw. z art. 5
+   ust. 2d (wkład wyłącznie w postaci działki — bez limitu procentowego, wkład + kredyt
+   ≤ 1 000 000 zł) oraz art. 9f (Rada Ministrów może podnieść limity rozporządzeniem;
+   na 09.2026 nie podniosła — strona produktowa BGK podaje te same kwoty).
+   ========================================================================== */
+const RKM_WKLAD_MAX_PCT = 0.2;     // art. 5 ust. 1 pkt 5 lit. a / art. 4a ust. 2 pkt 2
+const RKM_WKLAD_MAX_KWOTA = 200000; // art. 3 ust. 3 pkt 1
+const RKM_GWARANCJA_MAX = 100000;   // art. 4a ust. 3
+const RKM_SUMA_MAX = 200000;        // art. 4a ust. 2 pkt 1 (gwarancja + wkład)
+
+function rkmWydatki(o){ return nonNeg(o && o.cena) + nonNeg(o && o.remont); }
+/* Kwota kredytu — ta sama definicja co w UI (principalOf), powtórzona tu, żeby
+   gwarancji nie dało się wyliczyć wyżej niż sam kredyt. */
+function rkmPrincipal(o){ return Math.max(0, nonNeg(o && o.cena) - nonNeg(o && o.wklad)) + nonNeg(o && o.remont); }
+/* Część kredytu potrzebna do domknięcia 20 % wydatków (art. 3 ust. 3b), przycięta
+   pułapem 100 000 zł (art. 4a ust. 3) — JESZCZE bez pułapu łącznego z art. 4a ust. 2
+   pkt 1. To ta liczba mówi, ile gwarancji kredyt by potrzebował, więc na niej opiera
+   się kontrola sumy 200 000 zł. */
+function rkmGwarancjaPotrzebna(o){
+  return Math.min(Math.max(0, RKM_WKLAD_MAX_PCT*rkmWydatki(o) - nonNeg(o && o.wklad)), RKM_GWARANCJA_MAX);
+}
+/* Gwarancja faktycznie możliwa prawnie: potrzebna część, przycięta pułapem łącznym
+   (200 000 zł razem z wkładem) i kwotą kredytu. Nigdy ujemna. */
+function gwarancjaBGK(o){
+  const wklad = nonNeg(o && o.wklad);
+  return Math.max(0, Math.min(
+    rkmGwarancjaPotrzebna(o),
+    RKM_SUMA_MAX - wklad,
+    rkmPrincipal(o)
+  ));
+}
+/* Naruszone limity RKM — kody + liczby pomocnicze do komunikatu w UI.
+   `suma_200k` raportujemy tylko wtedy, gdy nie wynika już z innego naruszenia
+   (inaczej banner powtarzałby tę samą przyczynę dwa razy). */
+function rkmLimitIssues(o){
+  const wklad = nonNeg(o && o.wklad);
+  const wydatki = rkmWydatki(o);
+  const maxWklad = RKM_WKLAD_MAX_PCT*wydatki;
+  const minWklad = Math.max(0, maxWklad - RKM_GWARANCJA_MAX);
+  const brakDo20 = Math.max(0, maxWklad - wklad);
+  const potrzebna = rkmGwarancjaPotrzebna(o);
+  const issues = [];
+  if(wklad - maxWklad > 0.005) issues.push("wklad_pct");
+  if(wklad - RKM_WKLAD_MAX_KWOTA > 0.005) issues.push("wklad_kwota");
+  if(brakDo20 - RKM_GWARANCJA_MAX > 0.005) issues.push("gwarancja_niedobor");
+  if(issues.length===0 && wklad + potrzebna - RKM_SUMA_MAX > 0.005) issues.push("suma_200k");
+  return {
+    issues, wydatki, minWklad, maxWklad, brakDo20,
+    gwarancjaPotrzebna: potrzebna, gwarancja: gwarancjaBGK(o),
+    pctWkladu: wydatki>0 ? 100*wklad/wydatki : 0
+  };
+}
+
 function simulateScenario(cfg){
   const {startDate,tryb,events} = cfg;
   const principal = nonNeg(cfg.principal);
@@ -694,11 +766,15 @@ function simulateScenario(cfg){
    przez CompressionStream) robi warstwa UI; tutaj tylko część przenośna,
    testowana w tools/test-engine.mjs.
    ========================================================================== */
-const STATE_VERSION = 4;
+const STATE_VERSION = 5;
+/* Ładunek z wersji 4 różnił się TYLKO tym, że nosił pole `gwarancja` (dziś wyliczane
+   z ceny, wkładu i dodatkowej kwoty — patrz gwarancjaBGK). Po pominięciu tego klucza
+   jest tożsamy z wersją 5, więc dekoder go przyjmuje i podnosi wersję stanu. */
+const ACCEPTED_STATE_VERSIONS = [4, 5];
 
 const STATE_KEYS = { v:"v", rkmOn:"k", chartMode:"c", tableScn:"t", A:"a", B:"b" };
 const SCN_KEYS = {
-  cena:"p", wklad:"w", gwarancja:"g", remont:"d", marza:"m", wskaznik:"x",
+  cena:"p", wklad:"w", remont:"d", marza:"m", wskaznik:"x",
   start:"s", tryb:"y", feePct:"f", feeMonths:"n", years:"l", events:"e"
 };
 /* `id` zdarzenia świadomie NIE trafia do linku — jest lokalnym uchwytem UI
@@ -757,7 +833,9 @@ function shortenState(st){
 function expandState(o){
   if(!o || typeof o!=="object") return null;
   return {
-    v: o.v,
+    // Wersja z akceptowanego zakresu jest podnoszona do bieżącej — patrz
+    // ACCEPTED_STATE_VERSIONS. Każda inna zostaje bez zmian, żeby UI ją odrzuciło.
+    v: ACCEPTED_STATE_VERSIONS.indexOf(o.v)>=0 ? STATE_VERSION : o.v,
     rkmOn: !!o.k,
     chartMode: CHART_R[o.c] || o.c || "saldo",
     tableScn: o.t || "A",
@@ -808,7 +886,10 @@ function decodeStateJson(payload){
 
 const api = {
   simulateScenario, annuity, solveMonths, addMonthsUTC, RKM_WINDOW_MONTHS,
-  STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson,
+  gwarancjaBGK, rkmLimitIssues,
+  RKM_WKLAD_MAX_PCT, RKM_WKLAD_MAX_KWOTA, RKM_GWARANCJA_MAX, RKM_SUMA_MAX,
+  STATE_VERSION, ACCEPTED_STATE_VERSIONS,
+  shortenState, expandState, encodeStateJson, decodeStateJson,
   bytesToB64url, b64urlToBytes
 };
 if (typeof window !== "undefined") window.RKM = api;
@@ -876,14 +957,21 @@ function mon(v){ const x = Math.round(Number(v)); return isFinite(x) && x>1 ? x 
 /* Stopa nominalna = marża banku + wskaźnik referencyjny (WIBOR/WIRON). */
 function nominalRate(s){ return round2(nn(s.marza) + nn(s.wskaznik)); }
 function principalOf(s){ return Math.max(0, nn(s.cena) - nn(s.wklad)) + nn(s.remont); }
+/* Gwarancja BGK jest WYLICZANA, nie wpisywana (art. 3 ust. 3b + art. 4a ust. 2–3) —
+   stan scenariusza nie ma już pola `gwarancja`. Cała arytmetyka siedzi w silniku
+   (RKM.gwarancjaBGK / RKM.rkmLimitIssues) i jest tam pokryta testami. */
+function limitsArgs(s){ return {cena:nn(s.cena), wklad:nn(s.wklad), remont:nn(s.remont)}; }
+function gwarancjaOf(s){ return RKM.gwarancjaBGK(limitsArgs(s)); }
+function rkmLimitsOf(s){ return RKM.rkmLimitIssues(limitsArgs(s)); }
 
 /* ============ default state ============ */
 /* Dane przykładowe (ilustracyjne): mieszkanie 500 000 zł, brak wkładu własnego
-   pokryty gwarancją BGK 100 000 zł, marża 1,90 % + wskaźnik 3,60 % = 5,50 %.
+   (gwarancja BGK wychodzi wtedy z wyliczenia na 100 000 zł = 20 % wydatków),
+   marża 1,90 % + wskaźnik 3,60 % = 5,50 %.
    A i B różnią się tak, żeby pokazać dwie różne strategie. */
 function defaultScenario(which){
   const common = {
-    cena:500000, wklad:0, gwarancja:100000, remont:0,
+    cena:500000, wklad:0, remont:0,
     marza:1.9, wskaznik:3.6,
     start:"2027-01", tryb:"skroc",
     feePct:3, feeMonths:36
@@ -909,13 +997,13 @@ function defaultState(){
 }
 
 /* ============ persistence ============ */
-const STORAGE_KEY = "abkredyt-state-v4";
+const STORAGE_KEY = "abkredyt-state-v5";
 
 /* Lekka kontrola kształtu — żeby stan z innej (starszej, spersonalizowanej)
    wersji nie odżył po zmianie schematu. */
 function looksLikeScenario(s){
   if(!s || typeof s!=="object") return false;
-  const nums = ["cena","wklad","gwarancja","marza","wskaznik","years","feePct","feeMonths"];
+  const nums = ["cena","wklad","marza","wskaznik","years","feePct","feeMonths"];
   if(!nums.every(k=>typeof s[k]==="number" && isFinite(s[k]))) return false;
   if(typeof s.start!=="string" || !/^\d{4}-\d{2}$/.test(s.start)) return false;
   if(!Array.isArray(s.events)) return false;
@@ -925,13 +1013,17 @@ function looksLikeState(st){
   return !!st && typeof st==="object" && typeof st.rkmOn==="boolean"
     && looksLikeScenario(st.A) && looksLikeScenario(st.B);
 }
-/* Migracja w miejscu (bez podbijania klucza): stan zapisany, gdy select oferował
-   jeszcze „1. dziecko", dostaje numer 2 — pierwsze dziecko nie daje spłaty rodzinnej. */
+/* Migracja w miejscu: stan zapisany, gdy select oferował jeszcze „1. dziecko",
+   dostaje numer 2 (pierwsze dziecko nie daje spłaty rodzinnej), a stan z wersji 4
+   traci pole `gwarancja` — dziś wyliczane z ceny, wkładu i dodatkowej kwoty. */
 function normaliseState(st){
   if(!st || typeof st!=="object") return st;
   ["A","B"].forEach(k=>{
     const s = st[k];
-    if(!s || !Array.isArray(s.events)) return;
+    if(!s || typeof s!=="object") return;
+    // Pozostałość po wersji 4 stanu: gwarancja była polem, dziś jest wyliczana.
+    if("gwarancja" in s) delete s.gwarancja;
+    if(!Array.isArray(s.events)) return;
     s.events.forEach(e=>{ if(e && e.type==="dziecko") e.childNumber = childNo(e); });
   });
   return st;
@@ -1045,7 +1137,7 @@ function toEngineConfig(s){
   return {
     principal: principalOf(s), ratePct:nominal, years:s.years, startDate:s.start+"-01",
     tryb:s.tryb, feePct:nn(s.feePct), feeMonths:Math.round(nn(s.feeMonths)),
-    gwarancja: state.rkmOn ? nn(s.gwarancja) : 0,
+    gwarancja: state.rkmOn ? gwarancjaOf(s) : 0,
     events
   };
 }
@@ -1257,6 +1349,23 @@ function fieldEventControls(s, e){
     '<div class="field grow"><label for="'+nomId+'">Nominalnie <span class="sub">(+ marża '+pct(s.marza)+')</span></label><input id="'+nomId+'" type="text" class="mono" readonly value="'+pct(nominalAfter)+'"></div>';
 }
 
+/* Banner „kredyt nie spełnia warunków RKM" — jeden punkt na naruszony limit.
+   Informacyjny: kalkulator dalej liczy, wkładu własnego nie przycinamy po cichu. */
+const RKM_ISSUE_TEXT = {
+  wklad_pct: (s,l)=> "wkład własny "+money(nn(s.wklad))+" to "+pct(l.pctWkladu)+" wydatków — RKM dopuszcza maks. 20 % (30 % przy stopie stałej na co najmniej 5 lat)",
+  wklad_kwota: ()=> "wkład własny przekracza 200 000 zł",
+  gwarancja_niedobor: (s,l)=> "gwarancja BGK pokrywa maks. 100 000 zł, a do 20 % wydatków brakuje "+money(l.brakDo20)+" — potrzebny wkład własny co najmniej "+money(Math.ceil(l.minWklad)),
+  suma_200k: (s,l)=> "wkład własny "+money(nn(s.wklad))+" i część objęta gwarancją potrzebna do 20 % wydatków ("+money(l.gwarancjaPotrzebna)+") dają razem "+money(nn(s.wklad)+l.gwarancjaPotrzebna)+" — RKM dopuszcza maks. 200 000 zł"
+};
+function rkmLimitsBanner(s, limits){
+  const items = limits.issues.map(code=>{
+    const fn = RKM_ISSUE_TEXT[code];
+    return fn ? '<li>'+escapeXml(fn(s, limits))+'</li>' : '';
+  }).join('');
+  return '<div class="warning-banner critical" role="status"><span class="x">⚠</span>'+
+    '<div><b>Kredyt nie spełnia warunków RKM</b><ul>'+items+'</ul></div></div>';
+}
+
 function renderPanel(key, s, result, baseline){
   const cls = key.toLowerCase();
   const principal = principalOf(s);
@@ -1276,23 +1385,39 @@ function renderPanel(key, s, result, baseline){
   let html = '<div class="panel '+cls+'">';
   html += '<div class="panel-head"><h2>Scenariusz '+key+'</h2><div class="panel-sum">'+escapeXml(summaryLine(s))+'</div></div>';
 
+  const limits = state.rkmOn ? rkmLimitsOf(s) : null;
+
   html += '<div class="section-title">Kredyt</div>';
   html += '<div class="field-grid">';
   html += field(key,"Cena mieszkania","cena",s.cena,"number");
-  html += field(key,"Wkład własny","wklad",s.wklad,"number");
+  /* W trybie RKM pod wkładem własnym pokazujemy dopuszczalny przedział dla obecnej
+     ceny: dolna granica bierze się z pułapu gwarancji (art. 4a ust. 3), górna
+     z art. 5 ust. 1 pkt 5 lit. a. */
+  html += field(key,"Wkład własny","wklad",s.wklad,"number",null,
+    limits ? "W RKM: od "+money(Math.ceil(limits.minWklad))+" do 20 % wydatków ("+money(limits.maxWklad)+")" : null);
   if(state.rkmOn){
-    // Gwarancja nie zmienia kwoty kredytu, ale wyznacza limit bezpiecznych nadpłat
-    // w pierwszych 3 latach — dlatego siedzi w bloku „Kredyt”, a nie w regule.
+    /* Gwarancja BGK jest wyliczana z ustawy, nie wpisywana (decyzja: nie pozwalać
+       użytkownikowi na błąd) — pole tylko do czytania, jak „Kwota kredytu (razem)”.
+       Nie zmienia kwoty kredytu, ale wyznacza limit bezpiecznych nadpłat w pierwszych
+       3 latach, dlatego siedzi w bloku „Kredyt”, a nie w regule. */
     const gwId = fieldId(key,"gwarancja");
-    html += '<div class="field"><label for="'+gwId+'">Gwarancja BGK</label>'+
-      '<input id="'+gwId+'" type="number" min="0" step="1000" data-f="gwarancja" value="'+s.gwarancja+'">'+
-      (Number(s.gwarancja)>0 ? '' : '<div class="field-hint">Bez gwarancji (wkład własny ≥ 20 %) każda nadpłata dobrowolna w pierwszych 3 latach odbiera przyszłe spłaty rodzinne.</div>')+
+    const gw = limits.gwarancja;
+    const bezGwarancjiHint = gw>0 ? '' : '<div class="field-hint">'+
+      (nn(s.wklad) >= limits.maxWklad
+        ? 'Bez gwarancji (wkład własny ≥ 20 %) każda nadpłata dobrowolna w pierwszych 3 latach odbiera przyszłe spłaty rodzinne.'
+        : 'Bez gwarancji BGK każda nadpłata dobrowolna w pierwszych 3 latach odbiera przyszłe spłaty rodzinne.')+
+      '</div>';
+    html += '<div class="field"><label for="'+gwId+'">Gwarancja BGK <span class="sub">(20 % wydatków − wkład, maks. 100 000 zł)</span></label>'+
+      '<input id="'+gwId+'" type="text" class="mono" readonly value="'+money(gw)+'">'+
+      bezGwarancjiHint+
       '</div>';
   }
   html += field(key,"Dodatkowa kwota kredytu <span class=\'sub\'>(np. wykończenie)</span>","remont",s.remont,"number");
   const principalId = fieldId(key,"principal");
   html += '<div class="field span2"><label for="'+principalId+'">Kwota kredytu (razem)</label><input id="'+principalId+'" type="text" class="mono" readonly value="'+money(principal)+'"></div>';
   html += '</div>';
+
+  if(limits && limits.issues.length) html += rkmLimitsBanner(s, limits);
 
   html += '<div class="section-title">Oprocentowanie</div>';
   html += '<div class="field-grid">';
@@ -1421,10 +1546,11 @@ function renderPanel(key, s, result, baseline){
 /* Wszystkie pola liczbowe kredytu to kwoty albo procenty — żadna nie ma sensu
    ujemna, więc `min="0"` wchodzi z automatu (walidację i tak dubluje `nn()`).
    `panelKey` + `key` dają stabilne, unikalne id — do <label for> (p. 4 audytu). */
-function field(panelKey, label, key, val, type, step){
+function field(panelKey, label, key, val, type, step, hint){
   const min = type==="number" ? ' min="0"' : '';
   const id = fieldId(panelKey, key);
-  return '<div class="field"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="'+type+'" data-f="'+key+'" value="'+val+'"'+min+(step?' step="'+step+'"':'')+'></div>';
+  return '<div class="field"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="'+type+'" data-f="'+key+'" value="'+val+'"'+min+(step?' step="'+step+'"':'')+'>'+
+    (hint ? '<div class="field-hint">'+hint+'</div>' : '')+'</div>';
 }
 function fieldId(panelKey, key){ return panelKey.toLowerCase()+"-"+key; }
 /* Data uruchomienia: własne selecty (miesiąc po polsku + rok) zamiast

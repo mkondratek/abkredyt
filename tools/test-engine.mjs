@@ -371,6 +371,115 @@ ok(
   Math.round(wLimicie.totalInterest) + " vs " + Math.round(wLimicieBez.totalInterest)
 );
 
+/* ---------- 4h. limity wkładu własnego i WYLICZANA gwarancja BGK ----------
+   Gwarancja nie jest już parametrem wpisywanym w UI — ustawa wyznacza ją jednoznacznie:
+     gwarancja = min(max(0, 20 % wydatków − wkład), 100 000, 200 000 − wkład, kwota kredytu)
+   (art. 3 ust. 3b, art. 4a ust. 2 pkt 1, art. 4a ust. 3). „Całkowita kwota wydatków"
+   w kalkulatorze = cena + dodatkowa kwota kredytu (wykończenie/remont).
+   Liczby oczekiwane są tu wyliczone ręcznie z tych przepisów, nie przepisane z silnika. */
+const { gwarancjaBGK, rkmLimitIssues } = RKM;
+ok("silnik wystawia gwarancjaBGK / rkmLimitIssues", typeof gwarancjaBGK === "function" && typeof rkmLimitIssues === "function");
+ok("pułapy ustawowe są wystawione", RKM.RKM_GWARANCJA_MAX === 100000 && RKM.RKM_SUMA_MAX === 200000 && RKM.RKM_WKLAD_MAX_KWOTA === 200000 && RKM.RKM_WKLAD_MAX_PCT === 0.2);
+
+function issuesOf(o) { return rkmLimitIssues(o).issues.join(","); }
+
+/* 500 000 bez wkładu: 20 % = 100 000, czyli dokładnie pułap gwarancji. */
+near("500 000 / wkład 0 → gwarancja 100 000", gwarancjaBGK({ cena: 500000, wklad: 0, remont: 0 }), 100000, 0.01, " zł");
+ok("500 000 / wkład 0 → brak naruszeń", issuesOf({ cena: 500000, wklad: 0, remont: 0 }) === "", issuesOf({ cena: 500000, wklad: 0, remont: 0 }));
+
+/* 600 000 bez wkładu: 20 % = 120 000 > 100 000 → gwarancja obcięta, brakuje 20 000
+   wkładu własnego, żeby kredyt spełniał warunek. */
+const l600 = rkmLimitIssues({ cena: 600000, wklad: 0, remont: 0 });
+near("600 000 / wkład 0 → gwarancja obcięta do 100 000", gwarancjaBGK({ cena: 600000, wklad: 0, remont: 0 }), 100000, 0.01, " zł");
+ok("600 000 / wkład 0 → niedobór gwarancji", l600.issues.join(",") === "gwarancja_niedobor", l600.issues.join(","));
+near("600 000 / wkład 0 → minimalny wkład 20 000", l600.minWklad, 20000, 0.01, " zł");
+near("600 000 / wkład 0 → maksymalny wkład (20 %) 120 000", l600.maxWklad, 120000, 0.01, " zł");
+near("600 000 / wkład 0 → do 20 % brakuje 120 000", l600.brakDo20, 120000, 0.01, " zł");
+
+/* Ten sam kredyt z wkładem 20 000: 120 000 − 20 000 = 100 000 mieści się w pułapie. */
+near("600 000 / wkład 20 000 → gwarancja 100 000", gwarancjaBGK({ cena: 600000, wklad: 20000, remont: 0 }), 100000, 0.01, " zł");
+ok("600 000 / wkład 20 000 → brak naruszeń", issuesOf({ cena: 600000, wklad: 20000, remont: 0 }) === "", issuesOf({ cena: 600000, wklad: 20000, remont: 0 }));
+
+/* Wkład dokładnie 20 % → gwarancja zero, ale kredyt nadal spełnia warunki. */
+near("500 000 / wkład 100 000 (20 %) → gwarancja 0", gwarancjaBGK({ cena: 500000, wklad: 100000, remont: 0 }), 0, 0.01, " zł");
+ok("500 000 / wkład 100 000 → brak naruszeń", issuesOf({ cena: 500000, wklad: 100000, remont: 0 }) === "", issuesOf({ cena: 500000, wklad: 100000, remont: 0 }));
+
+/* Wkład ponad 20 % wydatków — art. 5 ust. 1 pkt 5 lit. a. */
+const l120 = rkmLimitIssues({ cena: 500000, wklad: 120000, remont: 0 });
+near("500 000 / wkład 120 000 → gwarancja 0", gwarancjaBGK({ cena: 500000, wklad: 120000, remont: 0 }), 0, 0.01, " zł");
+ok("500 000 / wkład 120 000 → wkład ponad 20 %", l120.issues.join(",") === "wklad_pct", l120.issues.join(","));
+near("500 000 / wkład 120 000 → to 24 % wydatków", l120.pctWkladu, 24, 0.01);
+
+/* 1 200 000 / wkład 200 000: 20 % = 240 000, więc do domknięcia brakuje 40 000
+   gwarancji — ale art. 4a ust. 2 pkt 1 nie pozwala, by gwarancja i wkład dały razem
+   więcej niż 200 000 zł (a wkład sam już tyle wynosi). Kredyt więc warunków nie
+   spełnia (`suma_200k`), a gwarancja prawnie możliwa to ZERO — nie 40 000. */
+const l12 = rkmLimitIssues({ cena: 1200000, wklad: 200000, remont: 0 });
+near("1 200 000 / wkład 200 000 → potrzebna gwarancja 40 000", l12.gwarancjaPotrzebna, 40000, 0.01, " zł");
+near("1 200 000 / wkład 200 000 → gwarancja możliwa prawnie = 0 (pułap 200 000 z wkładem)", l12.gwarancja, 0, 0.01, " zł");
+ok("1 200 000 / wkład 200 000 → suma wkładu i gwarancji ponad 200 000", l12.issues.join(",") === "suma_200k", l12.issues.join(","));
+ok("1 200 000 / wkład 200 000 → wkład 200 000 sam w sobie nie narusza limitu kwotowego", l12.issues.indexOf("wklad_kwota") < 0);
+
+/* 1 500 000 / wkład 250 000: 16,67 % wydatków (więc procentowo w porządku), ale ponad
+   ustawowe 200 000 zł (art. 3 ust. 3 pkt 1). `suma_200k` jest wtedy pomijana — wynika
+   już z naruszenia kwotowego i tylko powtarzałaby tę samą przyczynę. */
+const l15 = rkmLimitIssues({ cena: 1500000, wklad: 250000, remont: 0 });
+near("1 500 000 / wkład 250 000 → to 16,67 % wydatków", l15.pctWkladu, 100 * 250000 / 1500000, 0.01);
+ok("1 500 000 / wkład 250 000 → wkład ponad 200 000 zł", l15.issues.join(",") === "wklad_kwota", l15.issues.join(","));
+near("1 500 000 / wkład 250 000 → gwarancja 0", l15.gwarancja, 0, 0.01, " zł");
+
+/* Dodatkowa kwota kredytu (wykończenie) wchodzi do „całkowitej kwoty wydatków". */
+near(
+  "400 000 + 100 000 remontu, wkład 0 → gwarancja 100 000 (20 % z 500 000)",
+  gwarancjaBGK({ cena: 400000, wklad: 0, remont: 100000 }),
+  100000,
+  0.01,
+  " zł"
+);
+ok(
+  "400 000 + 100 000 remontu, wkład 0 → brak naruszeń",
+  issuesOf({ cena: 400000, wklad: 0, remont: 100000 }) === "",
+  issuesOf({ cena: 400000, wklad: 0, remont: 100000 })
+);
+near(
+  "remont podnosi wydatki, więc i gwarancję",
+  gwarancjaBGK({ cena: 400000, wklad: 0, remont: 0 }),
+  80000,
+  0.01,
+  " zł"
+);
+
+/* Sufit programu wynikający z samych limitów: wkład + gwarancja muszą dać dokładnie 20 %
+   wydatków (art. 3 ust. 3b), a ich suma nie może przekroczyć 200 000 zł (art. 4a ust. 2
+   pkt 1) — więc powyżej 1 000 000 zł wydatków nie istnieje wkład własny bez naruszenia. */
+function istniejeDobryWklad(wydatki) {
+  for (let wk = 0; wk <= wydatki; wk += 1000) {
+    if (rkmLimitIssues({ cena: wydatki, wklad: wk, remont: 0 }).issues.length === 0) return wk;
+  }
+  return null;
+}
+ok("wydatki 1 000 000 → wkład 100 000 spełnia limity", istniejeDobryWklad(1000000) === 100000, String(istniejeDobryWklad(1000000)));
+ok("wydatki 1 100 000 → żaden wkład nie spełnia limitów", istniejeDobryWklad(1100000) === null, String(istniejeDobryWklad(1100000)));
+
+/* Obrona w głąb: śmieci na wejściu nie mogą dać NaN ani kwoty ujemnej. */
+ok("brak argumentu → gwarancja 0", gwarancjaBGK() === 0 && gwarancjaBGK(null) === 0);
+ok("ujemna cena i ujemny wkład → gwarancja 0, brak naruszeń", gwarancjaBGK({ cena: -500000, wklad: -100 }) === 0 && issuesOf({ cena: -500000, wklad: -100 }) === "");
+ok("NaN na wejściu → gwarancja 0", gwarancjaBGK({ cena: NaN, wklad: NaN, remont: NaN }) === 0);
+/* Gwarancja nigdy nie przekracza kwoty kredytu — istotne tylko dla wejścia z wkładem
+   większym od ceny (kredyt jest wtedy mniejszy niż 20 % wydatków). */
+ok(
+  "gwarancja nie przekracza kwoty kredytu",
+  gwarancjaBGK({ cena: 100000, wklad: 100000, remont: 0 }) === 0,
+  String(gwarancjaBGK({ cena: 100000, wklad: 100000, remont: 0 }))
+);
+
+/* Wyliczona gwarancja wchodzi do symulacji tak samo jak dawna wpisywana wartość:
+   domyślny kredyt (500 000, wkład 0) daje próg 100 000, więc nadpłata 95 000 w m. 12
+   łamie regułę, a 90 000 nie — dokładnie jak w pkt 4a. */
+const gwDomyslna = gwarancjaBGK({ cena: 500000, wklad: 0, remont: 0 });
+const gwSym = simulateScenario(cfg({ gwarancja: gwDomyslna, events: [{ type: "jednorazowa", month: 12, amount: 95000, trybOverride: "auto" }] }));
+ok("wyliczona gwarancja działa w silniku jak wpisana", gwSym.rkmBreachMonth === 12 && gwSym.gwarancja === 100000, JSON.stringify({ b: gwSym.rkmBreachMonth, g: gwSym.gwarancja }));
+
 /* ---------- 5. wyższa rata umowna (krótszy okres) nie jest nadpłatą ---------- */
 /* To kluczowa reguła modelu: formalnie 15 lat płaci ~4 085 zł/mies. zamiast 2 839 zł,
    ale nadwyżka nie jest przedterminową spłatą — licznik nadpłat zostaje na 0 i reguła
@@ -528,7 +637,7 @@ near("solveMonths = referencja (saldo 300 000, rata 30-letnia)", solveMonths(300
    same mapy kluczy, więc round trip pokrywa jedno i drugie. */
 const { STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson, bytesToB64url, b64urlToBytes } = RKM;
 ok("kodek jest wystawiony na RKM", [STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson].every((v) => v !== undefined));
-ok("wersja stanu = 4", STATE_VERSION === 4, "jest " + STATE_VERSION);
+ok("wersja stanu = 5", STATE_VERSION === 5, "jest " + STATE_VERSION);
 
 const sampleState = {
   v: STATE_VERSION,
@@ -536,7 +645,7 @@ const sampleState = {
   chartMode: "rata",
   tableScn: "B",
   A: {
-    cena: 500000, wklad: 0, gwarancja: 100000, remont: 25000,
+    cena: 500000, wklad: 0, remont: 25000,
     marza: 1.9, wskaznik: 3.6, start: "2027-03", tryb: "skroc",
     feePct: 3, feeMonths: 36, years: 30,
     events: [
@@ -546,7 +655,7 @@ const sampleState = {
     ],
   },
   B: {
-    cena: 500000, wklad: 60000, gwarancja: 0, remont: 0,
+    cena: 500000, wklad: 60000, remont: 0,
     marza: 2.1, wskaznik: 3.6, start: "2026-12", tryb: "obniz",
     feePct: 0, feeMonths: 0, years: 25,
     events: [{ id: "y1", type: "dziecko", month: 24, amount: 20000, childNumber: 2, trybOverride: "auto" }],
@@ -591,6 +700,40 @@ ok(
 ok(
   "expandState zwraca null dla nie-obiektu",
   expandState(null) === null && expandState("x") === null
+);
+
+/* Zgodność w tył: ładunek zapisany w wersji 4 nosił pole `gwarancja` (skrócony klucz
+   „g”), dziś wyliczane. Dekoder musi go pominąć i podnieść wersję stanu do 5 —
+   inaczej stare linki niepotrzebnie wyświetlałyby notkę „nie udało się odczytać”. */
+const v4Payload = (() => {
+  const short = shortenState(Object.assign({}, sampleState, { v: 4 }));
+  short.v = 4;
+  short.a.g = 100000; // pole z wersji 4
+  short.b.g = 0;
+  return bytesToB64url(new TextEncoder().encode(JSON.stringify(short)));
+})();
+const fromV4 = decodeStateJson(v4Payload);
+ok("ładunek v4 daje się odczytać", !!fromV4, JSON.stringify(fromV4));
+ok("ładunek v4 jest podnoszony do wersji 5", fromV4 && fromV4.v === STATE_VERSION, "jest " + (fromV4 && fromV4.v));
+ok(
+  "ładunek v4 traci pole gwarancja",
+  fromV4 && fromV4.A.gwarancja === undefined && fromV4.B.gwarancja === undefined,
+  JSON.stringify([fromV4 && fromV4.A.gwarancja, fromV4 && fromV4.B.gwarancja])
+);
+ok(
+  "ładunek v4 zachowuje pozostałe pola scenariuszy",
+  fromV4 && JSON.stringify(stripIds(fromV4).A) === JSON.stringify(stripIds(sampleState).A) &&
+    JSON.stringify(stripIds(fromV4).B) === JSON.stringify(stripIds(sampleState).B),
+  JSON.stringify(fromV4 && stripIds(fromV4).A)
+);
+ok(
+  "ładunek z nieznanej wersji zostaje odrzucony (wersja nietknięta)",
+  (() => {
+    const short = shortenState(sampleState);
+    short.v = 3;
+    const decoded = decodeStateJson(bytesToB64url(new TextEncoder().encode(JSON.stringify(short))));
+    return decoded && decoded.v === 3;
+  })()
 );
 
 /* ---------- 10. wartości ujemne i bezsensowne (obrona w głąb) ----------

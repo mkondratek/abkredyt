@@ -37,6 +37,19 @@ spłaca się szybciej) i „obniż ratę" (okres bez zmian, rata maleje). Zmiana
 zawsze przelicza ratę na nowo. Opłata za wcześniejszą spłatę (% przez pierwsze N miesięcy)
 dotyczy wyłącznie nadpłat dobrowolnych — nie spłaty rodzinnej.
 
+Gwarancja BGK nie jest parametrem do wpisania — kalkulator wylicza ją z ceny, wkładu
+własnego i dodatkowej kwoty kredytu i pokazuje jako pole tylko do czytania:
+`min(20 % wydatków − wkład; 100 000 zł; 200 000 zł − wkład; kwota kredytu)`, gdzie
+„całkowita kwota wydatków" to cena plus dodatkowa kwota kredytu (art. 3 ust. 3b, art. 4a
+ust. 2–3). Gdy wkład własny wychodzi poza ustawowe granice — ponad 20 % wydatków
+(art. 5 ust. 1 pkt 5), ponad 200 000 zł (art. 3 ust. 3 pkt 1), za mało, by pełna gwarancja
+domknęła 20 % wydatków, albo tak, że wkład i gwarancja dają razem ponad 200 000 zł
+(art. 4a ust. 2 pkt 1) — panel pokazuje listę niespełnionych warunków. Kalkulator dalej
+liczy taki kredyt (nic nie jest po cichu przycinane), ale mówi wprost, że nie jest to już
+kredyt w programie. Praktyczny wniosek: przy wydatkach powyżej 500 000 zł 20 % nie da się
+domknąć samą gwarancją, więc potrzebny jest wkład własny co najmniej
+`20 % wydatków − 100 000 zł`.
+
 Presety wydarzeń („2. dziecko w m. 24”, „nadpłata 50 000 w m. 12”, …) mają kwoty i miesiące
 podane wprost. Preset, który dla aktualnych parametrów scenariusza nie ma sensu — miesiąc poza
 okresem kredytu, kwota nadpłaty nie mniejsza niż sam kredyt, nadpłata miesięczna nie mniejsza
@@ -90,9 +103,18 @@ kredytu (art. 7 ust. 1 pkt 7); ta część gwarantowana maleje z każdą spłat�
 (art. 4a ust. 6), więc próg jest ruchomy, nie stały — a bez gwarancji BGK (wkład własny
 ≥ 20%) próg wynosi zero i każda przedterminowa spłata w tym okresie odbiera prawo do
 przyszłych spłat rodzinnych. Naruszenie nie powoduje zwrotu spłat już wypłaconych — tylko
-utratę tych przyszłych. Wkład własny może wynosić maksymalnie 20% przy stopie zmiennej albo
-30% przy stopie stałej, a suma wkładu własnego i gwarancji BGK nie może przekroczyć
-200 000 zł (sama gwarancja — art. 4a — maks. 100 000 zł, opłata jednorazowa 1%). Okres
+utratę tych przyszłych. Wkład własny może wynosić maksymalnie 20% całkowitej kwoty wydatków
+przy stopie zmiennej albo 30% przy stopie stałej na co najmniej 5 lat (art. 5 ust. 1 pkt 5)
+i nie więcej niż 200 000 zł (art. 3 ust. 3 pkt 1). Jeżeli wkład jest niższy niż 20% wydatków,
+gwarancją BGK objęta jest ta właśnie różnica (art. 3 ust. 3b) — sama gwarancja maksymalnie
+100 000 zł (art. 4a ust. 3), a gwarancja i wkład łącznie maksymalnie 200 000 zł i 20% wydatków
+(art. 4a ust. 2; opłata jednorazowa 1% objętej gwarancją części). Ponieważ gwarancja urywa się
+na 100 000 zł, przy wydatkach powyżej 500 000 zł program wymaga w praktyce wkładu własnego co
+najmniej `20% wydatków − 100 000 zł`. Kalkulator nie modeluje trzech wyjątków od limitu
+procentowego: art. 5 ust. 2 (rodzina z dwojgiem dzieci posiadająca jedno mieszkanie — wkład
+do 10%), art. 3 ust. 3a w zw. z art. 5 ust. 2d (wkład wyłącznie w postaci działki — bez limitu
+procentowego, wkład i kredyt razem do 1 000 000 zł) oraz art. 9f (Rada Ministrów może podnieść
+limity rozporządzeniem — na wrzesień 2026 r. tego nie zrobiła). Okres
 kredytowania to **minimum 15 lat** (art. 3 ust. 3 pkt 3); górnej granicy ustawa nie
 przewiduje — 35 lat to praktyka banków, nie zapis ustawy. Kredyt może zostać udzielony do
 31 grudnia 2030 r. (art. 3 ust. 4) — to termin udzielenia, nie termin ważności prawa do
@@ -103,7 +125,7 @@ zapisem ustawy.
 ## Prywatność
 
 Wszystko liczy się w przeglądarce — nic z tego, co wpisujesz, nie opuszcza Twojego
-urządzenia. Stan porównania zapisuje się w `localStorage` (klucz `abkredyt-state-v4`),
+urządzenia. Stan porównania zapisuje się w `localStorage` (klucz `abkredyt-state-v5`),
 żeby przetrwał odświeżenie strony; usuwa się razem z danymi strony w przeglądarce.
 Przycisk „Kopiuj link do tego porównania” zaszywa parametry (kwoty, oprocentowanie,
 wydarzenia) w **fragmencie** adresu — a fragment, w odróżnieniu od query stringu,

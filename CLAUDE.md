@@ -58,11 +58,44 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
 - Naruszenie reguły i spłata rodzinna w tym samym miesiącu: silnik przetwarza nadpłaty przed
   zdarzeniem `dziecko`, więc taka spłata rodzinna jest już „utracona” — ustawa kolejności nie
   rozstrzyga, to świadomy wybór po ostrożnej stronie.
-- Scenariusz nie ma już pól `rkmThreshold`/`rkmMonths` w stanie — próg to `gwarancja`
-  (dynamiczny, patrz wyżej), a okno to stała silnika `RKM_WINDOW_MONTHS` (36 mies.).
-- Stan w `localStorage` (klucz `abkredyt-state-v4`), w try/catch, z kontrolą kształtu
+- Scenariusz nie ma już pól `rkmThreshold`/`rkmMonths` w stanie — próg to gwarancja
+  (dynamiczna, patrz wyżej), a okno to stała silnika `RKM_WINDOW_MONTHS` (36 mies.).
+- **Gwarancja BGK jest WYLICZANA i tylko do czytania** — nie ma jej ani w stanie
+  scenariusza, ani w `defaultScenario`, ani w `looksLikeScenario`, ani w mapie kluczy linku
+  (decyzja właściciela: „zróbmy ją read-only, nie pozwalajmy użytkownikowi na błąd”).
+  Silnik liczy ją w `RKM.gwarancjaBGK({cena, wklad, remont})`:
+  `min(max(0, 0,2·wydatki − wkład), 100 000, 200 000 − wkład, kwota kredytu)`, gdzie
+  „całkowita kwota wydatków" = cena + dodatkowa kwota kredytu (art. 3 ust. 3b — gwarancją
+  objęta jest różnica między 20 % wydatków a wkładem; art. 4a ust. 3 — sama gwarancja
+  maks. 100 000 zł; art. 4a ust. 2 pkt 1 — gwarancja + wkład maks. 200 000 zł). UI ma jedno
+  opakowanie (`gwarancjaOf(s)`), które podaje wynik do `toEngineConfig`; silnik dalej
+  przyjmuje `gwarancja` jako liczbę, więc `simulateScenario` nie zmienia kontraktu.
+  Pole „Gwarancja BGK” to `input[readonly]` (jak „Kwota kredytu (razem)”) z podpisem
+  „(20 % wydatków − wkład, maks. 100 000 zł)”, tylko w trybie RKM.
+- **Banner „Kredyt nie spełnia warunków RKM”** (tylko tryb RKM) renderuje się w panelu
+  bezpośrednio pod blokiem „Kredyt”, w formie `warning-banner` z paletą krytyczną
+  (`.warning-banner.critical`, `role="status"`), po jednym punkcie na naruszony limit.
+  Kody z `RKM.rkmLimitIssues({cena, wklad, remont})` (zwraca `{issues, wydatki, minWklad,
+  maxWklad, brakDo20, gwarancjaPotrzebna, gwarancja, pctWkladu}`): `wklad_pct` (wkład > 20 %
+  wydatków — art. 5 ust. 1 pkt 5 lit. a), `wklad_kwota` (wkład > 200 000 zł — art. 3 ust. 3
+  pkt 1), `gwarancja_niedobor` (`0,2·wydatki − wkład > 100 000`, czyli nawet pełna gwarancja
+  nie domyka 20 % — trzeba dołożyć wkładu co najmniej `0,2·wydatki − 100 000`) i `suma_200k`
+  (wkład + potrzebna gwarancja > 200 000 zł). `suma_200k` raportujemy TYLKO wtedy, gdy nie
+  wynika już z któregoś z poprzednich, żeby banner nie powtarzał tej samej przyczyny.
+  Banner jest informacyjny — kalkulator dalej liczy, wkładu nie przycinamy po cichu; pod
+  „Wkładem własnym” dochodzi w trybie RKM `field-hint` z dopuszczalnym przedziałem
+  („W RKM: od W zł do 20 % wydatków (V zł)”, W = `max(0, 0,2·wydatki − 100 000)`).
+  Świadomie NIE modelowane (tylko w dokumentacji): art. 5 ust. 2 (rodzina z dwojgiem dzieci
+  posiadająca jedno mieszkanie — wkład ≤ 10 %), art. 3 ust. 3a w zw. z art. 5 ust. 2d (wkład
+  wyłącznie w postaci działki — bez limitu procentowego, wkład + kredyt ≤ 1 000 000 zł),
+  art. 9f (Rada Ministrów może podnieść limity rozporządzeniem — na 09.2026 nie podniosła:
+  strona produktowa BGK podaje te same 200 tys. / 20–30 % / 100 tys.).
+- Stan w `localStorage` (klucz `abkredyt-state-v5`), w try/catch, z kontrolą kształtu
   (`looksLikeState`) — przy zmianie schematu stanu podbij sufiks klucza **i** stałą
-  `RKM.STATE_VERSION` (siedzi w silniku, stan nosi ją jako pole `v`).
+  `RKM.STATE_VERSION` (= 5; siedzi w silniku, stan nosi ją jako pole `v`). Dekoder linku
+  przyjmuje wersje z `RKM.ACCEPTED_STATE_VERSIONS` (`[4, 5]`) i podnosi je do bieżącej:
+  ładunek v4 różnił się tylko polem `gwarancja`, które dziś jest ignorowane, więc stare
+  linki nadal działają. Każda inna wersja przechodzi dalej bez zmian i UI ją odrzuca.
 - Stan w linku: przycisk „Kopiuj link do tego porównania” koduje `{v, rkmOn, chartMode,
   tableScn, A, B}` jako JSON ze skróconymi (jednoznakowymi) kluczami → `deflate-raw`
   (`CompressionStream`) → base64url → fragment `#s=d.<ładunek>`. Gdy przeglądarka nie ma
@@ -101,9 +134,20 @@ zapisane — pkt 6 to brak upadłości): w ciągu 3 lat od dnia UDZIELENIA kredy
 przedterminowej spłaty ponad część objętą gwarancją BGK; ta część maleje z każdą spłatą
 kapitału (art. 4a ust. 6) — próg jest dynamiczny. Bez gwarancji BGK próg wynosi zero (pkt 7
 nie ma wyjątku dla braku gwarancji — to ODWROTNOŚĆ wcześniejszej spekulacji w tym pliku).
-Naruszenie odbiera TYLKO przyszłe spłaty rodzinne, nie te już wypłacone. Wkład własny max 20%
-(zmienna) / 30% (stała), wkład+gwarancja ≤ 200k; gwarancja (art. 4a) ≤ 100k, opłata
-jednorazowa 1% bez odrębnego pułapu kwotowego. Okres: **minimum 15 lat** (art. 3 ust. 3 pkt 3,
+Naruszenie odbiera TYLKO przyszłe spłaty rodzinne, nie te już wypłacone. Wkład własny:
+≤ 20% wydatków przy stopie zmiennej / ≤ 30% przy stopie stałej na co najmniej 5 lat
+(**art. 5 ust. 1 pkt 5**) i ≤ 200 000 zł w kwocie (**art. 3 ust. 3 pkt 1**); gwarancją objęta
+jest różnica między 20% wydatków a wkładem (**art. 3 ust. 3b**), sama gwarancja ≤ 100 000 zł
+(**art. 4a ust. 3**), a gwarancja + wkład ≤ 200 000 zł i ≤ 20% wydatków (**art. 4a ust. 2**),
+opłata jednorazowa 1% bez odrębnego pułapu kwotowego (art. 4a ust. 5). Praktyczna
+konsekwencja, którą kalkulator pokazuje wprost: przy wydatkach > 500 000 zł 20% nie da się
+już domknąć samą gwarancją, więc **wkład własny musi wynieść co najmniej `0,2·wydatki −
+100 000`** (600 tys. → 20 tys., 1 mln → 100 tys.), a wydatki **powyżej 1 mln zł wykluczają
+program** (wkład + gwarancja to dokładnie 20% wydatków, a ich suma nie może przejść 200k). Wyjątków od limitu procentowego
+kalkulator nie modeluje: art. 5 ust. 2 (dwoje dzieci + jedno mieszkanie → wkład ≤ 10%),
+art. 3 ust. 3a w zw. z art. 5 ust. 2d (wkład wyłącznie w postaci działki → bez limitu
+procentowego, wkład + kredyt ≤ 1 mln) i art. 9f (Rada Ministrów może podnieść limity
+rozporządzeniem — na 09.2026 nie podniosła; strona produktowa BGK podaje te same kwoty). Okres: **minimum 15 lat** (art. 3 ust. 3 pkt 3,
 ustawowe); **35 lat to praktyka bankowa, nie zapis ustawy** — górnej granicy ustawa nie
 przewiduje. Kredyt może być udzielony do **31.12.2030** (art. 3 ust. 4, potwierdzone) — to
 termin udzielenia, nie termin ważności prawa do spłaty rodzinnej dla kredytów już udzielonych.
