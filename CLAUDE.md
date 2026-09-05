@@ -117,6 +117,20 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   jednorazowej ≥ kwota kredytu, nadpłata cykliczna ≥ rata początkowa, „wskaźnik −1 p.p.”
   przy wskaźniku < 1, identyczne zdarzenie już dodane (`EVENT_IDENTITY`); chipy dziecka tylko
   w trybie RKM. Handler dodatkowo ignoruje klik w wyłączony chip.
+- „Kopiuj z A” / „Kopiuj z B” w nagłówku panelu (`.panel-head-row`) nadpisuje ten scenariusz
+  głęboką kopią drugiego (wydarzenia dostają świeże `id` z `uid()`), po czym `recompute()`
+  zapisuje stan. Bez potwierdzenia, ale z jednorazowym cofnięciem: bufor `pendingUndo`
+  (`{key, from, snapshot, timer}`) i notka „Skopiowano z X · Cofnij” (`role="status"`) żyją
+  `UNDO_MS` = 8 s i renderują się ZE STANU w `renderPanel`, bo `#scenarios` jest przerysowywane
+  przez `innerHTML`. Bufor kasuje każde inne przerysowanie — przeżywa tylko to z flagą
+  `keepUndo`, którą ustawia wyłącznie kopiowanie i cofanie. Fokus prowadzi `pendingFocus`
+  (ma pierwszeństwo przed `captureFocusState()`): po kopiowaniu ląduje na „Cofnij”
+  (`data-key="undo-copy"`), a po cofnięciu i po wygaśnięciu wraca na „Kopiuj z …”
+  (`data-key="copy-from-A"`/`"copy-from-B"`). Gdy scenariusze są identyczne co do treści
+  (`sameScenario` — porównanie `stableJson` bez `id` zdarzeń), przycisk renderuje się jako
+  `aria-disabled` + `.is-disabled` z `title="Scenariusze są identyczne"`, a handler ignoruje
+  klik (ta sama konwencja co przy chipach presetów — bez atrybutu `disabled`, żeby przycisk
+  został focusowalny).
 - „Data uruchomienia” to dwa własne `<select>` (miesiąc po polsku + rok: od bieżącego −2 do
   +10, plus rok ze stanu, jeśli wypada poza zakresem) zamiast `<input type="month">`, którego
   picker lokalizuje przeglądarka, a nie strona; `state.start` zostaje w formacie `"YYYY-MM"`.

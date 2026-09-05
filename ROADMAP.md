@@ -31,18 +31,33 @@
   opt-out `?bez-statystyk=1`). Kroki ręczne: `DEPLOY.md`.
 - ✅ Fonty systemowe zamiast Google Fonts.
 - Po wdrożeniu: wkleić token analityki, sprawdzić kartę OG (og.png) w podglądzie linku.
-- Audyt logiki (Opus) i audyt UI (Sonnet) — po zamknięciu powyższych.
+- ✅ Audyt logiki (Opus) i audyt UI (Sonnet) — wykonane 02–03.09.2026, poprawki wdrożone.
 
 ## Do zrobienia (zgłoszone 03.09.2026)
-8. „Kopiuj z A” / „Kopiuj z B” — przycisk w nagłówku panelu, który nadpisuje ten scenariusz
-   kopią drugiego (parametry kredytu, oprocentowanie, wydarzenia z nowymi `id`), żeby łatwo
-   zrobić wariant „to samo, tylko jedna rzecz inaczej”. Nadpisanie bez potwierdzenia, ale
-   z możliwością cofnięcia (jednorazowe „Cofnij” przez kilka sekund), bo kasuje pracę.
+8. ✅ „Kopiuj z A” / „Kopiuj z B” — przycisk w nagłówku panelu nadpisuje ten scenariusz głęboką
+   kopią drugiego (wydarzenia z nowymi `id`), bez potwierdzenia, z jednorazowym „Cofnij”
+   przez 8 s w notce renderowanej ze stanu; przy identycznych scenariuszach jest wyłączony.
 9. Tryb RKM per scenariusz zamiast globalnego — porównanie „kredyt w RKM” vs „zwykły kredyt”
    (np. wkład ≥ 20 %: spłata rodzinna kontra swoboda nadpłat od 1. miesiąca). Wymaga: opłaty
    za gwarancję 1 % (art. 4a ust. 5) w łącznym koszcie i podpowiedzi o wkładzie 10–20 %
    w zwykłym kredycie. Najlepiej razem z punktem 5, bo dopiero z kosztem alternatywnym
    gotówki porównanie jest uczciwe.
+10. Znaczniki na wykresie i w harmonogramie (tylko tryb RKM): miesiąc 36 „koniec okna RKM”
+    (od tego miesiąca nadpłaty bez wpływu na spłatę rodzinną); miesiąc wygaśnięcia gwarancji,
+    jeśli wypada przed 36. (od tej chwili do m. 36 każda nadpłata dobrowolna odbiera spłatę
+    rodzinną); ostatni miesiąc, w którym saldo pozwala na pełną spłatę rodzinną (60 000 zł).
+    Uwaga: wygaśnięcie gwarancji NIE jest terminem na dziecko — prawo do spłaty rodzinnej od
+    niego nie zależy.
+11. Opłata za wcześniejszą spłatę wg ustawy o kredycie hipotecznym (art. 40): podpowiedź
+    „ustawowo maks. 36 mies. przy stopie zmiennej” i drugi limit rekompensaty — nie więcej niż
+    odsetki za 12 miesięcy od nadpłacanej kwoty (istotne przy stopie poniżej 3 %).
+
+## Do rozstrzygnięcia (wątpliwe punkty z audytu)
+- Skrócić notkę „Reguła RKM” do 2–3 punktów, cytat ustawy tylko w stopce?
+- „Obniż ratę” + nadpłata cykliczna kończy się wcześniej ratą kilku złotych — dodać zdanie
+  wyjaśnienia przy KPI?
+- Kolumna opłaty za wcześniejszą spłatę w harmonogramie?
+- Naruszenie i spłata rodzinna w tym samym miesiącu = utrata (ostrożnie) — zostawić?
 
 ## Pomysły dalsze
 - Trzeci scenariusz; eksport CSV harmonogramu; rata malejąca; transze (kredyt na budowę/remont).

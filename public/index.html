@@ -184,6 +184,16 @@ header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:
 
 .panel-head{ display:flex; flex-direction:column; align-items:flex-start; padding:16px 18px 12px; gap:3px; }
 .panel-head h2{ font-size:18px; }
+/* Nagłówek panelu: tytuł + „Kopiuj z A/B” w jednym rzędzie. Notka „Skopiowano z …
+   · Cofnij” renderuje się ze stanu (pendingUndo) razem z panelem, więc przeżywa
+   przerysowanie #scenarios. */
+.panel-head-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; }
+.btn.btn-sm{ padding:4px 9px; font-size:11.5px; }
+/* Ta sama forma „wyłączenia” co przy chipach presetów: bez atrybutu `disabled`,
+   żeby przycisk zostawał focusowalny i czytał powód z `title`. */
+.btn.is-disabled{ color:var(--ink-faint); background:var(--surface-2); border-color:var(--border); cursor:not-allowed; opacity:.65; }
+.btn.is-disabled:hover{ background:var(--surface-2); }
+.copy-note{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-muted); margin-top:4px; }
 .panel-sum{ font-size:12px; color:var(--ink-muted); line-height:1.45; }
 .panel-sum .mono{ font-variant-numeric:tabular-nums; }
 
@@ -1231,6 +1241,96 @@ function presetDisabledReason(s, e){
   return null;
 }
 
+/* ============ „Kopiuj z A” / „Kopiuj z B” + jednorazowe cofnięcie ============ */
+/* Przycisk w nagłówku panelu nadpisuje TEN scenariusz kopią drugiego (wszystkie
+   parametry kredytu, oprocentowanie, okres, data, tryb, opłata i wydarzenia — te
+   ostatnie z nowymi `id`, bo `id` to lokalny uchwyt UI, unikalny w dokumencie).
+   Bez pytania o potwierdzenie, ale z jednorazowym „Cofnij” przez UNDO_MS. Notka
+   o skopiowaniu jest renderowana ZE STANU (`pendingUndo`) razem z panelem —
+   inaczej nie przeżyłaby najbliższego `scenariosEl.innerHTML = …`. Bufor kasuje
+   każde inne przerysowanie (czyli każda kolejna edycja scenariusza); decyduje
+   o tym flaga `keepUndo`, ustawiana wyłącznie przez kopiowanie i cofanie. */
+const UNDO_MS = 8000;
+let pendingUndo = null;   // {key, from, snapshot, timer}
+let keepUndo = false;
+let pendingFocus = null;  // wymuszony cel fokusu po najbliższym przerysowaniu
+
+function otherKey(key){ return key==="A" ? "B" : "A"; }
+function copyBtnKey(key){ return "copy-from-"+otherKey(key); }
+/* Ten sam kształt klucza co w captureFocusState (patrz niżej): {panelKey, key:{dataKey}}. */
+function requestFocus(panelKey, dataKey){ pendingFocus = {panelKey, key:{dataKey:dataKey}}; }
+
+/* Porównanie scenariuszy „co do treści”: bez `id` zdarzeń i niezależnie od
+   kolejności kluczy w obiektach (to samo zdarzenie dodane z presetu i z przycisku
+   ma te same pola, ale niekoniecznie w tej samej kolejności). */
+function stableJson(v){
+  if(Array.isArray(v)) return "["+v.map(stableJson).join(",")+"]";
+  if(v && typeof v==="object") return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stableJson(v[k])).join(",")+"}";
+  return JSON.stringify(v===undefined?null:v);
+}
+function scenarioFingerprint(s){
+  const evts = (Array.isArray(s.events)?s.events:[]).map(e=>{ const x = Object.assign({}, e); delete x.id; return x; });
+  return stableJson(Object.assign({}, s, {events:evts}));
+}
+function sameScenario(a, b){ return scenarioFingerprint(a)===scenarioFingerprint(b); }
+
+/* Kopia głęboka. `withNewIds` nadaje wydarzeniom świeże `id` (kopiowanie);
+   bez tego zachowuje oryginalne (migawka do cofnięcia ma wrócić 1:1). */
+function cloneScenario(s, withNewIds){
+  const c = JSON.parse(JSON.stringify(s));
+  c.events = (Array.isArray(c.events)?c.events:[]).map(e=> withNewIds ? Object.assign({}, e, {id:uid()}) : e);
+  return c;
+}
+
+function clearUndo(){
+  if(pendingUndo && pendingUndo.timer) clearTimeout(pendingUndo.timer);
+  pendingUndo = null;
+}
+function copyScenarioFromOther(key){
+  const from = otherKey(key);
+  if(sameScenario(state[key], state[from])) return;
+  clearUndo();
+  pendingUndo = {key:key, from:from, snapshot: cloneScenario(state[key], false), timer:null};
+  state[key] = cloneScenario(state[from], true);
+  pendingUndo.timer = setTimeout(()=>expireUndo(key), UNDO_MS);
+  keepUndo = true;
+  requestFocus(key, "undo-copy");
+  recompute(); // przerysowanie + persist()
+}
+function undoCopy(){
+  if(!pendingUndo) return;
+  const key = pendingUndo.key, snapshot = pendingUndo.snapshot;
+  clearUndo();
+  state[key] = snapshot;
+  keepUndo = true;
+  requestFocus(key, copyBtnKey(key));
+  recompute();
+}
+/* Wygaśnięcie notki: chowa ją zwykłe przerysowanie (renderuje się ze stanu),
+   a fokus — jeśli stoi na znikającym „Cofnij” — wraca na „Kopiuj z …”. */
+function expireUndo(key){
+  if(!pendingUndo || pendingUndo.key!==key) return;
+  const active = document.activeElement;
+  const onUndo = !!(active && active.dataset && active.dataset.key==="undo-copy");
+  clearUndo();
+  if(onUndo) requestFocus(key, copyBtnKey(key));
+  recompute();
+}
+
+function copyButtonHtml(key){
+  const from = otherKey(key);
+  const aria = "Zastąp scenariusz "+key+" kopią scenariusza "+from;
+  const disabled = sameScenario(state[key], state[from]);
+  return '<button type="button" class="btn btn-sm'+(disabled?" is-disabled":"")+'" data-copy-from="'+from+'" data-key="'+copyBtnKey(key)+'"'+
+    ' aria-label="'+escapeXml(aria)+'"'+(disabled?' aria-disabled="true" title="Scenariusze są identyczne"':'')+
+    '>Kopiuj z '+from+'</button>';
+}
+function undoNoteHtml(key){
+  if(!pendingUndo || pendingUndo.key!==key) return '';
+  return '<div class="copy-note" role="status">Skopiowano z '+pendingUndo.from+' · '+
+    '<button type="button" class="btn btn-sm" data-undo-copy data-key="undo-copy">Cofnij</button></div>';
+}
+
 /* ============ przywracanie fokusu wokół innerHTML w #scenarios ============ */
 /* `recompute()` przerysowuje panele przez `scenariosEl.innerHTML = …`, co gubi
    fokus (ląduje na <body>) i — bez preventScroll — potrafi skoczyć widokiem.
@@ -1383,7 +1483,11 @@ function renderPanel(key, s, result, baseline){
   const types = availableTypes();
 
   let html = '<div class="panel '+cls+'">';
-  html += '<div class="panel-head"><h2>Scenariusz '+key+'</h2><div class="panel-sum">'+escapeXml(summaryLine(s))+'</div></div>';
+  html += '<div class="panel-head">'+
+    '<div class="panel-head-row"><h2>Scenariusz '+key+'</h2>'+copyButtonHtml(key)+'</div>'+
+    '<div class="panel-sum">'+escapeXml(summaryLine(s))+'</div>'+
+    undoNoteHtml(key)+
+    '</div>';
 
   const limits = state.rkmOn ? rkmLimitsOf(s) : null;
 
@@ -1786,8 +1890,15 @@ function recompute(){
 }
 
 function doRecompute(){
-  // Łapane PRZED przerysowaniem — patrz komentarz przy captureFocusState (p. 1 audytu).
-  const focusState = captureFocusState();
+  /* Bufor cofnięcia kopiowania przeżywa tylko przerysowanie wywołane samym
+     kopiowaniem albo cofnięciem — każda inna zmiana w scenariuszu go kasuje. */
+  if(!keepUndo) clearUndo();
+  keepUndo = false;
+  /* Łapane PRZED przerysowaniem — patrz komentarz przy captureFocusState (p. 1
+     audytu). `pendingFocus` (kopiowanie/cofnięcie) ma pierwszeństwo: fokus ma
+     wylądować na „Cofnij”/„Kopiuj z …”, a nie tam, gdzie był przed kliknięciem. */
+  const focusState = pendingFocus || captureFocusState();
+  pendingFocus = null;
 
   const resA = simulateScenario(toEngineConfig(state.A));
   const resB = simulateScenario(toEngineConfig(state.B));
@@ -2010,6 +2121,17 @@ function attachPanelHandlers(){
     const panel = scenariosEl.querySelector(".panel."+key.toLowerCase());
     if(!panel) return;
     const s = state[key];
+
+    // „Kopiuj z A/B” + jednorazowe „Cofnij” (nagłówek panelu). Przycisk wyłączony
+    // nie ma atrybutu `disabled` (zostaje focusowalny) — handler sam sprawdza
+    // aria-disabled, tak samo jak przy chipach presetów.
+    const copyFromBtn = panel.querySelector("[data-copy-from]");
+    if(copyFromBtn) copyFromBtn.addEventListener("click", ()=>{
+      if(copyFromBtn.getAttribute("aria-disabled")==="true") return;
+      copyScenarioFromOther(key);
+    });
+    const undoCopyBtn = panel.querySelector("[data-undo-copy]");
+    if(undoCopyBtn) undoCopyBtn.addEventListener("click", undoCopy);
 
     // top-level fields
     panel.querySelectorAll(":scope > .field-grid input[data-f], :scope > .field-grid select[data-f]").forEach(inp=>{
