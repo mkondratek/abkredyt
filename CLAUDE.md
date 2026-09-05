@@ -150,7 +150,7 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   strona produktowa BGK podaje te same 200 tys. / 20–30 % / 100 tys.).
   Także art. 7 ust. 2: gdy warunek braku innego mieszkania spełniono w trybie art. 5 ust. 2,
   spłata rodzinna przysługuje dopiero po wygaśnięciu gwarancji — niemodelowane, opisane
-  w /pytania.html przy pytaniu o „termin na dziecko”.
+  w /pytania przy pytaniu o „termin na dziecko”.
 - Stan w `localStorage` (klucz `abkredyt-state-v6`), w try/catch, z kontrolą kształtu
   (`looksLikeState`) — przy zmianie schematu stanu podbij sufiks klucza **i** stałą
   `RKM.STATE_VERSION` (= 6; siedzi w silniku, stan nosi ją jako pole `v`). Dekoder linku

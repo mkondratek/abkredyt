@@ -188,7 +188,7 @@ const HEAD = `<!doctype html>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="canonical" href="https://abkredyt.kondratek.pl/scenariusze.html" />
+    <link rel="canonical" href="https://abkredyt.kondratek.pl/scenariusze" />
     <meta name="description" content="Pięć gotowych porównań kredytu hipotecznego z kalkulatora abkredyt: nadpłata a spłata rodzinna z RKM, 15 czy 30 lat, RKM przy 20 % wkładu, wzrost WIBOR-u, skrócenie okresu kontra niższa rata. Każde otwiera się w kalkulatorze jednym kliknięciem." />
     <title>Gotowe porównania — kalkulator kredytu abkredyt</title>
     <style>
@@ -333,9 +333,9 @@ function footer(dateLabel) {
       </p>
       <p>Autor: Mikołaj Kondratek. Strona wygenerowana ${dateLabel}</p>
       <nav>
-        <a href="/polityka-prywatnosci.html">Polityka prywatności</a> ·
-        <a href="/pytania.html">Pytania i odpowiedzi</a> ·
-        <a href="/zrodla.html">Źródła</a> ·
+        <a href="/polityka-prywatnosci">Polityka prywatności</a> ·
+        <a href="/pytania">Pytania i odpowiedzi</a> ·
+        <a href="/zrodla">Źródła</a> ·
         <a href="https://github.com/mkondratek/abkredyt">Kod źródłowy</a> ·
         <a href="https://github.com/mkondratek/abkredyt/issues/new">Znalazłeś błąd? Zgłoś na GitHubie</a>
       </nav>
