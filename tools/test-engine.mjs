@@ -84,7 +84,8 @@ function monthsRef(balance, r, rata) {
      • `rates` = {miesiąc: nowa stopa nominalna %} — obowiązuje OD tego miesiąca,
        rata przeliczana od razu (jeszcze przed naliczeniem odsetek tego miesiąca),
      • opłata za wcześniejszą spłatę = feePct od min(kwota, saldo), tylko w oknie
-       feeMonths i tylko od nadpłat dobrowolnych,
+       feeMonths i tylko od nadpłat dobrowolnych, przycięta do odsetek za 12 miesięcy
+       od spłacanej kwoty (art. 40 ust. 4 ustawy o kredycie hipotecznym),
      • reguła RKM: część gwarantowana startuje z min(gwarancja, kapitał) i maleje
        o KAŻDĄ spłatę kapitału (rata, nadpłata, spłata rodzinna), nigdy nie przekracza
        salda; przekroczenie = nadpłata dobrowolna > pozostała część w oknie 36 mies.;
@@ -147,7 +148,7 @@ function refSim(o) {
         if (amt - guarantee > 0.005 && breachMonth === null) breachMonth = month;
       }
       guarantee = Math.min(Math.max(0, guarantee - amt), balance - amt);
-      if (month <= feeMonths) totalFees += amt * (feePct / 100);
+      if (month <= feeMonths) totalFees += Math.min(amt * (feePct / 100), amt * r * 12);
       balance -= amt;
       monthVoluntary += amt;
       if (balance > 0.5) {
@@ -548,6 +549,32 @@ ok(
 );
 near("nadpłata większa od salda kończy kredyt w m. 1", oplataOdSalda.payoffMonths, 1, 0, " mies.");
 
+/* ---------- 6b. limit opłaty za wcześniejszą spłatę (art. 40 ust. 4 u.k.h.) ----------
+   Rekompensata nie może przekroczyć odsetek, które kredytobiorca zapłaciłby od
+   spłacanej kwoty przez rok. Przy 2 % rocznie odsetki od 10 000 zł to 200 zł, więc
+   umowne 3 % (300 zł) jest przycinane; przy 5,50 % limit (550 zł) nie wiąże. */
+function oplataOd10k(ratePct) {
+  return simulateScenario(
+    cfg({ years: 30, ratePct: ratePct, feePct: 3, feeMonths: 36, events: [{ type: "jednorazowa", month: 1, amount: 10000, trybOverride: "auto" }] })
+  ).totalFees;
+}
+near("stopa 2 %: opłata 3 % przycięta do odsetek za 12 mies. = 200 zł", oplataOd10k(2), 200, 0.01, " zł");
+near("stopa 5,50 %: opłata 3 % bez przycięcia = 300 zł", oplataOd10k(5.5), 300, 0.01, " zł");
+ok("limit z art. 40 ust. 4 realnie obniża opłatę przy niskiej stopie", oplataOd10k(2) < oplataOd10k(5.5), oplataOd10k(2) + " vs " + oplataOd10k(5.5));
+near("stopa 2 %: opłata = referencja", oplataOd10k(2), refSim({ principal: P, ratePct: 2, years: 30, oneOff: { 1: 10000 }, feePct: 3, feeMonths: 36 }).totalFees, 0.01, " zł");
+/* Limit liczy się od stopy OBOWIĄZUJĄCEJ w miesiącu spłaty, nie od pierwotnej:
+   po spadku wskaźnika do 2 % opłata za nadpłatę w m. 24 jest już przycięta. */
+const oplataPoSpadku = simulateScenario(
+  cfg({
+    years: 30, feePct: 3, feeMonths: 36,
+    events: [
+      { type: "zmiana_oprocentowania", month: 12, newRatePct: 2 },
+      { type: "jednorazowa", month: 24, amount: 10000, trybOverride: "auto" },
+    ],
+  })
+);
+near("limit opłaty idzie za aktualną stopą (po spadku do 2 % → 200 zł)", oplataPoSpadku.totalFees, 200, 0.01, " zł");
+
 /* ---------- 7. zmiana oprocentowania przelicza ratę ---------- */
 const zmiana = simulateScenario(
   cfg({ years: 30, events: [{ type: "zmiana_oprocentowania", month: 24, newRatePct: 4.5, note: "wskaźnik 2,60 % + marża 1,90 %" }] })
@@ -637,14 +664,16 @@ near("solveMonths = referencja (saldo 300 000, rata 30-letnia)", solveMonths(300
    same mapy kluczy, więc round trip pokrywa jedno i drugie. */
 const { STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson, bytesToB64url, b64urlToBytes } = RKM;
 ok("kodek jest wystawiony na RKM", [STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson].every((v) => v !== undefined));
-ok("wersja stanu = 5", STATE_VERSION === 5, "jest " + STATE_VERSION);
+ok("wersja stanu = 6", STATE_VERSION === 6, "jest " + STATE_VERSION);
+ok("silnik podaje domyślne oprocentowanie lokaty", RKM.DEFAULT_LOKATA_PCT === 3, "jest " + RKM.DEFAULT_LOKATA_PCT);
 
 const sampleState = {
   v: STATE_VERSION,
-  rkmOn: true,
   chartMode: "rata",
   tableScn: "B",
+  lokata: 4.5,
   A: {
+    rkm: true,
     cena: 500000, wklad: 0, remont: 25000,
     marza: 1.9, wskaznik: 3.6, start: "2027-03", tryb: "skroc",
     feePct: 3, feeMonths: 36, years: 30,
@@ -655,6 +684,7 @@ const sampleState = {
     ],
   },
   B: {
+    rkm: false,
     cena: 500000, wklad: 60000, remont: 0,
     marza: 2.1, wskaznik: 3.6, start: "2026-12", tryb: "obniz",
     feePct: 0, feeMonths: 0, years: 25,
@@ -682,6 +712,13 @@ ok(
 );
 ok("skrócone klucze są jednoznakowe", Object.keys(shortenState(sampleState)).every((k) => k.length === 1));
 ok(
+  "tryb RKM jedzie w linku osobno dla A i B",
+  roundTrip.A.rkm === true && roundTrip.B.rkm === false,
+  JSON.stringify([roundTrip.A.rkm, roundTrip.B.rkm])
+);
+ok("oprocentowanie lokaty przeżywa round trip", roundTrip.lokata === 4.5, "jest " + roundTrip.lokata);
+ok("stan nie nosi już globalnego rkmOn", shortenState(sampleState).k === undefined && roundTrip.rkmOn === undefined);
+ok(
   "skrócony stan nie zawiera id zdarzeń",
   JSON.stringify(shortenState(sampleState)).indexOf('"x1"') < 0
 );
@@ -702,37 +739,75 @@ ok(
   expandState(null) === null && expandState("x") === null
 );
 
-/* Zgodność w tył: ładunek zapisany w wersji 4 nosił pole `gwarancja` (skrócony klucz
-   „g”), dziś wyliczane. Dekoder musi go pominąć i podnieść wersję stanu do 5 —
+/* Zgodność w tył. Ładunek z wersji 4 nosił pole `gwarancja` (skrócony klucz „g”),
+   dziś wyliczane; ładunki 4 i 5 miały GLOBALNY tryb RKM (klucz „k”), dziś będący
+   cechą scenariusza. Dekoder musi obie różnice wygładzić i podnieść wersję do 6 —
    inaczej stare linki niepotrzebnie wyświetlałyby notkę „nie udało się odczytać”. */
-const v4Payload = (() => {
-  const short = shortenState(Object.assign({}, sampleState, { v: 4 }));
-  short.v = 4;
-  short.a.g = 100000; // pole z wersji 4
-  short.b.g = 0;
+function legacyPayload(version, rkmOn) {
+  const short = shortenState(sampleState);
+  short.v = version;
+  short.k = rkmOn;             // globalny tryb RKM (v4/v5)
+  delete short.a.r;            // per-scenariuszowej flagi jeszcze nie było
+  delete short.b.r;
+  delete short.o;              // ani oprocentowania lokaty
+  if (version === 4) { short.a.g = 100000; short.b.g = 0; }
   return bytesToB64url(new TextEncoder().encode(JSON.stringify(short)));
-})();
-const fromV4 = decodeStateJson(v4Payload);
+}
+const fromV4 = decodeStateJson(legacyPayload(4, true));
 ok("ładunek v4 daje się odczytać", !!fromV4, JSON.stringify(fromV4));
-ok("ładunek v4 jest podnoszony do wersji 5", fromV4 && fromV4.v === STATE_VERSION, "jest " + (fromV4 && fromV4.v));
+ok("ładunek v4 jest podnoszony do wersji 6", fromV4 && fromV4.v === STATE_VERSION, "jest " + (fromV4 && fromV4.v));
 ok(
   "ładunek v4 traci pole gwarancja",
   fromV4 && fromV4.A.gwarancja === undefined && fromV4.B.gwarancja === undefined,
   JSON.stringify([fromV4 && fromV4.A.gwarancja, fromV4 && fromV4.B.gwarancja])
 );
+/* Porównanie niezależne od kolejności kluczy: przy migracji `rkm` dopisywane jest
+   na końcu obiektu, w oryginale stoi na początku — JSON.stringify by je rozróżnił. */
+function sortedJson(v) {
+  if (Array.isArray(v)) return "[" + v.map(sortedJson).join(",") + "]";
+  if (v && typeof v === "object") {
+    return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + sortedJson(v[k])).join(",") + "}";
+  }
+  return JSON.stringify(v === undefined ? null : v);
+}
 ok(
   "ładunek v4 zachowuje pozostałe pola scenariuszy",
-  fromV4 && JSON.stringify(stripIds(fromV4).A) === JSON.stringify(stripIds(sampleState).A) &&
-    JSON.stringify(stripIds(fromV4).B) === JSON.stringify(stripIds(sampleState).B),
-  JSON.stringify(fromV4 && stripIds(fromV4).A)
+  fromV4 &&
+    sortedJson(stripIds(fromV4).A) === sortedJson(Object.assign(stripIds(sampleState).A, { rkm: true })) &&
+    sortedJson(stripIds(fromV4).B) === sortedJson(Object.assign(stripIds(sampleState).B, { rkm: true })),
+  sortedJson(fromV4 && stripIds(fromV4).A)
+);
+
+/* Sedno migracji do wersji 6: jedna globalna flaga staje się dwiema. */
+const fromV5on = decodeStateJson(legacyPayload(5, true));
+const fromV5off = decodeStateJson(legacyPayload(5, false));
+ok("ładunek v5 jest podnoszony do wersji 6", fromV5on && fromV5on.v === STATE_VERSION, "jest " + (fromV5on && fromV5on.v));
+ok(
+  "globalne rkmOn=true z v5 trafia do OBU scenariuszy",
+  fromV5on && fromV5on.A.rkm === true && fromV5on.B.rkm === true,
+  JSON.stringify(fromV5on && [fromV5on.A.rkm, fromV5on.B.rkm])
+);
+ok(
+  "globalne rkmOn=false z v5 też trafia do obu (nie gubimy trybu)",
+  fromV5off && fromV5off.A.rkm === false && fromV5off.B.rkm === false,
+  JSON.stringify(fromV5off && [fromV5off.A.rkm, fromV5off.B.rkm])
+);
+ok(
+  "ładunek bez lokaty dostaje wartość domyślną",
+  fromV5on && fromV5on.lokata === RKM.DEFAULT_LOKATA_PCT,
+  "jest " + (fromV5on && fromV5on.lokata)
+);
+ok(
+  "ładunek v5 nie zostawia po sobie globalnego rkmOn",
+  fromV5on && fromV5on.rkmOn === undefined
 );
 ok(
   "ładunek z nieznanej wersji zostaje odrzucony (wersja nietknięta)",
   (() => {
     const short = shortenState(sampleState);
-    short.v = 3;
+    short.v = 7;
     const decoded = decodeStateJson(bytesToB64url(new TextEncoder().encode(JSON.stringify(short))));
-    return decoded && decoded.v === 3;
+    return decoded && decoded.v === 7;
   })()
 );
 
@@ -907,6 +982,135 @@ ok("okres poza limitem symulacji: paidOff = false", zaDlugi.paidOff === false, "
 ok("silnik podaje limit symulacji (maxMonths)", zaDlugi.maxMonths === 900, "jest " + zaDlugi.maxMonths);
 ok("zwykły kredyt jest oznaczony jako spłacony", s30.paidOff === true && s30.payoffMonths < s30.maxMonths);
 ok("dziecko po urwanej symulacji NIE jest oznaczane jako po spłacie", simulateScenario(cfg({ years: 100, events: [{ type: "dziecko", month: 950, amount: 60000, childNumber: 3, trybOverride: "auto" }] })).eventLog.every((l) => l.type !== "dziecko-zero"));
+
+/* ---------- 15. opłata prowizyjna za gwarancję BGK (art. 4a ust. 5) ----------
+   „Z tytułu udzielenia gwarancji BGK pobiera od kredytobiorcy jednorazową opłatę
+   prowizyjną w wysokości 1,0 % objętej tą gwarancją części kredytu" — płatna przy
+   uruchomieniu, bezzwrotna, więc wchodzi do łącznego kosztu kredytu. */
+near("opłata za gwarancję: 1 % ze 100 000 zł = 1 000 zł", s30.gwarancjaFee, 1000, 0.01, " zł");
+ok("domyślna stawka opłaty to 1,0 %", s30.gwarancjaFeePct === 1, "jest " + s30.gwarancjaFeePct);
+near("łączny koszt = odsetki + opłaty za nadpłaty + opłata za gwarancję", s30.totalCost, s30.totalInterest + s30.totalFees + s30.gwarancjaFee, 0.01, " zł");
+ok("brak gwarancji → brak opłaty prowizyjnej", g0bez.gwarancjaFee === 0, "jest " + g0bez.gwarancjaFee);
+const pozaProgramem = simulateScenario(cfg({ years: 30, gwarancjaFeePct: 0 }));
+ok(
+  "kredyt spoza RKM (gwarancjaFeePct 0) nie płaci opłaty i ma koszt bez niej",
+  pozaProgramem.gwarancjaFee === 0 && Math.abs(pozaProgramem.totalCost - (pozaProgramem.totalInterest + pozaProgramem.totalFees)) < 0.01,
+  JSON.stringify({ f: pozaProgramem.gwarancjaFee, c: Math.round(pozaProgramem.totalCost) })
+);
+near(
+  "opłata liczona od gwarancji PRZYCIĘTEJ do kapitału, nie od wpisanej",
+  simulateScenario(cfg({ principal: 100000, gwarancja: 200000, years: 30 })).gwarancjaFee,
+  1000,
+  0.01,
+  " zł"
+);
+
+/* ---------- 16. suma wpłat i koszt alternatywny gotówki (lokata) ----------
+   Wypływy kredytobiorcy = rata + nadpłata dobrowolna + opłata za wcześniejszą spłatę
+   (co miesiąc) plus jednorazowa opłata za gwarancję w miesiącu 0. Spłata rodzinna to
+   pieniądz BGK — do wpłat nie wchodzi i na lokacie pracować nie może.
+   Referencyjne FV liczone tu zwykłą pętlą, nie przez RKM.kosztZLokata. */
+const { kosztZLokata } = RKM;
+ok("silnik wystawia kosztZLokata", typeof kosztZLokata === "function");
+function wplatyRef(res) {
+  let sum = res.gwarancjaFee;
+  res.months.forEach((mo) => { sum += mo.rata + mo.nadplata + mo.oplata; });
+  return sum;
+}
+function fvRef(res, lokataPct, horizon) {
+  const rl = lokataPct / 100 / 12;
+  let fv = res.gwarancjaFee * Math.pow(1 + rl, horizon);
+  res.months.forEach((mo) => {
+    fv += (mo.rata + mo.nadplata + mo.oplata) * Math.pow(1 + rl, Math.max(0, horizon - mo.month));
+  });
+  return fv;
+}
+near("suma wpłat = raty + nadpłaty + opłaty + opłata za gwarancję", s30.totalWplaty, wplatyRef(s30), 0.01, " zł");
+near("lokata 0 % → wartość przyszła równa sumie wpłat", kosztZLokata(s30, 0, s30.payoffMonths), s30.totalWplaty, 0.01, " zł");
+ok(
+  "lokata > 0 % → wartość przyszła większa niż suma wpłat",
+  kosztZLokata(s30, 3, s30.payoffMonths) > s30.totalWplaty + 1,
+  Math.round(kosztZLokata(s30, 3, s30.payoffMonths)) + " vs " + Math.round(s30.totalWplaty)
+);
+near("koszt z lokatą 3 % = referencja", kosztZLokata(s30, 3, 360), fvRef(s30, 3, 360), 1, " zł");
+near("koszt z lokatą 4,5 % = referencja", kosztZLokata(s30, 4.5, 400), fvRef(s30, 4.5, 400), 1, " zł");
+ok(
+  "wyższe oprocentowanie lokaty podnosi koszt alternatywny",
+  kosztZLokata(s30, 7, 360) > kosztZLokata(s30, 3, 360),
+  Math.round(kosztZLokata(s30, 7, 360)) + " vs " + Math.round(kosztZLokata(s30, 3, 360))
+);
+/* Spłata rodzinna poza wypłatami: gdyby wchodziła, suma wpłat urosłaby dokładnie o nią. */
+let sumaZeSplata = gDziecko.gwarancjaFee;
+gDziecko.months.forEach((mo) => { sumaZeSplata += mo.rata + mo.nadplata + mo.oplata + mo.splataRodzinna; });
+ok("scenariusz kontrolny naprawdę dostał spłatę rodzinną", gDziecko.totalSplataRodzinna > 0, String(gDziecko.totalSplataRodzinna));
+near("suma wpłat pomija spłatę rodzinną", sumaZeSplata - gDziecko.totalSplataRodzinna, gDziecko.totalWplaty, 1, " zł");
+near("koszt z lokatą też pomija spłatę rodzinną (lokata 0 % = suma wpłat)", kosztZLokata(gDziecko, 0, gDziecko.payoffMonths), gDziecko.totalWplaty, 0.01, " zł");
+
+/* Sedno punktu 5 roadmapy: „nadpłacić teraz" kontra „poczekać do m. 37".
+   Przy lokacie niższej niż oprocentowanie kredytu odłożenie nadpłaty jest droższe,
+   przy wyższej — tańsze. Bez kosztu alternatywnego widać tylko jedną stronę. */
+const nadplataTeraz = simulateScenario(cfg({ years: 30, events: [{ type: "jednorazowa", month: 1, amount: 100000, trybOverride: "auto" }] }));
+const nadplataPozniej = simulateScenario(cfg({ years: 30, events: [{ type: "jednorazowa", month: 37, amount: 100000, trybOverride: "auto" }] }));
+const HOR = Math.max(nadplataTeraz.payoffMonths, nadplataPozniej.payoffMonths);
+const fvTeraz3 = kosztZLokata(nadplataTeraz, 3, HOR), fvPozniej3 = kosztZLokata(nadplataPozniej, 3, HOR);
+const fvTeraz7 = kosztZLokata(nadplataTeraz, 7, HOR), fvPozniej7 = kosztZLokata(nadplataPozniej, 7, HOR);
+near("odłożona nadpłata: koszt z lokatą 3 % = referencja", fvPozniej3, fvRef(nadplataPozniej, 3, HOR), 1, " zł");
+ok(
+  "lokata 3 % < kredyt 5,5 %: odłożenie nadpłaty do m. 37 wychodzi drożej",
+  fvPozniej3 > fvTeraz3,
+  Math.round(fvPozniej3) + " vs " + Math.round(fvTeraz3)
+);
+ok(
+  "lokata 7 % > kredyt 5,5 %: odłożenie nadpłaty do m. 37 wychodzi taniej",
+  fvPozniej7 < fvTeraz7,
+  Math.round(fvPozniej7) + " vs " + Math.round(fvTeraz7)
+);
+ok("obrona w głąb: kosztZLokata na śmieciach nie daje NaN", kosztZLokata(null, 3, 100) === 0 && isFinite(kosztZLokata(s30, -5, -10)));
+
+/* ---------- 17. znaczniki: wygaśnięcie gwarancji i pełna spłata rodzinna ----------
+   `guaranteeExhaustedMonth` — pierwszy miesiąc, w którym część objęta gwarancją
+   zeszła do zera (art. 4a ust. 6: „Gwarancja wygasa z dniem spłaty części kapitałowej
+   kredytu w wysokości objętej tą gwarancją").
+   `fullChildRepaymentUntilMonth` — ostatni miesiąc z saldem co najmniej 60 000 zł,
+   czyli takim, które mieści jeszcze PEŁNĄ spłatę rodzinną za trzecie dziecko
+   (art. 7 ust. 3). To nie jest termin na dziecko — prawo do spłaty od niego nie zależy. */
+ok("silnik podaje kwotę pełnej spłaty rodzinnej", RKM.RKM_PELNA_SPLATA_RODZINNA === 60000, "jest " + RKM.RKM_PELNA_SPLATA_RODZINNA);
+function wygasnieciaRef(res) {
+  let left = Math.min(res.gwarancja, res.months.length ? res.months[0].saldo + res.months[0].kapital : 0);
+  if (left <= 0) return null;
+  for (let i = 0; i < res.months.length; i++) {
+    const mo = res.months[i];
+    left = Math.min(Math.max(0, left - mo.kapital - mo.nadplata - mo.splataRodzinna), mo.saldo);
+    if (left <= 0.005) return mo.month;
+  }
+  return null;
+}
+function pelnaSplataRef(res) {
+  for (let i = res.months.length - 1; i >= 0; i--) {
+    if (res.months[i].saldo >= 60000) return res.months[i].month === res.payoffMonths ? null : res.months[i].month;
+  }
+  return null;
+}
+ok("wygaśnięcie gwarancji (30 lat) = referencja", s30.guaranteeExhaustedMonth === wygasnieciaRef(s30), s30.guaranteeExhaustedMonth + " vs " + wygasnieciaRef(s30));
+ok("wygaśnięcie gwarancji przy 30 latach wypada dużo po oknie 36 mies.", s30.guaranteeExhaustedMonth > 36, String(s30.guaranteeExhaustedMonth));
+ok("krótszy okres wyczerpuje gwarancję wcześniej", s15.guaranteeExhaustedMonth < s30.guaranteeExhaustedMonth, s15.guaranteeExhaustedMonth + " vs " + s30.guaranteeExhaustedMonth);
+ok("brak gwarancji → brak miesiąca wygaśnięcia (null, nie 1)", g0bez.guaranteeExhaustedMonth === null, String(g0bez.guaranteeExhaustedMonth));
+/* Duża nadpłata w oknie 36 mies. zjada całą gwarancję od razu — to właśnie ten
+   przypadek rysuje na wykresie pusty romb (znacznik przed końcem okna). */
+const gwWyczerpanaWcześnie = simulateScenario(cfg({ years: 30, events: [{ type: "jednorazowa", month: 2, amount: 150000, trybOverride: "auto" }] }));
+ok("nadpłata 150 000 w m. 2 wyczerpuje gwarancję w m. 2", gwWyczerpanaWcześnie.guaranteeExhaustedMonth === 2, String(gwWyczerpanaWcześnie.guaranteeExhaustedMonth));
+ok("i wypada przed końcem okna RKM (znacznik ma sens)", gwWyczerpanaWcześnie.guaranteeExhaustedMonth < RKM.RKM_WINDOW_MONTHS);
+
+ok("ostatni miesiąc z saldem ≥ 60 000 (30 lat) = referencja", s30.fullChildRepaymentUntilMonth === pelnaSplataRef(s30), s30.fullChildRepaymentUntilMonth + " vs " + pelnaSplataRef(s30));
+ok(
+  "saldo w tym miesiącu jest ≥ 60 000, a w następnym już nie",
+  s30.months[s30.fullChildRepaymentUntilMonth - 1].saldo >= 60000 && s30.months[s30.fullChildRepaymentUntilMonth].saldo < 60000,
+  JSON.stringify([Math.round(s30.months[s30.fullChildRepaymentUntilMonth - 1].saldo), Math.round(s30.months[s30.fullChildRepaymentUntilMonth].saldo)])
+);
+ok("nadpłaty przesuwają ten miesiąc w przód (kredyt topi się szybciej)", cyk.fullChildRepaymentUntilMonth < s30.fullChildRepaymentUntilMonth, cyk.fullChildRepaymentUntilMonth + " vs " + s30.fullChildRepaymentUntilMonth);
+const malyKredyt = simulateScenario(cfg({ principal: 50000, years: 30, gwarancja: 0 }));
+ok("kredyt zawsze poniżej 60 000 → brak znacznika (null)", malyKredyt.fullChildRepaymentUntilMonth === null, String(malyKredyt.fullChildRepaymentUntilMonth));
+ok("kredyt, który się nie amortyzuje, też nie dostaje znacznika", zaDlugi.fullChildRepaymentUntilMonth === null, String(zaDlugi.fullChildRepaymentUntilMonth));
 
 /* ---------- podsumowanie ---------- */
 if (failures > 0) {

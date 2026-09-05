@@ -134,7 +134,10 @@ a{ color:var(--accent-a-ink); }
 
 .wrap{ max-width:1180px; margin:0 auto; padding:28px 20px 60px; }
 
-/* Wyłączony tryb RKM ukrywa wszystko, co dotyczy tylko programu. */
+/* `data-rkm` na <html> mówi, czy CHOCIAŻ JEDEN scenariusz jest w programie RKM
+   (tryb jest cechą scenariusza, nie strony — patrz `s.rkm`). Elementy globalne
+   z klasą `.rkm-only` chowają się, gdy żaden scenariusz nie korzysta z programu;
+   części panelu sterują się per scenariusz w JS. */
 :root[data-rkm="off"] .rkm-only{ display:none !important; }
 
 /* ---------- header ---------- */
@@ -153,6 +156,7 @@ header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:
 .mode-row .hint{ font-size:12px; color:var(--ink-muted); max-width:70ch; }
 .mode-row .spacer{ flex:1 1 auto; }
 .mode-row .copied{ font-size:12px; color:var(--good); font-weight:600; }
+.mode-row .lokata-input{ width:74px; margin:0 2px; }
 
 /* Nieudane odczytanie stanu z linku (#s=…) — notka do zamknięcia, nie alert. */
 .link-note{
@@ -195,6 +199,11 @@ header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:
 .btn.is-disabled:hover{ background:var(--surface-2); }
 .copy-note{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-muted); margin-top:4px; }
 .panel-sum{ font-size:12px; color:var(--ink-muted); line-height:1.45; }
+/* Przełącznik „Kredyt w programie RKM” siedzi teraz w panelu (tryb per scenariusz),
+   tuż pod jednolinijkowym streszczeniem. */
+.panel-rkm{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer; margin-top:6px; }
+.panel-rkm input[type="checkbox"]{ width:16px; height:16px; accent-color:var(--accent-a); cursor:pointer; }
+.panel.b .panel-rkm input[type="checkbox"]{ accent-color:var(--accent-b); }
 .panel-sum .mono{ font-variant-numeric:tabular-nums; }
 
 .section-title{
@@ -305,6 +314,7 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 .kpi .val.small{ font-size:14px; font-weight:500; }
 .kpi .val.good{ color:var(--good); }
 .kpi .val.critical{ color:var(--critical); }
+.kpi .kpi-sub{ font-size:11.5px; color:var(--ink-faint); margin-top:3px; }
 
 /* ---------- comparison ---------- */
 .compare{
@@ -320,6 +330,13 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
 .compare-item .who{ font-size:11.5px; color:var(--ink-faint); }
 .win-a{ color:var(--accent-a-ink); }
 .win-b{ color:var(--accent-b-ink); }
+/* Koszt alternatywny gotówki — osobny wiersz pod siatką, bo dotyczy obu scenariuszy
+   naraz i wymaga zdania wyjaśnienia. */
+.compare-row{ margin-top:16px; padding-top:13px; border-top:1px solid var(--border); }
+.compare-row .lbl{ font-size:11.5px; color:var(--ink-muted); }
+.compare-row .val{ font-family:var(--font-mono); font-size:16px; font-weight:600; margin-top:3px; }
+.compare-row .val .vs{ color:var(--ink-faint); font-weight:400; font-family:var(--font-sans); }
+.compare-row .note{ font-size:11.5px; color:var(--ink-faint); margin-top:5px; max-width:88ch; line-height:1.45; }
 
 /* ---------- chart ---------- */
 .chart-card{
@@ -381,6 +398,16 @@ tbody td.evt{ font-family:var(--font-sans); text-align:left; color:var(--ink-mut
 .year-row:focus-visible{ outline:2px solid var(--focus); outline-offset:-2px; }
 .month-row td:first-child{ padding-left:26px; color:var(--ink-muted); font-weight:400; }
 .chev{ display:inline-block; transition:transform .15s; margin-right:6px; color:var(--ink-faint); }
+/* Znaczniki RKM w harmonogramie (koniec okna 36 mies., wygaśnięcie gwarancji,
+   ostatni miesiąc z pełną spłatą rodzinną) — mały badge w pierwszej komórce. */
+.mk-badge{
+  display:inline-block; margin-left:8px; padding:1px 7px; border-radius:999px;
+  font-family:var(--font-sans); font-size:10.5px; font-weight:600; letter-spacing:.01em;
+  background:var(--surface-3); color:var(--ink-muted); white-space:nowrap;
+}
+.mk-badge.window{ background:var(--warning-bg); color:var(--warning); }
+/* Rok, w którym wypada 36. miesiąc — delikatna krawędź, bez zmiany układu. */
+.year-row.rkm-window td:first-child{ box-shadow:inset 3px 0 0 var(--warning); }
 .year-row.expanded .chev{ transform:rotate(90deg); }
 
 footer.foot{ margin-top:26px; font-size:12px; color:var(--ink-faint); text-align:center; }
@@ -412,7 +439,7 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
   </header>
 
   <div class="mode-row">
-    <label class="sw-label"><input type="checkbox" id="rkm-toggle" checked> Kredyt w programie RKM</label>
+    <label class="sw-label" for="lokata-input">Oprocentowanie lokaty netto <input type="number" id="lokata-input" class="lokata-input mono" min="0" max="30" step="0.1" value="3"> %</label>
     <span class="hint" id="rkm-hint"></span>
     <span class="spacer"></span>
     <button type="button" class="btn" id="copy-link">Kopiuj link do tego porównania</button>
@@ -499,6 +526,12 @@ function addMonthsUTC(dateStr, n){
 /* Okno z art. 7 ust. 1 pkt 7 ustawy o rodzinnym kredycie mieszkaniowym: 3 lata od dnia
    udzielenia kredytu. Wartość ustawowa — nie jest parametrem konfiguracji. */
 const RKM_WINDOW_MONTHS = 36;
+
+/* Spłata rodzinna za trzecie i każde kolejne dziecko (art. 7 ust. 3) — najwyższa możliwa
+   kwota, więc saldo poniżej tego progu oznacza, że pełna spłata już się nie zmieści
+   (nadwyżka przepada: spłata jest przycinana do salda). Znacznik na wykresie i w
+   harmonogramie liczy się właśnie z tej kwoty. */
+const RKM_PELNA_SPLATA_RODZINNA = 60000;
 
 /* Jeden opis dla obu przypadków „dziecko po spłacie kredytu": w tym samym miesiącu,
    w którym saldo doszło do zera, i w dowolnym miesiącu późniejszym. */
@@ -611,7 +644,18 @@ function simulateScenario(cfg){
      poręcza część kredytu, więc wpisana kwota większa od kapitału jest przycinana
      (na starcie i po każdej spłacie kapitału). */
   const gwarancjaKwota = Math.min(nonNeg(cfg.gwarancja), principal);
+  /* Art. 4a ust. 5: „Z tytułu udzielenia gwarancji BGK pobiera od kredytobiorcy
+     jednorazową opłatę prowizyjną w wysokości 1,0 % objętej tą gwarancją części
+     kredytu". Płatna przy uruchomieniu (miesiąc 0), nie podlega zwrotowi — wchodzi
+     do łącznego kosztu i do sumy wpłat kredytobiorcy. Kredyt spoza programu dostaje
+     z UI `gwarancjaFeePct: 0` (i tak nie ma gwarancji, więc opłata wyszłaby zero). */
+  const gwarancjaFeePct = cfg.gwarancjaFeePct===undefined ? 1 : nonNeg(cfg.gwarancjaFeePct);
+  const gwarancjaFee = gwarancjaKwota * (gwarancjaFeePct/100);
   let guaranteeLeft = Math.min(gwarancjaKwota, balance);
+  /* Pierwszy miesiąc, w którym część objęta gwarancją zeszła do zera (art. 4a ust. 6:
+     „Gwarancja wygasa z dniem spłaty części kapitałowej kredytu w wysokości objętej
+     tą gwarancją"). Bez gwarancji od początku — null, bo nie ma czego wygaszać. */
+  let guaranteeExhaustedMonth = null;
   let guaranteeLeftAt36 = guaranteeLeft;
   let cumVoluntary = 0, rkmBreachMonth = null, rkmBreachAmount = 0, rkmBreachAllowance = 0;
   let rkmBreachMonthTotal = 0, rkmBreachAllowanceAtMonthStart = 0;
@@ -682,7 +726,11 @@ function simulateScenario(cfg){
         }
       }
       guaranteeLeft = Math.min(Math.max(0, guaranteeLeft - amt), balance - amt);
-      const fee = m<=feeMonths ? amt*(feePct/100) : 0;
+      /* Art. 40 ust. 4 ustawy z 23.03.2017 o kredycie hipotecznym: rekompensata nie
+         może przekroczyć odsetek, które kredytobiorca zapłaciłby od spłacanej kwoty
+         w okresie roku od dnia spłaty. Przy niskiej stopie to ten limit, a nie procent
+         z umowy, wyznacza opłatę (amt·r·12 = amt·ratePct/100). */
+      const fee = m<=feeMonths ? Math.min(amt*(feePct/100), amt*r*12) : 0;
       feeThisMonth += fee; totalFees += fee;
       balance -= amt; nadplataThisMonth += amt; totalNadplaty += amt;
       const useTryb = (e.trybOverride && e.trybOverride!=="auto") ? e.trybOverride : tryb;
@@ -730,6 +778,8 @@ function simulateScenario(cfg){
       eventLog.push({month:m, type:"dziecko", text:"Spłata rodzinna (dziecko "+e.childNumber+"): "+Math.round(amt).toLocaleString("pl-PL")+" zł"});
     });
 
+    if(guaranteeExhaustedMonth===null && gwarancjaKwota>0 && guaranteeLeft<=0.005) guaranteeExhaustedMonth = m;
+
     monthsOut.push({
       month:m, date:addMonthsUTC(startDate, m-1), rata:paymentThisMonth, odsetki:interest, kapital:principalPaid,
       nadplata:nadplataThisMonth, splataRodzinna:splataRodzThisMonth, oplata:feeThisMonth, saldo:Math.max(0,balance), lostChild
@@ -742,6 +792,19 @@ function simulateScenario(cfg){
   const last = monthsOut[monthsOut.length-1];
   const payoffMonths = monthsOut.length;
   const paidOff = balance<=0.5;
+  /* Wpłaty kredytobiorcy = raty + nadpłaty dobrowolne + opłaty za wcześniejszą spłatę
+     + jednorazowa opłata za gwarancję. Spłata rodzinna NIE jest jego pieniądzem, więc
+     do wpłat nie wchodzi — to samo rozgraniczenie robi kosztZLokata(). */
+  let totalWplaty = gwarancjaFee;
+  monthsOut.forEach(mo=>{ totalWplaty += mo.rata + mo.nadplata + mo.oplata; });
+  /* Ostatni miesiąc, w którym saldo jeszcze pozwala przyjąć PEŁNĄ spłatę rodzinną za
+     trzecie dziecko (60 000 zł). Gdy saldo nigdy nie schodzi poniżej tego progu przed
+     spłatą kredytu — null, bo znacznik nie niesie wtedy żadnej informacji. */
+  let fullChildRepaymentUntilMonth = null;
+  for(let i=monthsOut.length-1; i>=0; i--){
+    if(monthsOut[i].saldo >= RKM_PELNA_SPLATA_RODZINNA){ fullChildRepaymentUntilMonth = monthsOut[i].month; break; }
+  }
+  if(fullChildRepaymentUntilMonth === payoffMonths) fullChildRepaymentUntilMonth = null;
   /* Dzieci, które „urodziły się" już po spłacie kredytu, nie mogą po prostu zniknąć
      z podsumowania — bez wpisu użytkownik nie wie, czemu zdarzenie nic nie zmieniło. */
   if(paidOff){
@@ -754,7 +817,8 @@ function simulateScenario(cfg){
   return {
     months:monthsOut, rataHistory,
     totalInterest, totalFees, totalNadplaty, totalSplataRodzinna,
-    totalCost: totalInterest+totalFees,
+    gwarancjaFee, gwarancjaFeePct, totalWplaty,
+    totalCost: totalInterest+totalFees+gwarancjaFee,
     payoffDate: last? last.date : null,
     payoffMonths,
     // Kredyt, którego rata nie pokrywa nawet odsetek, nigdy się nie amortyzuje —
@@ -766,8 +830,36 @@ function simulateScenario(cfg){
     rkmBreachMonthTotal, rkmBreachAllowanceAtMonthStart,
     voluntaryOverpayWindow: cumVoluntary,
     gwarancja: gwarancjaKwota, guaranteeLeftAt36, rkmWindowMonths: RKM_WINDOW_MONTHS,
+    guaranteeExhaustedMonth, fullChildRepaymentUntilMonth,
+    pelnaSplataRodzinnaKwota: RKM_PELNA_SPLATA_RODZINNA,
     eventLog
   };
+}
+
+/* ============================================================================
+   KOSZT ALTERNATYWNY GOTÓWKI (lokata) — czysta funkcja nad wynikiem symulacji.
+   Każda złotówka wpłacona do banku mogła zamiast tego leżeć na lokacie do końca
+   wspólnego horyzontu porównania. Liczymy więc WARTOŚĆ PRZYSZŁĄ wszystkich wypływów
+   kredytobiorcy na miesiąc `horizonMonths`, przy kapitalizacji miesięcznej
+   r = lokataPct/100/12.
+   Do wypływów wchodzą: rata, nadpłata dobrowolna i opłata za wcześniejszą spłatę
+   (per miesiąc) oraz jednorazowa opłata za gwarancję w miesiącu 0. NIE wchodzi
+   spłata rodzinna — to pieniądz BGK, nie kredytobiorcy, więc nie mógłby pracować
+   na jego lokacie.
+   Przy lokacie 0 % wynik jest po prostu sumą wpłat (= result.totalWplaty).
+   ========================================================================== */
+function kosztZLokata(result, lokataPct, horizonMonths){
+  if(!result || !Array.isArray(result.months)) return 0;
+  const rl = nonNeg(lokataPct)/100/12;
+  const H = Math.max(0, Math.round(nonNeg(horizonMonths)));
+  let fv = nonNeg(result.gwarancjaFee) * Math.pow(1+rl, H);
+  for(let i=0;i<result.months.length;i++){
+    const mo = result.months[i];
+    const out = nonNeg(mo.rata) + nonNeg(mo.nadplata) + nonNeg(mo.oplata);
+    if(out<=0) continue;
+    fv += out * Math.pow(1+rl, Math.max(0, H - mo.month));
+  }
+  return fv;
 }
 
 /* ============================================================================
@@ -776,15 +868,22 @@ function simulateScenario(cfg){
    przez CompressionStream) robi warstwa UI; tutaj tylko część przenośna,
    testowana w tools/test-engine.mjs.
    ========================================================================== */
-const STATE_VERSION = 5;
-/* Ładunek z wersji 4 różnił się TYLKO tym, że nosił pole `gwarancja` (dziś wyliczane
-   z ceny, wkładu i dodatkowej kwoty — patrz gwarancjaBGK). Po pominięciu tego klucza
-   jest tożsamy z wersją 5, więc dekoder go przyjmuje i podnosi wersję stanu. */
-const ACCEPTED_STATE_VERSIONS = [4, 5];
+const STATE_VERSION = 6;
+/* Starsze ładunki są przyjmowane i podnoszone do bieżącej wersji:
+     • v4 niósł jeszcze pole `gwarancja` (skrócony klucz „g”), dziś wyliczane
+       z ceny, wkładu i dodatkowej kwoty — jest po prostu pomijane;
+     • v4 i v5 miały GLOBALNY przełącznik RKM (`rkmOn`, klucz „k”); od v6 tryb RKM
+       jest cechą scenariusza, więc wartość globalna trafia do obu (A.rkm = B.rkm);
+     • lokata (koszt alternatywny gotówki) pojawia się dopiero w v6 — starsze ładunki
+       dostają DEFAULT_LOKATA_PCT.
+   Każda inna wersja przechodzi dalej nietknięta i UI ją odrzuca. */
+const ACCEPTED_STATE_VERSIONS = [4, 5, 6];
+const LEGACY_GLOBAL_RKM_VERSIONS = [4, 5];
+const DEFAULT_LOKATA_PCT = 3;
 
-const STATE_KEYS = { v:"v", rkmOn:"k", chartMode:"c", tableScn:"t", A:"a", B:"b" };
+const STATE_KEYS = { v:"v", chartMode:"c", tableScn:"t", lokata:"o", A:"a", B:"b" };
 const SCN_KEYS = {
-  cena:"p", wklad:"w", remont:"d", marza:"m", wskaznik:"x",
+  rkm:"r", cena:"p", wklad:"w", remont:"d", marza:"m", wskaznik:"x",
   start:"s", tryb:"y", feePct:"f", feeMonths:"n", years:"l", events:"e"
 };
 /* `id` zdarzenia świadomie NIE trafia do linku — jest lokalnym uchwytem UI
@@ -833,24 +932,30 @@ function expandScenario(o){
 function shortenState(st){
   return {
     v: (st && st.v) || STATE_VERSION,
-    k: !!(st && st.rkmOn),
     c: CHART_VALS[st && st.chartMode] || (st && st.chartMode),
     t: st && st.tableScn,
+    o: (st && typeof st.lokata==="number" && isFinite(st.lokata)) ? st.lokata : DEFAULT_LOKATA_PCT,
     a: shortenScenario((st && st.A) || {}),
     b: shortenScenario((st && st.B) || {})
   };
 }
 function expandState(o){
   if(!o || typeof o!=="object") return null;
+  const A = expandScenario(o.a), B = expandScenario(o.b);
+  /* Podniesienie ładunku sprzed rozbicia trybu RKM na scenariusze: jedna wartość
+     globalna staje się dwiema identycznymi flagami. */
+  if(LEGACY_GLOBAL_RKM_VERSIONS.indexOf(o.v)>=0){
+    const on = !!o.k;
+    A.rkm = on; B.rkm = on;
+  }
   return {
     // Wersja z akceptowanego zakresu jest podnoszona do bieżącej — patrz
     // ACCEPTED_STATE_VERSIONS. Każda inna zostaje bez zmian, żeby UI ją odrzuciło.
     v: ACCEPTED_STATE_VERSIONS.indexOf(o.v)>=0 ? STATE_VERSION : o.v,
-    rkmOn: !!o.k,
     chartMode: CHART_R[o.c] || o.c || "saldo",
     tableScn: o.t || "A",
-    A: expandScenario(o.a),
-    B: expandScenario(o.b)
+    lokata: (typeof o.o==="number" && isFinite(o.o) && o.o>=0) ? o.o : DEFAULT_LOKATA_PCT,
+    A: A, B: B
   };
 }
 
@@ -895,7 +1000,8 @@ function decodeStateJson(payload){
 }
 
 const api = {
-  simulateScenario, annuity, solveMonths, addMonthsUTC, RKM_WINDOW_MONTHS,
+  simulateScenario, annuity, solveMonths, addMonthsUTC, kosztZLokata,
+  RKM_WINDOW_MONTHS, RKM_PELNA_SPLATA_RODZINNA, DEFAULT_LOKATA_PCT,
   gwarancjaBGK, rkmLimitIssues,
   RKM_WKLAD_MAX_PCT, RKM_WKLAD_MAX_KWOTA, RKM_GWARANCJA_MAX, RKM_SUMA_MAX,
   STATE_VERSION, ACCEPTED_STATE_VERSIONS,
@@ -916,6 +1022,11 @@ if (typeof globalThis !== "undefined") globalThis.RKM = api;
 
 const simulateScenario = RKM.simulateScenario;
 const STATE_VERSION = RKM.STATE_VERSION;
+const DEFAULT_LOKATA_PCT = RKM.DEFAULT_LOKATA_PCT;
+/* Art. 40 ust. 1 ustawy z 23.03.2017 o kredycie hipotecznym: przy oprocentowaniu
+   zmiennym (jedyne, jakie kalkulator modeluje) rekompensata za wcześniejszą spłatę
+   przysługuje bankowi najwyżej przez 36 miesięcy od udzielenia kredytu. */
+const FEE_MONTHS_MAX = 36;
 
 const MONTHS_PL = ["sty","lut","mar","kwi","maj","cze","lip","sie","wrz","paź","lis","gru"];
 function fmtDate(d){ return MONTHS_PL[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
@@ -981,6 +1092,7 @@ function rkmLimitsOf(s){ return RKM.rkmLimitIssues(limitsArgs(s)); }
    A i B różnią się tak, żeby pokazać dwie różne strategie. */
 function defaultScenario(which){
   const common = {
+    rkm:true,
     cena:500000, wklad:0, remont:0,
     marza:1.9, wskaznik:3.6,
     start:"2027-01", tryb:"skroc",
@@ -1003,11 +1115,11 @@ function defaultScenario(which){
 }
 
 function defaultState(){
-  return { v:STATE_VERSION, rkmOn:true, A: defaultScenario("A"), B: defaultScenario("B"), chartMode:"saldo", tableScn:"A" };
+  return { v:STATE_VERSION, lokata:DEFAULT_LOKATA_PCT, A: defaultScenario("A"), B: defaultScenario("B"), chartMode:"saldo", tableScn:"A" };
 }
 
 /* ============ persistence ============ */
-const STORAGE_KEY = "abkredyt-state-v5";
+const STORAGE_KEY = "abkredyt-state-v6";
 
 /* Lekka kontrola kształtu — żeby stan z innej (starszej, spersonalizowanej)
    wersji nie odżył po zmianie schematu. */
@@ -1020,19 +1132,29 @@ function looksLikeScenario(s){
   return s.events.every(e=>e && typeof e==="object" && typeof e.type==="string");
 }
 function looksLikeState(st){
-  return !!st && typeof st==="object" && typeof st.rkmOn==="boolean"
+  return !!st && typeof st==="object"
     && looksLikeScenario(st.A) && looksLikeScenario(st.B);
 }
 /* Migracja w miejscu: stan zapisany, gdy select oferował jeszcze „1. dziecko",
-   dostaje numer 2 (pierwsze dziecko nie daje spłaty rodzinnej), a stan z wersji 4
-   traci pole `gwarancja` — dziś wyliczane z ceny, wkładu i dodatkowej kwoty. */
+   dostaje numer 2 (pierwsze dziecko nie daje spłaty rodzinnej); stan z wersji 4
+   traci pole `gwarancja` (dziś wyliczane z ceny, wkładu i dodatkowej kwoty),
+   a stan sprzed wersji 6 — globalne `rkmOn`, które staje się flagą per scenariusz.
+   Tu też domykamy limity, które od wersji 6 obowiązują na wejściu: opłata za
+   wcześniejszą spłatę maks. 36 mies. (art. 40 u.k.h.) i okres w granicach trybu. */
 function normaliseState(st){
   if(!st || typeof st!=="object") return st;
+  if(typeof st.lokata!=="number" || !isFinite(st.lokata) || st.lokata<0) st.lokata = DEFAULT_LOKATA_PCT;
+  const globalRkm = typeof st.rkmOn==="boolean" ? st.rkmOn : null;
+  if("rkmOn" in st) delete st.rkmOn;
   ["A","B"].forEach(k=>{
     const s = st[k];
     if(!s || typeof s!=="object") return;
     // Pozostałość po wersji 4 stanu: gwarancja była polem, dziś jest wyliczana.
     if("gwarancja" in s) delete s.gwarancja;
+    // Pozostałość po wersjach 4–5: tryb RKM był jeden dla całej strony.
+    if(typeof s.rkm!=="boolean") s.rkm = globalRkm===null ? true : globalRkm;
+    if(typeof s.feeMonths==="number") s.feeMonths = clamp(Math.round(s.feeMonths), 0, FEE_MONTHS_MAX);
+    if(typeof s.years==="number") s.years = clamp(Math.round(s.years), yearsMin(s), 35);
     if(!Array.isArray(s.events)) return;
     s.events.forEach(e=>{ if(e && e.type==="dziecko") e.childNumber = childNo(e); });
   });
@@ -1101,36 +1223,43 @@ async function stateFromHash(){
   return null;
 }
 
-/* ============ RKM mode ============ */
-function yearsMin(){ return state.rkmOn ? 15 : 5; }
+/* ============ RKM mode (per scenariusz) ============ */
+/* Tryb RKM jest cechą SCENARIUSZA, nie strony — dzięki temu da się porównać kredyt
+   w programie ze zwykłym (np. wkład ≥ 20 %: spłata rodzinna kontra swoboda nadpłat
+   od pierwszego miesiąca). Nagłówek, notka i atrybut `data-rkm` na <html> mówią
+   tylko tyle, czy CHOCIAŻ JEDEN scenariusz korzysta z programu. */
+function yearsMin(s){ return s && s.rkm ? 15 : 5; }
+function anyRkm(){ return !!(state.A.rkm || state.B.rkm); }
 
 const HEAD_COPY = {
   on: {
     eyebrow: "Rodzinny Kredyt Mieszkaniowy · porównanie scenariuszy A/B",
-    lede: "Kalkulator do porównania dwóch wariantów kredytu RKM na zakup mieszkania — z nadpłatami, spłatą rodzinną przy narodzinach dziecka i zmianami oprocentowania w czasie.",
-    hint: "Włączone: spłata rodzinna po narodzinach dziecka, limit nadpłat dobrowolnych w pierwszych 3 latach (część objęta gwarancją BGK), okres co najmniej 15 lat."
+    lede: "Kalkulator do porównania dwóch wariantów kredytu na zakup mieszkania — z nadpłatami, spłatą rodzinną przy narodzinach dziecka i zmianami oprocentowania w czasie. Tryb RKM włączasz osobno dla A i B, więc kredyt w programie da się zestawić ze zwykłym.",
+    hint: "Tryb RKM ustawiasz osobno w każdym panelu. Oprocentowanie lokaty służy do jednego wiersza porównania: ile byłaby warta gotówka, gdyby zamiast do banku poszła na lokatę."
   },
   off: {
     eyebrow: "Kalkulator kredytu hipotecznego · porównanie scenariuszy A/B",
     lede: "Kalkulator do porównania dwóch wariantów spłaty kredytu hipotecznego — z nadpłatami jednorazowymi i cyklicznymi oraz zmianami wskaźnika referencyjnego w czasie.",
-    hint: "Wyłączone: bez spłaty rodzinnej i bez limitu nadpłat z gwarancji BGK — zwykły kalkulator A/B, okres 5–35 lat."
+    hint: "Oba scenariusze poza programem RKM — zwykły kalkulator A/B, okres 5–35 lat. Oprocentowanie lokaty służy do wiersza porównania: ile byłaby warta gotówka, gdyby zamiast do banku poszła na lokatę."
   }
 };
 
 function applyRkmMode(){
-  const copy = state.rkmOn ? HEAD_COPY.on : HEAD_COPY.off;
-  document.documentElement.setAttribute("data-rkm", state.rkmOn ? "on" : "off");
+  const on = anyRkm();
+  const copy = on ? HEAD_COPY.on : HEAD_COPY.off;
+  document.documentElement.setAttribute("data-rkm", on ? "on" : "off");
   document.getElementById("eyebrow").textContent = copy.eyebrow;
   document.getElementById("lede").textContent = copy.lede;
   document.getElementById("rkm-hint").textContent = copy.hint;
-  document.getElementById("rkm-toggle").checked = state.rkmOn;
+  const lok = document.getElementById("lokata-input");
+  if(lok && document.activeElement!==lok) lok.value = state.lokata;
 }
 
 /* ============ scenario config -> engine input ============ */
 /* Poza programem RKM zdarzenia „narodziny dziecka" nie mają zastosowania —
    nie trafiają do silnika (zostają w stanie, ale w UI są wyszarzone). */
 function activeEvents(s){
-  return state.rkmOn ? s.events : s.events.filter(e=>e.type!=="dziecko");
+  return s.rkm ? s.events : s.events.filter(e=>e.type!=="dziecko");
 }
 function toEngineConfig(s){
   const nominal = nominalRate(s);
@@ -1146,8 +1275,11 @@ function toEngineConfig(s){
   });
   return {
     principal: principalOf(s), ratePct:nominal, years:s.years, startDate:s.start+"-01",
-    tryb:s.tryb, feePct:nn(s.feePct), feeMonths:Math.round(nn(s.feeMonths)),
-    gwarancja: state.rkmOn ? gwarancjaOf(s) : 0,
+    tryb:s.tryb, feePct:nn(s.feePct), feeMonths:clamp(Math.round(nn(s.feeMonths)), 0, FEE_MONTHS_MAX),
+    gwarancja: s.rkm ? gwarancjaOf(s) : 0,
+    /* Art. 4a ust. 5 — jednorazowa opłata prowizyjna 1,0 % objętej gwarancją części
+       kredytu. Poza programem nie ma gwarancji, więc i opłaty. */
+    gwarancjaFeePct: s.rkm ? 1 : 0,
     events
   };
 }
@@ -1183,7 +1315,9 @@ function strategySummary(s){
   return items.slice(0,MAX).join(" + ") + " + " + (items.length-MAX) + " więcej";
 }
 function summaryLine(s){
-  return [money(principalOf(s)), plYears(s.years), pct(nominalRate(s)), strategySummary(s)].join(" · ");
+  const parts = [money(principalOf(s)), plYears(s.years), pct(nominalRate(s)), strategySummary(s)];
+  // Prefiks „RKM · ” niesie tryb scenariusza w streszczeniu — a więc i w legendzie wykresu.
+  return (s.rkm ? "RKM · " : "") + parts.join(" · ");
 }
 
 /* ============ presety wydarzeń ============ */
@@ -1406,8 +1540,8 @@ function restoreFocusState(saved){
 const scenariosEl = document.getElementById("scenarios");
 
 const TYPE_LABEL = {jednorazowa:"Nadpłata jednorazowa", cykliczna:"Nadpłata cykliczna", dziecko:"Narodziny dziecka", zmiana_wskaznika:"Zmiana wskaźnika"};
-function availableTypes(){
-  return Object.keys(TYPE_LABEL).filter(t=> state.rkmOn || t!=="dziecko");
+function availableTypes(s){
+  return Object.keys(TYPE_LABEL).filter(t=> s.rkm || t!=="dziecko");
 }
 
 /* Id pola zdarzenia = `${eventId}-${dataF}` (stabilny, unikalny w całym
@@ -1480,16 +1614,20 @@ function renderPanel(key, s, result, baseline){
     const at = e.type==="cykliczna" ? mon(e.startMonth) : mon(e.month);
     return result.paidOff && at > result.payoffMonths;
   }
-  const types = availableTypes();
+  const types = availableTypes(s);
+  const rkmId = fieldId(key,"rkm");
 
   let html = '<div class="panel '+cls+'">';
   html += '<div class="panel-head">'+
     '<div class="panel-head-row"><h2>Scenariusz '+key+'</h2>'+copyButtonHtml(key)+'</div>'+
     '<div class="panel-sum">'+escapeXml(summaryLine(s))+'</div>'+
+    /* Tryb RKM per scenariusz — przełącznik w panelu, nie nad stroną. `data-key`
+       jest kluczem przywracania fokusu po przerysowaniu #scenarios. */
+    '<label class="panel-rkm" for="'+rkmId+'"><input type="checkbox" id="'+rkmId+'" data-key="rkm-toggle"'+(s.rkm?' checked':'')+'> Kredyt w programie RKM</label>'+
     undoNoteHtml(key)+
     '</div>';
 
-  const limits = state.rkmOn ? rkmLimitsOf(s) : null;
+  const limits = s.rkm ? rkmLimitsOf(s) : null;
 
   html += '<div class="section-title">Kredyt</div>';
   html += '<div class="field-grid">';
@@ -1498,8 +1636,9 @@ function renderPanel(key, s, result, baseline){
      ceny: dolna granica bierze się z pułapu gwarancji (art. 4a ust. 3), górna
      z art. 5 ust. 1 pkt 5 lit. a. */
   html += field(key,"Wkład własny","wklad",s.wklad,"number",null,
-    limits ? "W RKM: od "+money(Math.ceil(limits.minWklad))+" do 20 % wydatków ("+money(limits.maxWklad)+")" : null);
-  if(state.rkmOn){
+    limits ? "W RKM: od "+money(Math.ceil(limits.minWklad))+" do 20 % wydatków ("+money(limits.maxWklad)+")"
+           : "Poza RKM banki wymagają zwykle 10–20 % wkładu własnego (rekomendacja S KNF)");
+  if(s.rkm){
     /* Gwarancja BGK jest wyliczana z ustawy, nie wpisywana (decyzja: nie pozwalać
        użytkownikowi na błąd) — pole tylko do czytania, jak „Kwota kredytu (razem)”.
        Nie zmienia kwoty kredytu, ale wyznacza limit bezpiecznych nadpłat w pierwszych
@@ -1530,7 +1669,7 @@ function renderPanel(key, s, result, baseline){
   const nominalId = fieldId(key,"nominalRate");
   html += '<div class="field"><label for="'+nominalId+'">Oprocentowanie nominalne <span class="sub">(marża + wskaźnik)</span></label><input id="'+nominalId+'" type="text" class="mono" readonly value="'+pct(nominalRate(s))+'"></div>';
   const yearsId = fieldId(key,"years");
-  html += '<div class="field"><label for="'+yearsId+'">Okres — <span class="mono">'+s.years+'</span> lat</label><div class="slider-row"><input id="'+yearsId+'" type="range" min="'+yearsMin()+'" max="35" step="1" data-f="years" value="'+s.years+'"></div></div>';
+  html += '<div class="field"><label for="'+yearsId+'">Okres — <span class="mono">'+s.years+'</span> lat</label><div class="slider-row"><input id="'+yearsId+'" type="range" min="'+yearsMin(s)+'" max="35" step="1" data-f="years" value="'+s.years+'"></div></div>';
   html += startField(s);
   html += '<div class="field"><label>Tryb nadpłat (domyślny)</label><div class="radio-row">'+
     '<label><input type="radio" name="tryb-'+key+'" value="skroc" data-f="tryb" '+(s.tryb==="skroc"?'checked':'')+'> skróć okres</label>'+
@@ -1538,13 +1677,16 @@ function renderPanel(key, s, result, baseline){
     '</div></div>';
   html += '</div>';
 
-  html += '<div class="section-title">Opłata za wcześniejszą spłatę '+(state.rkmOn?'<span style="text-transform:none;font-weight:400;">(nie dot. spłaty rodzinnej)</span>':'')+'</div>';
+  html += '<div class="section-title">Opłata za wcześniejszą spłatę '+(s.rkm?'<span style="text-transform:none;font-weight:400;">(nie dot. spłaty rodzinnej)</span>':'')+'</div>';
   html += '<div class="field-grid">';
-  html += field(key,"Opłata %","feePct",s.feePct,"number",0.5);
-  html += field(key,"Obowiązuje przez (mies.)","feeMonths",s.feeMonths,"number");
+  html += field(key,"Opłata %","feePct",s.feePct,"number",0.5,
+    "Nie więcej niż odsetki od nadpłacanej kwoty za 12 mies. (art. 40 ust. 4) — przy oprocentowaniu "+
+    pct(nominalRate(s))+" faktyczna stawka to "+pct(Math.min(nn(s.feePct), nominalRate(s))));
+  html += field(key,"Obowiązuje przez (mies.)","feeMonths",s.feeMonths,"number",null,
+    "Ustawowo maks. 36 mies. przy stopie zmiennej (art. 40 ustawy o kredycie hipotecznym)", FEE_MONTHS_MAX);
   html += '</div>';
 
-  if(state.rkmOn){
+  if(s.rkm){
     if(result.rkmBreachMonth!==null){
       /* Liczby z całego miesiąca (suma nadpłat vs zapas gwarancji na początku
          miesiąca), nie z pojedynczego zdarzenia — inaczej komunikat zależałby od
@@ -1564,7 +1706,7 @@ function renderPanel(key, s, result, baseline){
   html += '<div class="presets-row">';
   let presetsReasons = '';
   PRESETS.forEach(p=>{
-    if(p.rkmOnly && !state.rkmOn) return;
+    if(p.rkmOnly && !s.rkm) return;
     const why = presetDisabledReason(s, p.make(s));
     if(why){
       // Bez atrybutu `disabled` — przycisk zostaje focusowalny i klikalny (tak
@@ -1586,7 +1728,7 @@ function renderPanel(key, s, result, baseline){
   html += '<div class="events">';
   s.events.forEach(e=>{
     const isLost = e.type==="dziecko" && lostMonths.has(mon(e.month));
-    const isOff = e.type==="dziecko" && !state.rkmOn;
+    const isOff = e.type==="dziecko" && !s.rkm;
     const isAfter = !isOff && !isLost && isAfterPayoff(e);
     html += '<div class="event-row'+(isOff?' off':'')+'" data-id="'+e.id+'">';
     // typ zawsze zawiera aktualną wartość, żeby wyszarzony wiersz „dziecko" dał się przestawić
@@ -1607,7 +1749,7 @@ function renderPanel(key, s, result, baseline){
   html += '<div class="add-event-row">';
   html += '<button type="button" class="btn" data-add-event="jednorazowa">+ nadpłata jednorazowa</button>';
   html += '<button type="button" class="btn" data-add-event="cykliczna">+ nadpłata cykliczna</button>';
-  if(state.rkmOn) html += '<button type="button" class="btn" data-add-event="dziecko">+ narodziny dziecka</button>';
+  if(s.rkm) html += '<button type="button" class="btn" data-add-event="dziecko">+ narodziny dziecka</button>';
   html += '<button type="button" class="btn" data-add-event="zmiana_wskaznika">+ zmiana wskaźnika</button>';
   html += '</div>';
 
@@ -1623,12 +1765,17 @@ function renderPanel(key, s, result, baseline){
     ["Rata początkowa", money(result.initialRata)],
     ["Rata po ostatnim wydarzeniu", money(result.finalRata)],
     ["Suma odsetek", money(result.totalInterest)],
-    ["Łączny koszt (odsetki+opłaty)", money(result.totalCost)],
+    /* Łączny koszt obejmuje teraz także jednorazową opłatę za gwarancję BGK
+       (art. 4a ust. 5) — dlatego etykieta mówi „opłaty”, a nie tylko o nadpłatach. */
+    ["Łączny koszt (odsetki + opłaty)", money(result.totalCost), "",
+     result.gwarancjaFee>0.5 ? "w tym opłata za gwarancję "+money(result.gwarancjaFee) : ""],
+    ["Suma wpłat (raty + nadpłaty + opłaty)", money(result.totalWplaty), "",
+     "bez spłaty rodzinnej — to nie jest pieniądz kredytobiorcy"],
     ["Data ostatniej raty", payoffLabel(result)],
     ["Oszczędność odsetek vs bez nadpłat", decisions ? money(saving) : "—", decisions ? savingTone(saving) : ""],
     ["Skrócenie okresu", decisions ? termDelta(shorter) : "—"],
   ];
-  if(state.rkmOn){
+  if(s.rkm){
     kpis.push(["Nadpłaty dobrowolne w 1. 3 latach", money(result.voluntaryOverpayWindow), breached?"critical":"good"]);
     kpis.push([
       'Część gwarantowana po 3 latach <span style="text-transform:none;letter-spacing:0;">(z '+money(result.gwarancja)+')</span>',
@@ -1640,7 +1787,8 @@ function renderPanel(key, s, result, baseline){
   if(kpis.length % 2) kpis.push(["", ""]);
   html += '<div class="kpi-grid">';
   kpis.forEach(k=>{
-    html += '<div class="kpi"><div class="lbl">'+k[0]+'</div><div class="val'+(k[2]?' '+k[2]:'')+'">'+k[1]+'</div></div>';
+    html += '<div class="kpi"><div class="lbl">'+k[0]+'</div><div class="val'+(k[2]?' '+k[2]:'')+'">'+k[1]+'</div>'+
+      (k[3] ? '<div class="kpi-sub">'+k[3]+'</div>' : '')+'</div>';
   });
   html += '</div>';
 
@@ -1650,10 +1798,10 @@ function renderPanel(key, s, result, baseline){
 /* Wszystkie pola liczbowe kredytu to kwoty albo procenty — żadna nie ma sensu
    ujemna, więc `min="0"` wchodzi z automatu (walidację i tak dubluje `nn()`).
    `panelKey` + `key` dają stabilne, unikalne id — do <label for> (p. 4 audytu). */
-function field(panelKey, label, key, val, type, step, hint){
+function field(panelKey, label, key, val, type, step, hint, max){
   const min = type==="number" ? ' min="0"' : '';
   const id = fieldId(panelKey, key);
-  return '<div class="field"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="'+type+'" data-f="'+key+'" value="'+val+'"'+min+(step?' step="'+step+'"':'')+'>'+
+  return '<div class="field"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="'+type+'" data-f="'+key+'" value="'+val+'"'+min+(max!==undefined?' max="'+max+'"':'')+(step?' step="'+step+'"':'')+'>'+
     (hint ? '<div class="field-hint">'+hint+'</div>' : '')+'</div>';
 }
 function fieldId(panelKey, key){ return panelKey.toLowerCase()+"-"+key; }
@@ -1779,8 +1927,56 @@ function buildChart(resA, resB, mode, sA, sB){
     return out;
   }
 
+  /* ---- znaczniki reguły RKM (tylko scenariusze w programie) ----
+     Wartość serii w danym miesiącu — żeby znacznik siadał na linii scenariusza,
+     a nie w przypadkowym miejscu płótna. */
+  function valueAt(res, month){
+    const mo = res.months[clamp(month,1,Math.max(1,res.months.length))-1];
+    if(!mo) return 0;
+    return mode==="saldo" ? mo.saldo : mo.rata;
+  }
+  /* Pionowa linia „koniec okna RKM" — rysowana RAZ i neutralnym kolorem, bo okno
+     36 miesięcy jest wspólne dla obu scenariuszy (art. 7 ust. 1 pkt 7). */
+  function rkmWindowLine(){
+    const W36 = RKM.RKM_WINDOW_MONTHS;
+    if(!(sA && sA.rkm) && !(sB && sB.rkm)) return "";
+    if(W36 > maxX) return "";
+    const mx = x(W36);
+    const anchorEnd = mx > padL + innerW*0.8;
+    const tip = "Koniec okna RKM (m. "+W36+") — od miesiąca "+(W36+1)+" nadpłata dobrowolna nie odbiera już prawa do spłaty rodzinnej";
+    let out = '<line x1="'+mx.toFixed(1)+'" x2="'+mx.toFixed(1)+'" y1="'+padT+'" y2="'+(padT+innerH)+'" stroke="var(--ink-faint)" stroke-width="1.25" stroke-dasharray="5 4" opacity="0.8"><title>'+escapeXml(tip)+'</title></line>';
+    out += '<text x="'+(anchorEnd?mx-5:mx+5).toFixed(1)+'" y="'+(padT+innerH-7)+'" text-anchor="'+(anchorEnd?"end":"start")+'" font-size="10.5" fill="var(--ink-faint)" font-family="'+SVG_MONO+'">koniec okna RKM</text>';
+    return out;
+  }
+  function rkmMarkers(res, s, color){
+    if(!s || !s.rkm) return "";
+    let out = "";
+    /* Pusty romb: część objęta gwarancją spłacona jeszcze w oknie 36 mies. — od tej
+       chwili do końca okna próg bezpiecznej nadpłaty wynosi zero. Po oknie znacznik
+       nic już nie znaczy, więc go nie rysujemy. */
+    const gm = res.guaranteeExhaustedMonth;
+    if(gm!==null && gm < RKM.RKM_WINDOW_MONTHS && gm <= res.payoffMonths && gm <= maxX){
+      const cx = x(gm), cy = y(valueAt(res,gm)), rr = 5;
+      const tip = "Część gwarantowana spłacona (m. "+gm+") — do m. "+RKM.RKM_WINDOW_MONTHS+" każda nadpłata dobrowolna odbiera przyszłe spłaty rodzinne";
+      out += '<path d="M'+cx.toFixed(1)+','+(cy-rr).toFixed(1)+' L'+(cx+rr).toFixed(1)+','+cy.toFixed(1)+
+        ' L'+cx.toFixed(1)+','+(cy+rr).toFixed(1)+' L'+(cx-rr).toFixed(1)+','+cy.toFixed(1)+
+        ' Z" fill="var(--surface)" stroke="'+color+'" stroke-width="1.75"><title>'+escapeXml(tip)+'</title></path>';
+    }
+    /* Kreska: ostatni miesiąc, w którym saldo jeszcze mieści pełną spłatę rodzinną
+       za 3. dziecko. To NIE jest żaden termin na dziecko — prawo do spłaty od tego
+       nie zależy, zmienia się tylko kwota, którą da się nią pokryć. */
+    const fm = res.fullChildRepaymentUntilMonth;
+    if(fm!==null && fm <= res.payoffMonths && fm <= maxX){
+      const tx = x(fm), ty = y(valueAt(res,fm));
+      const tip = "Ostatni miesiąc z saldem co najmniej "+num(RKM.RKM_PELNA_SPLATA_RODZINNA)+" zł (m. "+fm+") — do tego momentu pełna spłata rodzinna za 3. dziecko mieści się w kapitale; później jest przycinana do salda. To nie jest termin na urodzenie dziecka.";
+      out += '<line x1="'+tx.toFixed(1)+'" x2="'+tx.toFixed(1)+'" y1="'+(ty-7).toFixed(1)+'" y2="'+(ty+7).toFixed(1)+'" stroke="'+color+'" stroke-width="2.25" stroke-linecap="round"><title>'+escapeXml(tip)+'</title></line>';
+    }
+    return out;
+  }
+
   let svg = '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="none"/>';
   svg += grid + xAxis;
+  svg += rkmWindowLine();
   svg += markers(resA, sA, "var(--accent-a)");
   svg += markers(resB, sB, "var(--accent-b)");
   svg += '<path d="'+pathA+'" fill="none" stroke="var(--accent-a)" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>';
@@ -1789,6 +1985,9 @@ function buildChart(resA, resB, mode, sA, sB){
   const lastA = extSeriesA[extSeriesA.length-1], lastB = extSeriesB[extSeriesB.length-1];
   if(lastA){ svg += '<circle cx="'+x(lastA.x).toFixed(1)+'" cy="'+y(lastA.y).toFixed(1)+'" r="4" fill="var(--accent-a)" stroke="var(--surface)" stroke-width="1.5"/>'; }
   if(lastB){ svg += '<circle cx="'+x(lastB.x).toFixed(1)+'" cy="'+y(lastB.y).toFixed(1)+'" r="4" fill="var(--accent-b)" stroke="var(--surface)" stroke-width="1.5"/>'; }
+  // Znaczniki RKM siadają NA liniach, więc rysują się po nich.
+  svg += rkmMarkers(resA, sA, "var(--accent-a)");
+  svg += rkmMarkers(resB, sB, "var(--accent-b)");
 
   return {svg, x, y, maxX, maxY, seriesA:extSeriesA, seriesB:extSeriesB};
 }
@@ -1804,19 +2003,42 @@ function buildYearRows(res){
   });
   return years;
 }
-function renderYearTable(res){
+/* Znaczniki reguły RKM w harmonogramie: miesiąc → lista badge'y. Tylko dla
+   scenariusza w programie — poza nim żadna z tych dat nic nie znaczy. */
+function rkmMonthBadges(res, s){
+  const map = {};
+  if(!s || !s.rkm) return map;
+  function add(month, text, cls, title){
+    if(month===null || month===undefined || month<1 || month>res.payoffMonths) return;
+    (map[month] = map[month] || []).push({text:text, cls:cls||"", title:title||""});
+  }
+  const W36 = RKM.RKM_WINDOW_MONTHS;
+  add(W36, "koniec okna RKM", "window",
+    "Od miesiąca "+(W36+1)+" nadpłata dobrowolna nie odbiera już prawa do przyszłych spłat rodzinnych (art. 7 ust. 1 pkt 7).");
+  add(res.guaranteeExhaustedMonth, "gwarancja spłacona", "",
+    "Część kredytu objęta gwarancją BGK została spłacona (art. 4a ust. 6) — do końca okna RKM próg bezpiecznej nadpłaty wynosi zero.");
+  add(res.fullChildRepaymentUntilMonth, "pełna spłata rodzinna do tego miesiąca", "",
+    "Ostatni miesiąc, w którym saldo mieści pełne "+num(RKM.RKM_PELNA_SPLATA_RODZINNA)+" zł spłaty rodzinnej za 3. dziecko; później jest przycinana do salda. To nie jest termin na urodzenie dziecka — prawo do spłaty od tej daty nie zależy.");
+  return map;
+}
+function renderYearTable(res, s){
   const years = buildYearRows(res);
+  const badges = rkmMonthBadges(res, s);
+  // Rok, w którym wypada koniec okna 36 mies. — delikatnie wyróżniony.
+  const windowYear = badges[RKM.RKM_WINDOW_MONTHS] ? Math.ceil(RKM.RKM_WINDOW_MONTHS/12) : null;
   let html = "";
   Object.keys(years).map(Number).sort((a,b)=>a-b).forEach(yr=>{
     const y = years[yr];
     const lastMonthOfYear = y.months[y.months.length-1];
-    html += '<tr class="year-row" data-year="'+yr+'" tabindex="0" role="button" aria-expanded="false">';
+    html += '<tr class="year-row'+(yr===windowYear?' rkm-window':'')+'" data-year="'+yr+'" tabindex="0" role="button" aria-expanded="false">';
     html += '<td><span class="chev" aria-hidden="true">▶</span>Rok '+yr+'</td>';
     html += '<td>'+money(y.rata)+'</td><td>'+money(y.odsetki)+'</td><td>'+money(y.kapital)+'</td><td>'+money(y.nadplata)+'</td><td>'+money(y.splata)+'</td><td>'+money(lastMonthOfYear.saldo)+'</td>';
     html += '</tr>';
     y.months.forEach(mo=>{
+      const marks = (badges[mo.month]||[]).map(b=>
+        '<span class="mk-badge'+(b.cls?' '+b.cls:'')+'" title="'+escapeXml(b.title)+'">'+escapeXml(b.text)+'</span>').join('');
       html += '<tr class="month-row" data-year-group="'+yr+'" hidden>';
-      html += '<td>'+fmtDate(mo.date)+'</td><td>'+money(mo.rata)+'</td><td>'+money(mo.odsetki)+'</td><td>'+money(mo.kapital)+'</td><td>'+(mo.nadplata?money(mo.nadplata):"—")+'</td><td>'+(mo.splataRodzinna?money(mo.splataRodzinna):"—")+'</td><td>'+money(mo.saldo)+'</td>';
+      html += '<td>'+fmtDate(mo.date)+marks+'</td><td>'+money(mo.rata)+'</td><td>'+money(mo.odsetki)+'</td><td>'+money(mo.kapital)+'</td><td>'+(mo.nadplata?money(mo.nadplata):"—")+'</td><td>'+(mo.splataRodzinna?money(mo.splataRodzinna):"—")+'</td><td>'+money(mo.saldo)+'</td>';
       html += '</tr>';
     });
   });
@@ -1859,6 +2081,21 @@ function renderCompare(resA, resB){
   html += '<div class="compare-item"><div class="lbl">Data spłaty</div><div class="val">'+payoffLabel(resA)+' <span style="color:var(--ink-faint);font-weight:400;">vs</span> '+payoffLabel(resB)+'</div>'+
     (bothNever ? '<span class="who">brak spłaty w obu</span>' : who(d4,true))+'</div>';
   html += '</div>';
+
+  /* Koszt alternatywny gotówki. Wspólny horyzont = dłuższy z dwóch kredytów, bo tylko
+     na tej samej dacie da się zestawić dwa strumienie wpłat. Każdą wpłatę do banku
+     „przenosimy" na koniec horyzontu tak, jakby do tego czasu leżała na lokacie —
+     scenariusz z niższymi ratami zyskuje, bo uwolniona gotówka pracuje. Spłata
+     rodzinna z tego wypada: to pieniądz BGK, nie kredytobiorcy. */
+  const horizon = Math.max(resA.payoffMonths, resB.payoffMonths, 1);
+  const fvA = RKM.kosztZLokata(resA, state.lokata, horizon);
+  const fvB = RKM.kosztZLokata(resB, state.lokata, horizon);
+  const dLok = fvA - fvB;
+  html += '<div class="compare-row">'+
+    '<div class="lbl">Łączny koszt z uwzględnieniem lokaty <span style="text-transform:none;">(na koniec wspólnego horyzontu, '+months2ym(horizon)+')</span></div>'+
+    '<div class="val">'+money(fvA)+' <span class="vs">vs</span> '+money(fvB)+' &nbsp;'+who(dLok,true)+'</div>'+
+    '<div class="note">Każda złotówka wpłacona do banku mogła do końca horyzontu pracować na lokacie '+pct(state.lokata)+' netto; scenariusz z niższymi ratami zyskuje, bo uwolniona gotówka pracuje.</div>'+
+    '</div>';
   return html;
 }
 
@@ -1900,6 +2137,10 @@ function doRecompute(){
   const focusState = pendingFocus || captureFocusState();
   pendingFocus = null;
 
+  /* Nagłówek i notka zależą od tego, czy KTÓRYKOLWIEK scenariusz jest w RKM — a tę
+     flagę zmienia nie tylko przełącznik w panelu, ale i „Kopiuj z A/B”. */
+  applyRkmMode();
+
   const resA = simulateScenario(toEngineConfig(state.A));
   const resB = simulateScenario(toEngineConfig(state.B));
   const baseA = simulateScenario(baselineConfig(state.A));
@@ -1918,7 +2159,7 @@ function doRecompute(){
   renderChart();
 
   const tbody = document.getElementById("year-table-body");
-  tbody.innerHTML = renderYearTable(state.tableScn==="A"? resA : resB);
+  tbody.innerHTML = renderYearTable(state.tableScn==="A"? resA : resB, state[state.tableScn==="A"?"A":"B"]);
 
   attachPanelHandlers();
   restoreFocusState(focusState);
@@ -2041,7 +2282,7 @@ function updateAllScrollFades(){
     const btn = ev.target.closest("button[data-scn]"); if(!btn) return;
     state.tableScn = btn.dataset.scn;
     document.querySelectorAll("#table-scn button").forEach(b=>b.classList.toggle("active", b===btn));
-    document.getElementById("year-table-body").innerHTML = renderYearTable(state.tableScn==="A"?lastResults.A:lastResults.B);
+    document.getElementById("year-table-body").innerHTML = renderYearTable(state.tableScn==="A"?lastResults.A:lastResults.B, state[state.tableScn]);
     updateScrollFade(tableScrollEl);
     persist();
   });
@@ -2088,15 +2329,20 @@ function updateAllScrollFades(){
   const noteX = document.getElementById("link-note-x");
   if(noteX) noteX.addEventListener("click", ()=>{ document.getElementById("link-note").hidden = true; });
 
-  // Globalny przełącznik RKM — żyje poza `#scenarios`, więc recompute() go nie przerysowuje
-  // i nie gubi fokusu.
-  document.getElementById("rkm-toggle").addEventListener("change", (ev)=>{
-    state.rkmOn = ev.target.checked;
-    const min = yearsMin();
-    ["A","B"].forEach(k=>{ state[k].years = clamp(state[k].years, min, 35); });
-    applyRkmMode();
-    recompute();
-  });
+  /* Oprocentowanie lokaty — parametr GLOBALNY (cecha rynku, nie scenariusza), więc
+     siedzi w pasku nad panelami: poza `#scenarios`, czyli recompute() go nie
+     przerysowuje i nie gubi fokusu podczas wpisywania. */
+  const lokataInput = document.getElementById("lokata-input");
+  if(lokataInput){
+    lokataInput.value = state.lokata;
+    lokataInput.addEventListener("input", ()=>{
+      // Puste pole to nie zero — czekamy, aż użytkownik coś wpisze.
+      if(lokataInput.value.trim()==="") return;
+      state.lokata = Math.max(0, parseFloat(lokataInput.value)||0);
+      recompute();
+    });
+    lokataInput.addEventListener("blur", ()=>{ lokataInput.value = state.lokata; });
+  }
 })();
 
 /* Pokazuje powód wyłączenia chipa (ten sam tekst co w aria-describedby/title)
@@ -2133,6 +2379,19 @@ function attachPanelHandlers(){
     const undoCopyBtn = panel.querySelector("[data-undo-copy]");
     if(undoCopyBtn) undoCopyBtn.addEventListener("click", undoCopy);
 
+    /* Tryb RKM tego scenariusza. Włączenie podnosi okres do ustawowego minimum
+       15 lat (art. 3 ust. 3 pkt 3), wyłączenie luzuje dolną granicę do 5. Fokus
+       ma zostać na przełączniku, więc żądamy go wprost — przerysowanie panelu
+       inaczej odłożyłoby go tam, gdzie stał przed kliknięciem. */
+    const rkmBox = panel.querySelector('[data-key="rkm-toggle"]');
+    if(rkmBox) rkmBox.addEventListener("change", ()=>{
+      s.rkm = rkmBox.checked;
+      s.years = clamp(s.years, yearsMin(s), 35);
+      requestFocus(key, "rkm-toggle");
+      applyRkmMode();
+      recompute();
+    });
+
     // top-level fields
     panel.querySelectorAll(":scope > .field-grid input[data-f], :scope > .field-grid select[data-f]").forEach(inp=>{
       const f = inp.dataset.f;
@@ -2141,14 +2400,16 @@ function attachPanelHandlers(){
            wyzerować kwoty kredytu. Przywracamy poprzednią wartość i nie liczymy. */
         if(inp.type==="number" && inp.value.trim()===""){ inp.value = s[f]; return; }
         let v = inp.type==="number" ? Math.max(0, parseFloat(inp.value)||0) : inp.value;
-        if(f==="years") v = clamp(Math.round(v),yearsMin(),35);
+        if(f==="years") v = clamp(Math.round(v),yearsMin(s),35);
+        // Art. 40 ust. 1 u.k.h.: rekompensata najwyżej przez 36 mies. (stopa zmienna).
+        if(f==="feeMonths") v = clamp(Math.round(v), 0, FEE_MONTHS_MAX);
         s[f] = v;
         recompute();
       };
       inp.addEventListener(inp.tagName==="SELECT"||inp.type==="range" ? "input":"change", handler);
     });
     panel.querySelectorAll('input[type=range][data-f="years"]').forEach(inp=>{
-      inp.addEventListener("input", ()=>{ s.years = clamp(parseInt(inp.value,10),yearsMin(),35); recompute(); });
+      inp.addEventListener("input", ()=>{ s.years = clamp(parseInt(inp.value,10),yearsMin(s),35); recompute(); });
     });
     panel.querySelectorAll('input[data-f="tryb"]').forEach(r=>{
       r.addEventListener("change", ()=>{ if(r.checked){ s.tryb = r.value; recompute(); } });

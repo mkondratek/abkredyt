@@ -35,11 +35,43 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   (UI: `zmiana_wskaznika`, nowy wskaźnik → silnik: `zmiana_oprocentowania` z nominalną =
   marża + wskaźnik). Tryb nadpłat globalny + per zdarzenie: „skróć okres” (rata bez zmian) /
   „obniż ratę” (okres bez zmian). Zmiana stopy zawsze przelicza ratę.
-- Przełącznik „Kredyt w programie RKM” (`state.rkmOn`, atrybut `data-rkm` na `<html>`):
-  wyłączony chowa moduł RKM (gwarancja, reguła, spłata rodzinna, KPI nadpłat), filtruje
-  zdarzenia `dziecko` z konfiguracji silnika i luzuje okres do 5–35 lat.
+- Przełącznik „Kredyt w programie RKM” jest **per scenariusz** (`s.rkm`, checkbox w panelu
+  pod jednolinijkowym streszczeniem) — dzięki temu da się zestawić kredyt w programie ze
+  zwykłym (np. wkład ≥ 20 %: spłata rodzinna kontra swoboda nadpłat od 1. miesiąca).
+  Wyłączony w danym panelu chowa moduł RKM tego scenariusza (gwarancja, banner limitów,
+  reguła, chipy i przycisk dziecka, KPI nadpłat i gwarancji, opłata za gwarancję), filtruje
+  zdarzenia `dziecko` z konfiguracji silnika, luzuje okres do 5–35 lat i pokazuje pod
+  wkładem własnym podpowiedź „Poza RKM banki wymagają zwykle 10–20 % wkładu własnego
+  (rekomendacja S KNF)”. Streszczenie scenariusza w RKM ma prefiks „RKM · ” (a więc i
+  legenda wykresu). Atrybut `data-rkm` na `<html>` mówi tylko, czy **którykolwiek**
+  scenariusz jest w programie (`on`/`off`) — steruje globalną klasą `.rkm-only` (notka
+  nad panelami) oraz doborem nagłówka i lede; części panelu sterują się w JS przez `s.rkm`.
+  `applyRkmMode()` jest wołane na starcie `doRecompute()`, bo flagę zmienia też „Kopiuj z A/B”.
+- **Opłata prowizyjna za gwarancję BGK** (art. 4a ust. 5): 1,0 % objętej gwarancją części
+  kredytu, jednorazowo przy uruchomieniu. Silnik przyjmuje `gwarancjaFeePct` (domyślnie 1,
+  UI podaje 0 dla scenariusza spoza RKM) i zwraca `gwarancjaFee`; opłata wchodzi do
+  `totalCost` (KPI „Łączny koszt (odsetki + opłaty)” z podwierszem „w tym opłata za
+  gwarancję …”) i do `totalWplaty`, ale **nie** do `totalFees` (tam siedzą wyłącznie opłaty
+  za wcześniejszą spłatę).
 - Opłata za wcześniejszą spłatę: % przez N miesięcy, dotyczy tylko nadpłat dobrowolnych
-  (nie spłaty rodzinnej).
+  (nie spłaty rodzinnej). Dwa limity z ustawy o kredycie hipotecznym z 23.03.2017:
+  okno maks. **36 mies.** przy stopie zmiennej (art. 40 ust. 1) — `max="36"` na polu
+  „Obowiązuje przez (mies.)”, `field-hint` z podstawą prawną, przycinanie przy wpisywaniu
+  (`FEE_MONTHS_MAX`), w `toEngineConfig` i w `normaliseState`; oraz pułap kwotowy
+  (art. 40 ust. 4) — opłata nie większa niż odsetki od nadpłacanej kwoty za 12 miesięcy,
+  czyli w silniku `fee = min(amt·feePct/100, amt·r·12)` licząc `r` ze stopy
+  **obowiązującej w tym miesiącu** (po zmianie wskaźnika limit idzie za nową stopą).
+  Kalkulator modeluje wyłącznie stopę zmienną, więc wariantu 3-letniego dla stopy stałej
+  nie ma.
+- **Koszt alternatywny gotówki (lokata)**: jeden GLOBALNY parametr `state.lokata`
+  (domyślnie 3,0; pole w pasku nad panelami, bo to cecha rynku, nie scenariusza).
+  `RKM.kosztZLokata(result, lokataPct, horizonMonths)` zwraca wartość przyszłą wszystkich
+  **wypływów kredytobiorcy** na koniec horyzontu, przy kapitalizacji miesięcznej
+  `r = lokata/100/12`: per miesiąc `rata + nadplata + oplata`, plus `gwarancjaFee`
+  w miesiącu 0. Spłata rodzinna jest wyłączona — to pieniądz BGK, nie kredytobiorcy.
+  UI liczy `horizon = max(payoffMonths A, payoffMonths B)` i pokazuje jeden wiersz
+  `.compare-row` pod siatką porównania. Przy lokacie 0 % wynik równa się `result.totalWplaty`
+  (KPI „Suma wpłat (raty + nadpłaty + opłaty)”).
 - Reguła RKM (zweryfikowana z tekstem ustawy 02.09.2026, patrz niżej): część kredytu objęta
   gwarancją BGK maleje z każdą spłatą kapitału (rata, nadpłata dobrowolna, spłata rodzinna —
   art. 4a ust. 6). W pierwszych 36 mies. nadpłata DOBROWOLNA jest bezpieczna tylko do
@@ -58,6 +90,19 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
 - Naruszenie reguły i spłata rodzinna w tym samym miesiącu: silnik przetwarza nadpłaty przed
   zdarzeniem `dziecko`, więc taka spłata rodzinna jest już „utracona” — ustawa kolejności nie
   rozstrzyga, to świadomy wybór po ostrożnej stronie.
+- **Znaczniki RKM** (tylko scenariusze z `s.rkm`): silnik zwraca `guaranteeExhaustedMonth`
+  (pierwszy miesiąc, w którym część objęta gwarancją zeszła do zera — art. 4a ust. 6;
+  `null`, gdy gwarancji nie było) i `fullChildRepaymentUntilMonth` (ostatni miesiąc z saldem
+  ≥ `RKM_PELNA_SPLATA_RODZINNA` = 60 000 zł; `null`, gdy saldo nigdy nie schodzi poniżej
+  progu przed spłatą). Na wykresie: pionowa przerywana linia w m. 36 z podpisem „koniec
+  okna RKM” (rysowana RAZ, neutralnym kolorem, tylko gdy którykolwiek scenariusz jest w RKM),
+  pusty romb w kolorze scenariusza tam, gdzie gwarancja wygasa **przed** m. 36, i krótka
+  kreska w `fullChildRepaymentUntilMonth` — wszystko siada na linii scenariusza
+  (`valueAt`), z opisem w `<title>`. W harmonogramie: badge w pierwszej komórce
+  rozwiniętego miesiąca („koniec okna RKM”, „gwarancja spłacona”, „pełna spłata rodzinna do
+  tego miesiąca”) i delikatna lewa krawędź na wierszu roku z 36. miesiącem
+  (`.year-row.rkm-window`). Opisy mówią wprost, że wygaśnięcie gwarancji NIE jest terminem
+  na urodzenie dziecka — prawo do spłaty rodzinnej od niego nie zależy.
 - Scenariusz nie ma już pól `rkmThreshold`/`rkmMonths` w stanie — próg to gwarancja
   (dynamiczna, patrz wyżej), a okno to stała silnika `RKM_WINDOW_MONTHS` (36 mies.).
 - **Gwarancja BGK jest WYLICZANA i tylko do czytania** — nie ma jej ani w stanie
@@ -90,14 +135,18 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   wyłącznie w postaci działki — bez limitu procentowego, wkład + kredyt ≤ 1 000 000 zł),
   art. 9f (Rada Ministrów może podnieść limity rozporządzeniem — na 09.2026 nie podniosła:
   strona produktowa BGK podaje te same 200 tys. / 20–30 % / 100 tys.).
-- Stan w `localStorage` (klucz `abkredyt-state-v5`), w try/catch, z kontrolą kształtu
+- Stan w `localStorage` (klucz `abkredyt-state-v6`), w try/catch, z kontrolą kształtu
   (`looksLikeState`) — przy zmianie schematu stanu podbij sufiks klucza **i** stałą
-  `RKM.STATE_VERSION` (= 5; siedzi w silniku, stan nosi ją jako pole `v`). Dekoder linku
-  przyjmuje wersje z `RKM.ACCEPTED_STATE_VERSIONS` (`[4, 5]`) i podnosi je do bieżącej:
-  ładunek v4 różnił się tylko polem `gwarancja`, które dziś jest ignorowane, więc stare
-  linki nadal działają. Każda inna wersja przechodzi dalej bez zmian i UI ją odrzuca.
-- Stan w linku: przycisk „Kopiuj link do tego porównania” koduje `{v, rkmOn, chartMode,
-  tableScn, A, B}` jako JSON ze skróconymi (jednoznakowymi) kluczami → `deflate-raw`
+  `RKM.STATE_VERSION` (= 6; siedzi w silniku, stan nosi ją jako pole `v`). Dekoder linku
+  przyjmuje wersje z `RKM.ACCEPTED_STATE_VERSIONS` (`[4, 5, 6]`) i podnosi je do bieżącej:
+  ładunek v4 nosił dodatkowo pole `gwarancja` (dziś ignorowane), a v4 i v5 miały GLOBALNY
+  tryb RKM (`rkmOn`, klucz „k”) — przy dekodowaniu trafia on do OBU scenariuszy
+  (`A.rkm = B.rkm = rkmOn`, `LEGACY_GLOBAL_RKM_VERSIONS`), a brakująca lokata dostaje
+  `DEFAULT_LOKATA_PCT`. To samo domykanie robi `normaliseState()` dla stanu z dysku.
+  Każda inna wersja przechodzi dalej bez zmian i UI ją odrzuca.
+- Stan w linku: przycisk „Kopiuj link do tego porównania” koduje `{v, chartMode,
+  tableScn, lokata, A, B}` (z `rkm` w każdym scenariuszu) jako JSON ze skróconymi
+  (jednoznakowymi) kluczami → `deflate-raw`
   (`CompressionStream`) → base64url → fragment `#s=d.<ładunek>`. Gdy przeglądarka nie ma
   `CompressionStream`, powstaje wariant `#s=j.<base64url JSON-a>`; dekoder przyjmuje oba.
   Mapy kluczy i base64url są w silniku (`RKM.shortenState/expandState/encodeStateJson/

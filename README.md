@@ -7,13 +7,17 @@ oprocentowanie i strategię — nad wykresem widać jednolinijkowe streszczenie 
 (kwota · okres · stopa · strategia), żeby dało się odczytać wykres bez zaglądania w formularz.
 
 Osobny moduł, włączany przełącznikiem „Kredyt w programie RKM", dolicza zasady programu
-Rodzinny Kredyt Mieszkaniowy: spłatę rodzinną po urodzeniu dziecka i limit nadpłat
-dobrowolnych w pierwszych 3 latach kredytu. Wyłączenie przełącznika zostawia zwykły
-porównywacz A/B — kalkulator działa też dla kredytów spoza programu.
+Rodzinny Kredyt Mieszkaniowy: spłatę rodzinną po urodzeniu dziecka, limit nadpłat
+dobrowolnych w pierwszych 3 latach kredytu i jednorazową opłatę 1 % za gwarancję BGK.
+Przełącznik siedzi w **każdym panelu osobno**, więc scenariusz w programie da się zestawić
+ze zwykłym kredytem — i zobaczyć, co realnie kosztuje wybór między spłatą rodzinną
+a swobodą nadpłat od pierwszego miesiąca. Scenariusz poza programem ma zwykły zakres okresu
+(5–35 lat), nie płaci opłaty za gwarancję i dostaje pod wkładem własnym podpowiedź
+o typowym wymaganiu 10–20 % (rekomendacja S KNF).
 
 Przycisk „Kopiuj link do tego porównania” pakuje cały stan (oba scenariusze, wszystkie
-wydarzenia, tryb RKM) do fragmentu adresu — link można komuś wysłać albo zapisać w notatkach
-i wrócić do dokładnie tego samego porównania.
+wydarzenia, tryb RKM każdego z nich, oprocentowanie lokaty) do fragmentu adresu — link
+można komuś wysłać albo zapisać w notatkach i wrócić do dokładnie tego samego porównania.
 
 Strona: <https://abkredyt.kondratek.pl>
 
@@ -35,7 +39,33 @@ Oprocentowanie wpisuje się jako marża + wskaźnik referencyjny (WIBOR/WIRON) �
 Nadpłaty (jednorazowe i cykliczne) mają dwa tryby: „skróć okres" (rata bez zmian, kredyt
 spłaca się szybciej) i „obniż ratę" (okres bez zmian, rata maleje). Zmiana oprocentowania
 zawsze przelicza ratę na nowo. Opłata za wcześniejszą spłatę (% przez pierwsze N miesięcy)
-dotyczy wyłącznie nadpłat dobrowolnych — nie spłaty rodzinnej.
+dotyczy wyłącznie nadpłat dobrowolnych — nie spłaty rodzinnej — i respektuje oba limity
+z ustawy o kredycie hipotecznym z 23 marca 2017 r.: rekompensata przysługuje bankowi
+najwyżej przez **36 miesięcy** przy oprocentowaniu zmiennym (art. 40 ust. 1; kalkulator
+innego nie modeluje, więc pole „Obowiązuje przez" jest tam przycięte) i nie może
+przekroczyć **odsetek od nadpłacanej kwoty za 12 miesięcy** (art. 40 ust. 4). Ten drugi
+limit widać dopiero przy niskiej stopie: umowne 3 % od 10 000 zł to 300 zł, ale przy
+oprocentowaniu 2 % bank może wziąć najwyżej 200 zł. Limit liczy się od stopy obowiązującej
+w miesiącu nadpłaty, więc po spadku wskaźnika idzie za nią.
+
+**Koszt alternatywny gotówki.** Nad panelami stoi jeden wspólny parametr — oprocentowanie
+lokaty netto (domyślnie 3 %). Pod porównaniem A vs B dochodzi wiersz „Łączny koszt
+z uwzględnieniem lokaty": każda złotówka wpłacona do banku (rata, nadpłata dobrowolna,
+opłata za wcześniejszą spłatę, opłata za gwarancję) mogła zamiast tego pracować na lokacie
+do końca wspólnego horyzontu — czyli do ostatniej raty dłuższego z dwóch kredytów. Bez tego
+porównanie „nadpłacić teraz" kontra „poczekać do miesiąca 37 i zachować spłatę rodzinną"
+jest jednostronne: widać oszczędność na odsetkach, nie widać, co przez ten czas zarabiała
+gotówka. Spłata rodzinna do wpłat nie wchodzi — to pieniądz BGK, nie kredytobiorcy —
+i z tego samego powodu nie liczy się jej w KPI „Suma wpłat".
+
+**Znaczniki reguły RKM** (tylko dla scenariusza w programie) pokazują na wykresie
+i w rozwiniętym harmonogramie trzy momenty: koniec 36-miesięcznego okna, po którym nadpłata
+dobrowolna nie odbiera już prawa do spłaty rodzinnej; miesiąc, w którym część objęta
+gwarancją zostaje spłacona, jeśli wypada jeszcze **przed** końcem okna (od tej chwili do
+36. miesiąca próg bezpiecznej nadpłaty wynosi zero); oraz ostatni miesiąc, w którym saldo
+mieści jeszcze pełne 60 000 zł spłaty rodzinnej za trzecie dziecko. To ostatnie nie jest
+żadnym terminem na dziecko — prawo do spłaty od niego nie zależy, zmienia się tylko kwota,
+którą da się nią pokryć.
 
 Gwarancja BGK nie jest parametrem do wpisania — kalkulator wylicza ją z ceny, wkładu
 własnego i dodatkowej kwoty kredytu i pokazuje jako pole tylko do czytania:
@@ -125,7 +155,7 @@ zapisem ustawy.
 ## Prywatność
 
 Wszystko liczy się w przeglądarce — nic z tego, co wpisujesz, nie opuszcza Twojego
-urządzenia. Stan porównania zapisuje się w `localStorage` (klucz `abkredyt-state-v5`),
+urządzenia. Stan porównania zapisuje się w `localStorage` (klucz `abkredyt-state-v6`),
 żeby przetrwał odświeżenie strony; usuwa się razem z danymi strony w przeglądarce.
 Przycisk „Kopiuj link do tego porównania” zaszywa parametry (kwoty, oprocentowanie,
 wydarzenia) w **fragmencie** adresu — a fragment, w odróżnieniu od query stringu,
