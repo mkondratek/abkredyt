@@ -331,7 +331,7 @@ function footer(dateLabel) {
         (Dz.U. 2026 poz. 635) nie została uwzględniona. Przed decyzją potwierdź wyliczenia
         w banku.
       </p>
-      <p>Autor: Mikołaj Kondratek. Strona wygenerowana ${dateLabel}.</p>
+      <p>Autor: Mikołaj Kondratek. Strona wygenerowana ${dateLabel}</p>
       <nav>
         <a href="/polityka-prywatnosci.html">Polityka prywatności</a> ·
         <a href="/pytania.html">Pytania i odpowiedzi</a> ·
