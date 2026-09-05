@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href="https://abkredyt.kondratek.pl/pytania.html" />
+    <meta
+      name="description"
+      content="Pytania i odpowiedzi o Rodzinnym Kredycie Mieszkaniowym i o tym, jak liczy kalkulator abkredyt: limit nadpłat w pierwszych 3 latach, gwarancja BGK, spłata rodzinna, wkład własny, opłata za wcześniejszą spłatę."
+    />
+    <title>Pytania i odpowiedzi — kalkulator kredytu abkredyt</title>
+    <style>
+      :root {
+        --tlo: #eef1ec;
+        --tekst: #1f2a26;
+        --tekst-cichy: #5c6b62;
+        --linia: #d7ddd0;
+        color-scheme: light dark;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --tlo: #141d19;
+          --tekst: #eef1ec;
+          --tekst-cichy: #a9b6ae;
+          --linia: #33453b;
+        }
+      }
+
+      body {
+        margin: 0 auto;
+        max-width: 42rem;
+        padding: 2rem 1.25rem 4rem;
+        background: var(--tlo);
+        color: var(--tekst);
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.65;
+      }
+
+      h1 {
+        font-size: 1.75rem;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.25rem;
+      }
+
+      h2 {
+        font-size: 1.25rem;
+        margin: 2.75rem 0 0.5rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--linia);
+      }
+
+      h3 {
+        font-size: 1.0625rem;
+        margin: 1.75rem 0 0.35rem;
+        scroll-margin-top: 1rem;
+      }
+
+      p {
+        margin: 0.5rem 0;
+      }
+
+      .data {
+        color: var(--tekst-cichy);
+        font-size: 0.875rem;
+        margin: 0 0 1.5rem;
+      }
+
+      .wstep {
+        color: var(--tekst-cichy);
+      }
+
+      nav.top {
+        font-size: 0.875rem;
+        margin: 0 0 1.5rem;
+      }
+
+      nav.spis {
+        border: 1px solid var(--linia);
+        border-radius: 6px;
+        padding: 1rem 1.25rem;
+        margin: 2rem 0 1rem;
+        font-size: 0.9375rem;
+      }
+
+      nav.spis h2 {
+        font-size: 1rem;
+        margin: 0 0 0.5rem;
+        border-top: 0;
+        padding-top: 0;
+      }
+
+      nav.spis p {
+        margin: 0.9rem 0 0.25rem;
+        font-weight: 600;
+      }
+
+      nav.spis ol {
+        margin: 0;
+        padding-left: 1.4rem;
+      }
+
+      nav.spis li {
+        margin: 0.2rem 0;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.9em;
+      }
+
+      .prawo {
+        color: var(--tekst-cichy);
+        font-size: 0.875rem;
+      }
+
+      footer {
+        margin-top: 3rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--linia);
+        font-size: 0.875rem;
+        color: var(--tekst-cichy);
+      }
+
+      footer p {
+        margin: 0.5rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="top"><a href="/">← kalkulator</a></nav>
+
+    <h1>Pytania i odpowiedzi</h1>
+    <p class="data">Stan na 5 września 2026 r.</p>
+
+    <p class="wstep">
+      Pytania, które realnie padają przy Rodzinnym Kredycie Mieszkaniowym — i przy tym
+      kalkulatorze. Tam, gdzie odpowiedź bierze się z ustawy, jest numer przepisu; tam,
+      gdzie kalkulator coś upraszcza albo czegoś nie modeluje, jest to napisane wprost.
+      Skąd pochodzą źródła i co zostało sprawdzone, a co nie: <a href="/zrodla.html">Źródła</a>.
+    </p>
+
+    <nav class="spis" aria-labelledby="spis-tresci">
+      <h2 id="spis-tresci">Spis pytań</h2>
+
+      <p>Reguła RKM i nadpłaty</p>
+      <ol>
+        <li><a href="#nadplaty-w-pierwszych-3-latach">Czy w pierwszych 3 latach mogę nadpłacać kredyt w RKM?</a></li>
+        <li><a href="#raty-zjadaja-gwarancje">Dlaczego zwykłe raty „zjadają” część gwarantowaną?</a></li>
+        <li><a href="#czy-limit-to-100-tys">Czy limit nadpłat to zawsze 100 000 zł?</a></li>
+        <li><a href="#przekroczenie-progu">Co się dzieje, gdy przekroczę pozostałą część gwarantowaną?</a></li>
+        <li><a href="#nadplaty-po-36-miesiacu">Czy nadpłaty po 36. miesiącu psują spłatę rodzinną?</a></li>
+        <li><a href="#wygasniecie-gwarancji-a-dziecko">Czy spłacenie gwarancji ratami to „termin na dziecko”?</a></li>
+        <li><a href="#60-czy-40-tysiecy">Nadpłaciłem 60 000 zł w 1. roku, w 2. roku urodzi się trzecie dziecko — dostanę 60 000 czy 40 000 zł?</a></li>
+        <li><a href="#krotszy-okres-zamiast-nadplat">Czy „krótszy okres” zamiast nadpłat omija regułę?</a></li>
+      </ol>
+
+      <p>Gwarancja BGK, wkład własny, opłaty</p>
+      <ol start="9">
+        <li><a href="#koszt-gwarancji">Ile kosztuje gwarancja BGK?</a></li>
+        <li><a href="#gwarancja-tylko-do-odczytu">Dlaczego nie mogę wpisać kwoty gwarancji?</a></li>
+        <li><a href="#wklad-wlasny">Jaki wkład własny jest dozwolony w RKM?</a></li>
+        <li><a href="#oplata-za-wczesniejsza-splate">Czy opłata za wcześniejszą spłatę (3 % przez 36 miesięcy) to standard?</a></li>
+      </ol>
+
+      <p>Jak liczy kalkulator</p>
+      <ol start="13">
+        <li><a href="#skroc-okres-obniz-rate">Co znaczy „skróć okres” i „obniż ratę”?</a></li>
+        <li><a href="#koszt-z-lokata">Co to jest „Łączny koszt z uwzględnieniem lokaty”?</a></li>
+        <li><a href="#uproszczenia">Co kalkulator upraszcza?</a></li>
+        <li><a href="#dane">Czy moje dane gdzieś trafiają?</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <h2 id="regula-rkm">Reguła RKM i nadpłaty</h2>
+
+      <h3 id="nadplaty-w-pierwszych-3-latach">Czy w pierwszych 3 latach mogę nadpłacać kredyt w RKM?</h3>
+      <p>
+        Tak, ale tylko do wysokości tej części kredytu, która w danym momencie wciąż jest objęta
+        gwarancją BGK. Ustawa odbiera prawo do przyszłych spłat rodzinnych za przedterminową spłatę
+        dokonaną w ciągu 3 lat od dnia udzielenia kredytu — z wyjątkiem spłaty dotyczącej „części
+        objętej gwarancją” (art. 7 ust. 1 pkt 7). Ta część maleje z każdą spłatą kapitału
+        (art. 4a ust. 6), więc bezpieczny zapas to kwota aktualna, a nie ta z dnia podpisania umowy.
+        Jeżeli wkład własny wyniósł co najmniej 20 % wydatków i gwarancji w ogóle nie było, wyjątek
+        nie ma do czego się odnieść: wtedy <strong>każda</strong> przedterminowa spłata w tym okresie
+        odbiera przyszłe spłaty rodzinne.
+      </p>
+
+      <h3 id="raty-zjadaja-gwarancje">Dlaczego zwykłe raty „zjadają” część gwarantowaną?</h3>
+      <p>
+        Bo tak stanowi art. 4a ust. 6: spłaty części kapitałowej zalicza się w pierwszej kolejności
+        na poczet części objętej gwarancją i pomniejszają one jej wysokość. Liczy się wyłącznie
+        kapitał — odsetki nie zmieniają nic. Przykładowo przy kredycie 500 000 zł na 30 lat i stopie
+        5,50 % rata wynosi 2 839 zł, ale kapitału jest w niej w pierwszym miesiącu tylko około
+        547 zł. Po roku takich rat spłacone jest około 6 700 zł kapitału, więc ze 100 000 zł
+        gwarancji zostaje około 93 300 zł — i tyle wynosi wtedy bezpieczny limit nadpłaty. Sama rata
+        nigdy nie łamie reguły, bo nie jest przedterminową spłatą, ale zmniejsza zapas na przyszłe
+        nadpłaty.
+      </p>
+
+      <h3 id="czy-limit-to-100-tys">Czy limit nadpłat to zawsze 100 000 zł?</h3>
+      <p>
+        Nie. 100 000 zł to ustawowy sufit samej gwarancji (art. 4a ust. 3), a nie kwota limitu
+        nadpłat. Gwarancja startuje z poziomu „20 % całkowitej kwoty wydatków minus wkład własny”
+        (art. 3 ust. 3b), więc przy większym wkładzie jest od początku mniejsza — a od pierwszej raty
+        jeszcze topnieje. Krótszy okres kredytu oznacza wyższą część kapitałową w racie, czyli
+        szybciej znikający limit. Kalkulator pokazuje na wykresie miesiąc, w którym część
+        gwarantowana zostaje spłacona do zera — jeśli wypada on jeszcze przed końcem 36. miesiąca,
+        od tej chwili bezpieczny próg nadpłaty wynosi zero.
+      </p>
+
+      <h3 id="przekroczenie-progu">Co się dzieje, gdy przekroczę pozostałą część gwarantowaną?</h3>
+      <p>
+        Tracisz prawo do <strong>przyszłych</strong> spłat rodzinnych — i tylko to. Warunek z art. 7
+        ust. 1 pkt 7 jest sprawdzany w chwili dokonywania spłaty, więc dotyczy wypłat, które miałyby
+        nastąpić po naruszeniu. Tego, co BGK już wypłacił, nie trzeba oddawać: art. 8 ust. 7 wymienia
+        wyczerpująco dwie podstawy zwrotu — prawomocne skazanie za przestępstwo z art. 297 Kodeksu
+        karnego (wyłudzenie kredytu) i naruszenie 5-letniego obowiązku mieszkaniowego (sprzedaż,
+        wynajem, zmiana sposobu użytkowania) — a przedterminowej spłaty wśród nich nie ma.
+        W kalkulatorze spłaty rodzinne przypadające po naruszeniu dostają etykietę „utracona”
+        i nie są wliczane do wyniku.
+      </p>
+
+      <h3 id="nadplaty-po-36-miesiacu">Czy nadpłaty po 36. miesiącu psują spłatę rodzinną?</h3>
+      <p>
+        Nie. Wyjątek w art. 7 ust. 1 pkt 7 obejmuje każdą przedterminową spłatę dokonaną po upływie
+        3 lat od dnia udzielenia kredytu, bez limitu kwoty. Później liczy się już tylko to, czy
+        dziecko urodziło się (albo zostało przysposobione) po dniu udzielenia kredytu (art. 7 ust. 1
+        pkt 3), czy zlecenie trafiło do banku w ciągu roku od powiększenia gospodarstwa domowego
+        (art. 8 ust. 1 pkt 2) i ile zostało kapitału — spłata rodzinna nie może być wyższa niż
+        pozostała do spłaty część kapitałowa (art. 7 ust. 3).
+      </p>
+
+      <h3 id="wygasniecie-gwarancji-a-dziecko">Czy spłacenie gwarancji ratami to „termin na dziecko”?</h3>
+      <p>
+        Nie. Prawo do spłaty rodzinnej nie zależy od tego, czy gwarancja jeszcze istnieje — gwarancja
+        zabezpiecza bank, a nie warunkuje wsparcia. Jej wygaśnięcie ma jeden praktyczny skutek: od tej
+        chwili aż do końca 36. miesiąca nie ma już żadnego bezpiecznego progu nadpłaty. Terminowo
+        istotne jest za to saldo, i to właśnie pokazuje znacznik „pełna spłata rodzinna do…”: ostatni
+        miesiąc, w którym w kapitale mieści się jeszcze całe 60 000 zł. Później kwota jest przycinana
+        do salda (art. 7 ust. 3), ale samo prawo zostaje.
+      </p>
+      <p class="prawo">
+        Jeden wyjątek, którego kalkulator nie modeluje: jeżeli warunek „braku innego mieszkania”
+        spełniono w trybie art. 5 ust. 2 (rodzina z dwojgiem i więcej dzieci, posiadająca jedno
+        niewielkie mieszkanie), spłata rodzinna przysługuje dopiero po wygaśnięciu gwarancji —
+        art. 7 ust. 2.
+      </p>
+
+      <h3 id="60-czy-40-tysiecy">Nadpłaciłem 60 000 zł w 1. roku, w 2. roku urodzi się trzecie dziecko — dostanę 60 000 czy 40 000 zł?</h3>
+      <p>
+        Pełne 60 000 zł, o ile ta nadpłata zmieściła się w części objętej gwarancją w momencie, w
+        którym ją zrobiłeś. Warunek z art. 7 ust. 1 pkt 7 jest zero-jedynkowy: albo przedterminowa
+        spłata mieściła się w wyjątku i prawo zostaje w całości, albo go przekroczyła i przyszłe
+        spłaty przepadają w całości. Ustawa nie zna pomniejszania spłaty rodzinnej „o nadpłaconą
+        kwotę”. Niższa niż 60 000 zł kwota wychodzi tylko z jednego powodu: gdy pozostały kapitał
+        jest mniejszy, spłata jest do niego przycinana (art. 7 ust. 3).
+      </p>
+
+      <h3 id="krotszy-okres-zamiast-nadplat">Czy „krótszy okres” zamiast nadpłat omija regułę?</h3>
+      <p>
+        Tak — wyższa rata umowna nie jest przedterminową spłatą, więc art. 7 ust. 1 pkt 7 w ogóle
+        jej nie dotyczy. Ale kapitał spłacany szybciej także szybciej pomniejsza część objętą
+        gwarancją, czyli zapas na ewentualne późniejsze nadpłaty. Przy 500 000 zł, stopie 5,50 %
+        i gwarancji 100 000 zł po trzech latach samych rat zostaje jej około 79 000 zł na 30 latach,
+        a już tylko około 30 000 zł na 15 latach. Formalnie krótszy okres jest więc pod RKM
+        bezpieczniejszy niż „biorę na 30 lat i nadpłacam”, ale nie jest wobec reguły obojętny.
+      </p>
+
+      <h2 id="gwarancja-wklad-oplaty">Gwarancja BGK, wkład własny, opłaty</h2>
+
+      <h3 id="koszt-gwarancji">Ile kosztuje gwarancja BGK?</h3>
+      <p>
+        Jednorazowa opłata prowizyjna wynosi 1,0 % objętej gwarancją części kredytu, a jej wniesienie
+        jest warunkiem udzielenia gwarancji (art. 4a ust. 5). Ustawa nie przewiduje żadnego odrębnego
+        pułapu kwotowego tej opłaty — okrągły tysiąc złotych wychodzi wyłącznie przy maksymalnej
+        gwarancji 100 000 zł; przy gwarancji 40 000 zł to 400 zł. Opłata nie podlega zwrotowi, poza
+        przypadkiem, w którym do objęcia gwarancją w ogóle nie doszło. Kalkulator dolicza ją do
+        pozycji „Łączny koszt” scenariusza prowadzonego w programie.
+      </p>
+
+      <h3 id="gwarancja-tylko-do-odczytu">Dlaczego nie mogę wpisać kwoty gwarancji?</h3>
+      <p>
+        Bo ustawa nie zostawia jej do wyboru. Gwarancją objęta jest różnica między 20 % całkowitej
+        kwoty wydatków a wkładem własnym (art. 3 ust. 3b), przycięta do 100 000 zł (art. 4a ust. 3)
+        i tak, by wkład i gwarancja razem nie przekroczyły ani 200 000 zł, ani 20 % wydatków (art. 4a
+        ust. 2). Kalkulator wylicza ją z ceny, wkładu własnego i dodatkowej kwoty kredytu i pokazuje
+        w polu tylko do odczytu — żeby nie dało się policzyć scenariusza na gwarancji, której bank
+        nie mógłby przyznać. Jeśli z wpisanych parametrów wynika, że kredyt nie mieści się
+        w programie, panel wypisuje wprost, które warunki nie są spełnione, i liczy dalej — nic nie
+        jest po cichu przycinane.
+      </p>
+
+      <h3 id="wklad-wlasny">Jaki wkład własny jest dozwolony w RKM?</h3>
+      <p>
+        Nie więcej niż 20 % całkowitej kwoty wydatków przy oprocentowaniu zmiennym albo 30 % przy
+        stopie stałej przez co najmniej 5 lat (art. 5 ust. 1 pkt 5), i nie więcej niż 200 000 zł
+        w kwocie (art. 3 ust. 3 pkt 1). Granicę od dołu wyznacza sufit gwarancji: skoro ma ona
+        domknąć różnicę do 20 % wydatków, a nie może przekroczyć 100 000 zł, to przy wydatkach
+        powyżej 500 000 zł trzeba wnieść co najmniej „20 % wydatków − 100 000 zł” (przy 600 000 zł
+        to 20 000 zł, przy 1 000 000 zł — 100 000 zł). Powyżej miliona złotych wydatków programu nie
+        da się już domknąć żadnym wkładem. Kalkulator liczy tylko wariant ze stopą zmienną, czyli
+        limit 20 %, i nie modeluje dwóch wyjątków: 10 % dla rodziny z dwojgiem dzieci posiadającej
+        jedno niewielkie mieszkanie (art. 5 ust. 2) ani wkładu wyłącznie w postaci niezabudowanej
+        działki (art. 3 ust. 3a w związku z art. 5 ust. 2d).
+      </p>
+
+      <h3 id="oplata-za-wczesniejsza-splate">Czy opłata za wcześniejszą spłatę (3 % przez 36 miesięcy) to standard?</h3>
+      <p>
+        Nie — to ustawowy sufit, nie stawka rynkowa. Ustawa z 23 marca 2017 r. o kredycie hipotecznym
+        pozwala bankowi pobrać rekompensatę przy kredycie o zmiennej stopie wyłącznie wtedy, gdy
+        spłata nastąpiła w ciągu 36 miesięcy od zawarcia umowy (art. 40 ust. 2), i ogranicza ją
+        podwójnie: do 3 % spłacanej kwoty oraz do wysokości odsetek, które naliczyłyby się od niej
+        przez rok od dnia faktycznej spłaty (art. 40 ust. 3). Banki mieszczą się w tych ramach
+        bardzo różnie — bywa i 0 zł. Domyślne w kalkulatorze 3 % przez 36 miesięcy to najgorszy
+        dopuszczalny wariant; jeśli Twój bank nie pobiera opłaty, wpisz 0. Drugi limit widać dopiero
+        przy niskiej stopie: przy oprocentowaniu 2 % bank weźmie od nadpłaconych 10 000 zł najwyżej
+        200 zł, a nie 300 zł.
+      </p>
+
+      <h2 id="jak-liczy">Jak liczy kalkulator</h2>
+
+      <h3 id="skroc-okres-obniz-rate">Co znaczy „skróć okres” i „obniż ratę”?</h3>
+      <p>
+        To dwa sposoby zaksięgowania nadpłaty. „Skróć okres” zostawia ratę bez zmian, więc kredyt
+        kończy się wcześniej — odsetkowo jest to wariant zdecydowanie tańszy. „Obniż ratę” zostawia
+        liczbę rat, a przelicza ich wysokość: oszczędność mniejsza, ale w domowym budżecie zostaje
+        co miesiąc więcej gotówki. Tryb ustawia się dla całego scenariusza i można go nadpisać
+        w pojedynczym wydarzeniu. Uwaga praktyczna: to, który wariant dostaniesz — także przy
+        spłacie rodzinnej — rozstrzyga regulamin banku, a nie ustawa; bywa, że wymaga aneksu
+        i osobnej opłaty, której kalkulator nie modeluje.
+      </p>
+
+      <h3 id="koszt-z-lokata">Co to jest „Łączny koszt z uwzględnieniem lokaty”?</h3>
+      <p>
+        Każda złotówka, która idzie do banku — rata, nadpłata dobrowolna, opłata za wcześniejszą
+        spłatę, opłata za gwarancję — mogłaby zamiast tego leżeć na lokacie. Ten wiersz oprocentowuje
+        wszystkie wpłaty do końca wspólnego horyzontu, czyli do ostatniej raty dłuższego z dwóch
+        kredytów, po wpisanej stopie lokaty netto, i dopiero takie kwoty zestawia. Bez tego
+        porównanie „nadpłacić teraz” z „poczekać do miesiąca 37 i zachować spłatę rodzinną” jest
+        jednostronne: widać oszczędność na odsetkach, nie widać, co przez ten czas zarabiała
+        odłożona gotówka. Spłata rodzinna do wpłat nie wchodzi — to pieniądz BGK, nie Twój.
+      </p>
+
+      <h3 id="uproszczenia">Co kalkulator upraszcza?</h3>
+      <p>
+        Kilka rzeczy, świadomie. Okno 36 miesięcy liczy od miesiąca uruchomienia kredytu, a ustawa
+        liczy je od dnia udzielenia, czyli zawarcia umowy — przy kredycie wypłacanym w transzach to
+        bywają różne daty. Modeluje wyłącznie oprocentowanie zmienne (marża plus wskaźnik), więc
+        wariant ze stopą stałą i wkładem do 30 % jest poza zakresem, podobnie jak wyjątki od limitu
+        wkładu z art. 5 ust. 2 i art. 3 ust. 3a. Nie liczy skutków podatkowych ani opłat bankowych za
+        aneks. Gdy naruszenie reguły i spłata rodzinna wypadają w tym samym miesiącu, silnik
+        przetwarza najpierw nadpłatę, więc taka spłata jest już „utracona” — ustawa kolejności nie
+        rozstrzyga, to wybór po ostrożnej stronie. Wszystko opiera się na tekście jednolitym
+        z Dz.U. 2024 poz. 1724; nowelizacja Dz.U. 2026 poz. 635 nie została przeczytana. Utrata
+        spłaty rodzinnej przy refinansowaniu do innego banku to wniosek z konstrukcji programu, a nie
+        zapis ustawy — refinansowania ustawa nie reguluje.
+      </p>
+
+      <h3 id="dane">Czy moje dane gdzieś trafiają?</h3>
+      <p>
+        Nie. Wszystko liczy się w Twojej przeglądarce, a wpisane kwoty i wydarzenia zapisują się
+        wyłącznie w pamięci lokalnej urządzenia (<code>localStorage</code>), żeby porównanie
+        przetrwało odświeżenie strony. Przycisk „Kopiuj link do tego porównania” pakuje stan do
+        fragmentu adresu — części po znaku <code>#</code>, której przeglądarka nigdy nie wysyła na
+        serwer — więc link powstaje w całości u Ciebie. Zawiera jednak Twoje parametry, więc o tym,
+        komu go wyślesz, decydujesz sam. Szczegóły:
+        <a href="/polityka-prywatnosci.html">polityka prywatności</a>.
+      </p>
+    </main>
+
+    <footer>
+      <p>
+        Kalkulator poglądowy — nie stanowi oferty, symulacji bankowej ani porady. Zasady RKM wg
+        tekstu jednolitego ustawy (Dz.U. 2024 poz. 1724); sprawdzono 2 września 2026 r., nowelizacja
+        z 2026 r. (Dz.U. 2026 poz. 635) nieuwzględniona. Przed decyzją potwierdź warunki w banku.
+      </p>
+      <p>
+        Autorem strony jest Mikołaj Kondratek — programista, nie doradca kredytowy ·
+        <a href="https://www.linkedin.com/in/mkondratek/" rel="noopener">LinkedIn</a> ·
+        <a href="https://github.com/mkondratek" rel="noopener">GitHub</a>
+      </p>
+      <p>
+        <a href="/">← kalkulator</a> · <a href="/zrodla.html">Źródła</a> ·
+        <a href="/polityka-prywatnosci.html">Polityka prywatności</a> ·
+        <a href="https://github.com/mkondratek/abkredyt" rel="noopener">Kod źródłowy</a>
+      </p>
+    </footer>
+  </body>
+</html>

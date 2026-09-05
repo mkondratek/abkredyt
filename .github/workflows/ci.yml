@@ -34,6 +34,11 @@ jobs:
       # w Node przeciw liczbom kontrolnym (rata 3 249 / 4 699 zł itd.).
       - run: node tools/test-engine.mjs
 
+      # Podstrona „Gotowe porównania”: public/scenariusze.html musi być bajt
+      # w bajt tym, co generuje tools/build-scenarios.mjs (świeżość), a każdy
+      # link #s= — odczytywalny i zgodny z tezą karty.
+      - run: node tools/test-scenarios.mjs
+
       # Pełny test dymny w headless Chromium: otwiera public/index.html
       # i kończy się błędem, jeśli strona zgłosi wyjątek albo cokolwiek
       # w konsoli wyląduje jako error.

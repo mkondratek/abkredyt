@@ -145,6 +145,7 @@ header.top{ margin-bottom:16px; }
 .eyebrow{ font-size:11.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; margin-bottom:6px; }
 header.top h1{ font-size:29px; letter-spacing:-.01em; }
 header.top p{ margin:8px 0 0; color:var(--ink-muted); max-width:64ch; font-size:14px; }
+header.top .start-note{ font-size:13px; margin-top:6px; }
 
 .mode-row{
   display:flex; align-items:center; gap:14px; flex-wrap:wrap;
@@ -350,17 +351,46 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
   border:none; background:var(--surface-2); color:var(--ink-muted); padding:6px 13px; font-size:12.5px; cursor:pointer; font-family:inherit;
 }
 .seg button.active{ background:var(--accent-a-solid); color:var(--on-accent); }
+.legend-col{ display:flex; flex-direction:column; gap:6px; max-width:420px; }
 .legend{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-muted); }
 .legend .li{ display:flex; align-items:baseline; gap:7px; }
 .legend .sw{ width:14px; height:3px; border-radius:2px; flex:0 0 auto; position:relative; top:-3px; }
 .legend .leg-key{ font-weight:600; color:var(--ink); }
 .legend .leg-sum{ color:var(--ink-muted); }
+/* Znaczniki RKM na wykresie (dashed „koniec okna”, romb „gwarancja spłacona”,
+   kreska „pełna spłata rodzinna”) — druga linijka legendy, każdy element to
+   przycisk, który przełącza wyjaśnienie w #legend-note (p. wykresu — brak
+   objaśnienia poza opóźnionym `title`). */
+.legend-markers{ display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11.5px; }
+.legend-markers[hidden]{ display:none; }
+.legend-info{
+  display:flex; align-items:center; gap:5px; border:none; background:none; padding:2px 4px 2px 2px;
+  margin:-2px -4px -2px -2px; border-radius:6px; color:var(--ink-muted); font-family:inherit; font-size:inherit;
+  cursor:pointer;
+}
+.legend-info:hover, .legend-info.is-active{ background:var(--surface-3); color:var(--ink); }
+.legend-info .mk-sw{ flex:0 0 auto; overflow:visible; }
+.legend-info .info-ico{
+  display:inline-flex; align-items:center; justify-content:center; width:13px; height:13px; border-radius:50%;
+  border:1px solid var(--ink-faint); color:var(--ink-faint); font-size:9.5px; font-style:normal; line-height:1; flex:0 0 auto;
+}
+.legend-info:hover .info-ico, .legend-info.is-active .info-ico{ border-color:var(--ink); color:var(--ink); }
+.legend-note{
+  font-size:11.5px; line-height:1.5; color:var(--ink-muted); background:var(--surface-2); border:1px solid var(--border);
+  border-radius:8px; padding:8px 10px; max-width:420px;
+}
+.legend-note[hidden]{ display:none; }
 .chart-wrap{ overflow-x:auto; position:relative; touch-action:pan-y; }
 .chart-wrap svg{ display:block; min-width:640px; width:100%; height:auto; }
 .chart-tt{
   position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--border-strong);
   border-radius:8px; padding:8px 10px; font-size:12px; box-shadow:var(--shadow); white-space:nowrap; z-index:5;
 }
+/* Dopisek o znaczniku RKM w dymku — tylko gdy kursor/palec jest w promieniu
+   ±2 mies. od znacznika (markerTooltipLines). */
+.chart-tt-mks{ margin-top:6px; padding-top:6px; border-top:1px solid var(--border); }
+.chart-tt-mk{ color:var(--ink-muted); font-size:11.5px; line-height:1.4; }
+.chart-tt-mk + .chart-tt-mk{ margin-top:2px; }
 .chart-outer{ position:relative; }
 
 /* Podpowiedź przewijania w poziomie na mobile: delikatny gradient przy prawej
@@ -436,6 +466,7 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
     <div class="eyebrow" id="eyebrow">Rodzinny Kredyt Mieszkaniowy · porównanie scenariuszy A/B</div>
     <h1>Harmonogram spłaty i porównanie scenariuszy</h1>
     <p id="lede">Kalkulator do porównania dwóch wariantów kredytu RKM na zakup mieszkania — z nadpłatami, spłatą rodzinną przy narodzinach dziecka i zmianami oprocentowania w czasie.</p>
+    <p class="start-note">Nie wiesz, od czego zacząć? Zobacz <a href="/scenariusze.html">gotowe porównania</a> — pięć typowych pytań z ustawionym kalkulatorem — albo <a href="/pytania.html">pytania i odpowiedzi</a> o zasadach RKM.</p>
   </header>
 
   <div class="mode-row">
@@ -465,7 +496,11 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
     <div class="chart-head">
       <h2>Saldo kapitału w czasie</h2>
       <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
-        <div class="legend" id="chart-legend"></div>
+        <div class="legend-col">
+          <div class="legend" id="chart-legend"></div>
+          <div class="legend-markers" id="chart-legend-markers" hidden></div>
+          <div class="legend-note" id="legend-note" role="status" hidden></div>
+        </div>
         <div class="seg" id="chart-mode">
           <button data-mode="saldo" class="active">Saldo</button>
           <button data-mode="rata">Rata</button>
@@ -503,7 +538,8 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
   <footer class="foot">
     <p>Kalkulator poglądowy — nie stanowi oferty, symulacji bankowej ani porady. Zasady RKM wg tekstu jednolitego ustawy (Dz.U. 2024 poz. 1724); sprawdzono 2 września 2026 r., nowelizacja z 2026 r. (Dz.U. 2026 poz. 635) nieuwzględniona. Przed decyzją potwierdź warunki w banku.</p>
     <p>Autorem strony jest Mikołaj Kondratek — programista, nie doradca kredytowy · <a href="https://www.linkedin.com/in/mkondratek/" rel="noopener">LinkedIn</a> · <a href="https://github.com/mkondratek" rel="noopener">GitHub</a></p>
-    <p><a href="/polityka-prywatnosci.html">Polityka prywatności</a> · <a href="https://github.com/mkondratek/abkredyt" rel="noopener">Kod źródłowy</a></p>
+    <p><a href="/scenariusze.html">Gotowe porównania</a> · <a href="/pytania.html">Pytania i odpowiedzi</a> · <a href="/zrodla.html">Źródła</a> · <a href="/polityka-prywatnosci.html">Polityka prywatności</a> · <a href="https://github.com/mkondratek/abkredyt" rel="noopener">Kod źródłowy</a></p>
+    <p>Znalazłeś błąd albo liczba się nie zgadza? <a href="https://github.com/mkondratek/abkredyt/issues/new" rel="noopener">Zgłoś na GitHubie</a>.</p>
   </footer>
 </div>
 
@@ -1680,7 +1716,7 @@ function renderPanel(key, s, result, baseline){
   html += '<div class="section-title">Opłata za wcześniejszą spłatę '+(s.rkm?'<span style="text-transform:none;font-weight:400;">(nie dot. spłaty rodzinnej)</span>':'')+'</div>';
   html += '<div class="field-grid">';
   html += field(key,"Opłata %","feePct",s.feePct,"number",0.5,
-    "Nie więcej niż odsetki od nadpłacanej kwoty za 12 mies. (art. 40 ust. 4) — przy oprocentowaniu "+
+    "Nie więcej niż odsetki od nadpłacanej kwoty za 12 mies. (art. 40 ust. 3) — przy oprocentowaniu "+
     pct(nominalRate(s))+" faktyczna stawka to "+pct(Math.min(nn(s.feePct), nominalRate(s))));
   html += field(key,"Obowiązuje przez (mies.)","feeMonths",s.feeMonths,"number",null,
     "Ustawowo maks. 36 mies. przy stopie zmiennej (art. 40 ustawy o kredycie hipotecznym)", FEE_MONTHS_MAX);
@@ -1833,6 +1869,140 @@ function startField(s){
 /* ============ chart ============ */
 const SVG_MONO = "ui-monospace, Menlo, Consolas, monospace";
 
+/* ---- objaśnienia znaczników RKM na wykresie ----
+   Jedno źródło TEKSTU dla trzech miejsc, które o tych znacznikach mówią: legenda
+   pod wykresem (#chart-legend-markers + #legend-note), dymek po najechaniu/
+   tapnięciu (showTooltipAt) i badge'e w tabeli rocznej (rkmMonthBadges — ta
+   trzecia trzyma własne, nieco dłuższe teksty, bo mówi o jednym konkretnym
+   scenariuszu i miesiącu na raz). Warunki, KIEDY dany znacznik w ogóle istnieje
+   w bieżącym wykresie, liczy computeMarkerFacts() — osobno od tabeli, bo tabela
+   działa na jednym scenariuszu i bez ograniczenia do `maxX` wykresu. */
+const MARKER_INFO = {
+  window: {
+    swatch: '<svg class="mk-sw" viewBox="0 0 18 14" width="18" height="14" aria-hidden="true"><line x1="9" y1="1" x2="9" y2="13" stroke="var(--ink-faint)" stroke-width="1.5" stroke-dasharray="3 2"/></svg>',
+    tooltipMark: "│",
+    label: function(){ return "koniec okna RKM (m. "+RKM.RKM_WINDOW_MONTHS+")"; },
+    note: "Po 36. miesiącu od udzielenia kredytu nadpłaty dobrowolne nie mają już wpływu na spłatę rodzinną (art. 7 ust. 1 pkt 7). Kalkulator liczy 36 miesięcy od miesiąca uruchomienia."
+  },
+  guarantee: {
+    swatch: function(color){ return '<svg class="mk-sw" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M7,1 L13,7 L7,13 L1,7 Z" fill="var(--surface)" stroke="'+(color||"var(--ink-muted)")+'" stroke-width="1.5"/></svg>'; },
+    tooltipMark: "◆",
+    label: function(month){ return "gwarancja spłacona (m. "+month+")"; },
+    labelMulti: function(mA,mB){ return "gwarancja spłacona: m. "+mA+" (A) · m. "+mB+" (B)"; },
+    note: "Od tego miesiąca część objęta gwarancją BGK wynosi 0, więc do końca okna (m. 36) każda nadpłata dobrowolna odbiera prawo do przyszłych spłat rodzinnych. Samo prawo do spłaty rodzinnej od gwarancji nie zależy."
+  },
+  fullChild: {
+    swatch: function(color){ return '<svg class="mk-sw" viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><line x1="7" y1="1" x2="7" y2="13" stroke="'+(color||"var(--ink-muted)")+'" stroke-width="2.25" stroke-linecap="round"/></svg>'; },
+    tooltipMark: "|",
+    label: function(month){ return "pełna spłata rodzinna do m. "+month; },
+    labelMulti: function(mA,mB){ return "pełna spłata rodzinna do: m. "+mA+" (A) · m. "+mB+" (B)"; },
+    note: "Ostatni miesiąc, w którym saldo wynosi co najmniej 60 000 zł — do tego momentu spłata rodzinna za trzecie dziecko mieści się w kredycie w całości; później pokrywa tylko pozostały kapitał. To nie jest termin na dziecko."
+  }
+};
+/* Powtarza DOKŁADNIE warunki, na jakich rkmWindowLine()/rkmMarkers() rysują
+   znaczniki w buildChart() (patrz niżej) — legenda i dymek nie mają pokazywać
+   niczego, czego nie ma na samym wykresie. */
+function computeMarkerFacts(resA, resB, sA, sB){
+  const maxX = Math.max(resA.payoffMonths, resB.payoffMonths, 1);
+  const W36 = RKM.RKM_WINDOW_MONTHS;
+  const hasWindow = !!((sA&&sA.rkm)||(sB&&sB.rkm)) && W36<=maxX;
+  function guaranteeMonth(res, s){
+    if(!s || !s.rkm) return null;
+    const gm = res.guaranteeExhaustedMonth;
+    if(gm===null || gm===undefined || gm>=W36 || gm>res.payoffMonths || gm>maxX) return null;
+    return gm;
+  }
+  function fullChildMonth(res, s){
+    if(!s || !s.rkm) return null;
+    const fm = res.fullChildRepaymentUntilMonth;
+    if(fm===null || fm===undefined || fm>res.payoffMonths || fm>maxX) return null;
+    return fm;
+  }
+  return {
+    maxX, window: hasWindow,
+    guarantee: { A: guaranteeMonth(resA,sA), B: guaranteeMonth(resB,sB) },
+    fullChild: { A: fullChildMonth(resA,sA), B: fullChildMonth(resB,sB) }
+  };
+}
+function legendItemHtml(key, swatchHtml, labelText){
+  return '<button type="button" class="legend-info" data-marker="'+key+'" aria-describedby="legend-note" aria-expanded="false" title="'+escapeXml(MARKER_INFO[key].note)+'">'+
+    swatchHtml+'<span>'+escapeXml(labelText)+'</span><i class="info-ico" aria-hidden="true">i</i></button>';
+}
+/* Znaczniki A/B (gwarancja, pełna spłata rodzinna) istnieją niezależnie dla
+   każdego scenariusza — jeden legend-item pokazuje oba miesiące naraz, gdy
+   różnią się, kolorowany neutralnie (bez jednoznacznego koloru linii); gdy
+   dotyczy tylko jednego scenariusza, swatch bierze jego kolor z wykresu. */
+function buildDualMarkerItem(key, monthsAB){
+  const hasA = monthsAB.A!==null, hasB = monthsAB.B!==null;
+  if(!hasA && !hasB) return "";
+  const info = MARKER_INFO[key];
+  let labelText, swatchColor;
+  if(hasA && hasB){
+    labelText = (monthsAB.A===monthsAB.B) ? info.label(monthsAB.A) : info.labelMulti(monthsAB.A, monthsAB.B);
+    swatchColor = null;
+  } else if(hasA){
+    labelText = info.label(monthsAB.A); swatchColor = "var(--accent-a)";
+  } else {
+    labelText = info.label(monthsAB.B); swatchColor = "var(--accent-b)";
+  }
+  return legendItemHtml(key, info.swatch(swatchColor), labelText);
+}
+function buildLegendMarkersHtml(facts){
+  if(!facts) return "";
+  let html = "";
+  if(facts.window) html += legendItemHtml("window", MARKER_INFO.window.swatch, MARKER_INFO.window.label());
+  html += buildDualMarkerItem("guarantee", facts.guarantee);
+  html += buildDualMarkerItem("fullChild", facts.fullChild);
+  return html;
+}
+/* Jedna wspólna notka pod legendą (#legend-note) — klik na znaczniku ją
+   pokazuje/chowa; klik na innym znaczniku przełącza treść; drugi klik na tym
+   samym chowa. Wołane też przy każdym przerysowaniu wykresu (z key=null), bo
+   dane mogły się zmienić i stara notka mogłaby już nie pasować do wykresu. */
+function setLegendNote(key){
+  const legendMarkersEl = document.getElementById("chart-legend-markers");
+  const legendNoteEl = document.getElementById("legend-note");
+  if(legendMarkersEl){
+    legendMarkersEl.querySelectorAll(".legend-info").forEach(function(b){
+      const on = b.dataset.marker===key;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-expanded", on?"true":"false");
+    });
+  }
+  if(legendNoteEl){
+    if(key && MARKER_INFO[key]){
+      legendNoteEl.textContent = MARKER_INFO[key].note;
+      legendNoteEl.hidden = false;
+    } else {
+      legendNoteEl.hidden = true;
+      legendNoteEl.textContent = "";
+    }
+  }
+}
+
+/* Dopisek pod wartościami A/B w dymku wykresu: pokazuje znacznik RKM, gdy
+   miesiąc pod kursorem/palcem leży w promieniu ±2 mies. od niego — inaczej
+   dymek towarzyszyłby całemu wykresowi, a nie tylko okolicy znacznika.
+   Korzysta z `markerFacts` policzonych w renderChart(). */
+function markerTooltipLines(displayMonth){
+  if(!markerFacts) return "";
+  const within = function(m){ return Math.abs(displayMonth-m)<=2; };
+  let lines = [];
+  if(markerFacts.window && within(RKM.RKM_WINDOW_MONTHS)){
+    lines.push(MARKER_INFO.window.tooltipMark+" "+escapeXml(MARKER_INFO.window.label()));
+  }
+  ["guarantee","fullChild"].forEach(function(key){
+    ["A","B"].forEach(function(letter){
+      const m = markerFacts[key][letter];
+      if(m!==null && within(m)){
+        lines.push(MARKER_INFO[key].tooltipMark+" "+letter+": "+escapeXml(MARKER_INFO[key].label(m)));
+      }
+    });
+  });
+  if(lines.length===0) return "";
+  return '<div class="chart-tt-mks">'+lines.map(function(t){ return '<div class="chart-tt-mk">'+t+'</div>'; }).join('')+'</div>';
+}
+
 function buildChart(resA, resB, mode, sA, sB){
   const W=900,H=340, padL=64, padR=20, padT=18, padB=34;
   const innerW = W-padL-padR, innerH = H-padT-padB;
@@ -1945,7 +2115,7 @@ function buildChart(resA, resB, mode, sA, sB){
     const anchorEnd = mx > padL + innerW*0.8;
     const tip = "Koniec okna RKM (m. "+W36+") — od miesiąca "+(W36+1)+" nadpłata dobrowolna nie odbiera już prawa do spłaty rodzinnej";
     let out = '<line x1="'+mx.toFixed(1)+'" x2="'+mx.toFixed(1)+'" y1="'+padT+'" y2="'+(padT+innerH)+'" stroke="var(--ink-faint)" stroke-width="1.25" stroke-dasharray="5 4" opacity="0.8"><title>'+escapeXml(tip)+'</title></line>';
-    out += '<text x="'+(anchorEnd?mx-5:mx+5).toFixed(1)+'" y="'+(padT+innerH-7)+'" text-anchor="'+(anchorEnd?"end":"start")+'" font-size="10.5" fill="var(--ink-faint)" font-family="'+SVG_MONO+'">koniec okna RKM</text>';
+    out += '<text x="'+(anchorEnd?mx-5:mx+5).toFixed(1)+'" y="'+(padT+innerH-7)+'" text-anchor="'+(anchorEnd?"end":"start")+'" font-size="10.5" fill="var(--ink-faint)" font-family="'+SVG_MONO+'">koniec okna RKM<title>'+escapeXml(tip)+'</title></text>';
     return out;
   }
   function rkmMarkers(res, s, color){
@@ -2158,6 +2328,16 @@ function doRecompute(){
 
   renderChart();
 
+  // Druga linijka legendy: znaczniki RKM (okno/gwarancja/pełna spłata rodzinna),
+  // tylko te, które faktycznie istnieją na bieżącym wykresie (markerFacts —
+  // policzone w renderChart()). Notka pod legendą wraca do zamkniętego stanu
+  // przy każdym przerysowaniu, bo dane mogły się zmienić.
+  const legendMarkersEl = document.getElementById("chart-legend-markers");
+  const markersHtml = buildLegendMarkersHtml(markerFacts);
+  legendMarkersEl.innerHTML = markersHtml;
+  legendMarkersEl.hidden = !markersHtml;
+  setLegendNote(null);
+
   const tbody = document.getElementById("year-table-body");
   tbody.innerHTML = renderYearTable(state.tableScn==="A"? resA : resB, state[state.tableScn==="A"?"A":"B"]);
 
@@ -2168,10 +2348,15 @@ function doRecompute(){
 }
 
 let chartData = null;
+/* Fakty o znacznikach RKM (okno/gwarancja/pełna spłata rodzinna) liczone RAZ tu
+   — legenda (doRecompute) i dymek (showTooltipAt) czytają ten sam obiekt, więc
+   nigdy nie rozjadą się z tym, co faktycznie narysował buildChart(). */
+let markerFacts = null;
 function renderChart(){
   const svgEl = document.getElementById("chart-svg");
   const built = buildChart(lastResults.A, lastResults.B, state.chartMode, state.A, state.B);
   chartData = built;
+  markerFacts = computeMarkerFacts(lastResults.A, lastResults.B, state.A, state.B);
   svgEl.setAttribute("viewBox","0 0 900 340");
   svgEl.innerHTML = built.svg;
   // Nazwa dostępna wykresu (role="img" w HTML) — to samo jednolinijkowe
@@ -2230,7 +2415,8 @@ function updateAllScrollFades(){
     tt.hidden = false;
     tt.innerHTML = '<div style="color:var(--ink-faint);margin-bottom:4px;">mies. '+displayMonth+' · '+(moA?fmtDate(moA.date):"")+'</div>'+
       '<div><span style="color:var(--accent-a);">●</span> A '+label+': <b>'+money(valA)+'</b></div>'+
-      '<div><span style="color:var(--accent-b);">●</span> B '+label+': <b>'+money(valB)+'</b></div>';
+      '<div><span style="color:var(--accent-b);">●</span> B '+label+': <b>'+money(valB)+'</b></div>'+
+      markerTooltipLines(displayMonth);
     positionTooltip(clientX, clientY);
   }
   /* Domyślnie po prawej/pod kursorem; jeśli by to wystawało poza prawą krawędź
@@ -2277,6 +2463,17 @@ function updateAllScrollFades(){
     const btn = ev.target.closest("button[data-mode]"); if(!btn) return;
     state.chartMode = btn.dataset.mode;
     renderChart(); persist();
+  });
+  /* Legenda znaczników RKM: klik/Enter na przycisku pokazuje jego wyjaśnienie
+     w #legend-note; klik na tym samym przycisku albo na innym przełącza —
+     patrz setLegendNote(). Delegacja na stałym kontenerze, bo jego innerHTML
+     wraca do zera przy każdym doRecompute() (p. kontrakt fokusu w CLAUDE.md
+     nie dotyczy tego wiersza — to nie #scenarios). */
+  document.getElementById("chart-legend-markers").addEventListener("click",(ev)=>{
+    const btn = ev.target.closest(".legend-info"); if(!btn) return;
+    const key = btn.dataset.marker;
+    const wasActive = btn.classList.contains("is-active");
+    setLegendNote(wasActive ? null : key);
   });
   document.getElementById("table-scn").addEventListener("click",(ev)=>{
     const btn = ev.target.closest("button[data-scn]"); if(!btn) return;

@@ -1,0 +1,245 @@
+[
+  {
+    "id": "nadplata-teraz-czy-po-trzech-latach",
+    "question": "Mam 150 000 zł oszczędności i planujemy trzecie dziecko. Nadpłacić od razu czy poczekać 3 lata?",
+    "why": "W programie RKM przez pierwsze 3 lata nadpłata dobrowolna ponad pozostałą część objętą gwarancją BGK odbiera prawo do przyszłych spłat rodzinnych. Nadpłata 150 000 zł w szóstym miesiącu przekracza gwarancję (100 000 zł, i to już nadgryzioną przez zapłacone raty), więc 60 000 zł za trzecie dziecko przepada. Ta sama nadpłata miesiąc po zamknięciu okna nie kosztuje nic.",
+    "settings": [
+      "A: nadpłata 150 000 zł w m. 6, trzecie dziecko w m. 30",
+      "B: trzecie dziecko w m. 30, nadpłata 150 000 zł w m. 37"
+    ],
+    "lookAt": "W scenariuszu A pojawia się baner „Utrata przyszłych spłat rodzinnych”, a przy spłacie rodzinnej — odznaka „utracona”. Różnicę w pieniądzu czytaj z wiersza „Łączny koszt z uwzględnieniem lokaty” pod porównaniem.",
+    "metrics": ["sumaOdsetek", "splataRodzinna"],
+    "state": {
+      "v": 6,
+      "lokata": 3,
+      "chartMode": "saldo",
+      "tableScn": "A",
+      "A": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 0,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 30,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": [
+          { "type": "jednorazowa", "month": 6, "amount": 150000, "trybOverride": "auto" },
+          { "type": "dziecko", "month": 30, "amount": 60000, "childNumber": 3, "trybOverride": "auto" }
+        ]
+      },
+      "B": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 0,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 30,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": [
+          { "type": "dziecko", "month": 30, "amount": 60000, "childNumber": 3, "trybOverride": "auto" },
+          { "type": "jednorazowa", "month": 37, "amount": 150000, "trybOverride": "auto" }
+        ]
+      }
+    }
+  },
+  {
+    "id": "pietnascie-czy-trzydziesci-lat",
+    "question": "Wziąć kredyt na 15 lat czy na 30 lat i nadpłacać różnicę rat?",
+    "why": "Rata na 15 lat jest o ok. 1 250 zł wyższa niż na 30 lat. Jeśli tę różnicę co miesiąc wpłacisz jako nadpłatę, oba kredyty kończą się w tym samym miesiącu i kosztują odsetkowo prawie tyle samo. Różnica siedzi gdzie indziej: dłuższy okres pozwala w chudym miesiącu przestać nadpłacać, ale przez pierwsze 3 lata bank pobiera od każdej nadpłaty opłatę za wcześniejszą spłatę.",
+    "settings": [
+      "A: 15 lat, bez nadpłat",
+      "B: 30 lat + nadpłata 1 250 zł/mies. od m. 1 do m. 360"
+    ],
+    "lookAt": "Porównaj „Suma odsetek” i „Data ostatniej raty” — wychodzą niemal identycznie, a różnicę robi opłata za wcześniejszą spłatę w B. Zajrzyj też do „Część gwarantowana po 3 latach”: wyższa rata w A zjada gwarancję BGK równie szybko jak nadpłaty w B, więc zapasu na przyszłe nadpłaty nie zostawia żaden z wariantów.",
+    "metrics": ["rataPoczatkowa", "sumaOdsetek", "dataOstatniejRaty"],
+    "state": {
+      "v": 6,
+      "lokata": 3,
+      "chartMode": "saldo",
+      "tableScn": "A",
+      "A": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 0,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 15,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": []
+      },
+      "B": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 0,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 30,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": [
+          { "type": "cykliczna", "startMonth": 1, "endMonth": 360, "monthlyAmount": 1250, "trybOverride": "auto" }
+        ]
+      }
+    }
+  },
+  {
+    "id": "rkm-czy-zwykly-kredyt",
+    "question": "Mam 20 % wkładu własnego. Wchodzić w RKM czy brać zwykły kredyt?",
+    "why": "Przy wkładzie równym 20 % wydatków gwarancja BGK wynosi zero — nie ma już czego domykać do dwudziestu procent. A skoro nadpłata w pierwszych 3 latach jest bezpieczna tylko w granicach gwarancji, to przy zerowej gwarancji każda nadpłata w tym okresie odbiera przyszłe spłaty rodzinne. Wybór sprowadza się do: 20 000 zł za drugie dziecko kontra swoboda nadpłacania od pierwszego miesiąca.",
+    "settings": [
+      "A: RKM, wkład 100 000 zł, drugie dziecko w m. 24, bez nadpłat",
+      "B: zwykły kredyt, wkład 100 000 zł, nadpłata 1 000 zł/mies. od m. 1"
+    ],
+    "lookAt": "W panelu A pod „Gwarancją BGK” stoi podpowiedź „Bez gwarancji (wkład własny ≥ 20 %)…”. Porównaj „Suma odsetek” i wiersz „Łączny koszt z uwzględnieniem lokaty” — 20 000 zł od BGK nie nadrabia odsetek, które dokłada rezygnacja z nadpłat.",
+    "metrics": ["sumaOdsetek", "dataOstatniejRaty"],
+    "state": {
+      "v": 6,
+      "lokata": 3,
+      "chartMode": "saldo",
+      "tableScn": "A",
+      "A": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 100000,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 30,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": [
+          { "type": "dziecko", "month": 24, "amount": 20000, "childNumber": 2, "trybOverride": "auto" }
+        ]
+      },
+      "B": {
+        "rkm": false,
+        "cena": 500000,
+        "wklad": 100000,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 30,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": [
+          { "type": "cykliczna", "startMonth": 1, "endMonth": 360, "monthlyAmount": 1000, "trybOverride": "auto" }
+        ]
+      }
+    }
+  },
+  {
+    "id": "wskaznik-w-gore-o-2-pp",
+    "question": "Co się stanie z moją ratą, jeśli WIBOR wzrośnie o 2 punkty procentowe?",
+    "why": "Przy oprocentowaniu zmiennym rata to marża banku plus wskaźnik referencyjny (WIBOR albo WIRON). Wzrost wskaźnika z 3,60 % do 5,60 % w drugim roku podnosi ratę o kilkaset złotych — i trzyma ją na tym poziomie do końca okresu. Warto sprawdzić tę ratę w domowym budżecie zanim podpiszesz umowę, bo bank sprawdzi ją przy liczeniu zdolności.",
+    "settings": [
+      "A: wskaźnik 3,60 % przez cały okres",
+      "B: wskaźnik rośnie do 5,60 % w m. 12"
+    ],
+    "lookAt": "W B porównaj „Ratę po ostatnim wydarzeniu” z „Ratą początkową”, a wykres zostaw w trybie „Rata”, w którym otwiera się ten link. Skalę kosztu pokazuje Δ w wierszu „Suma odsetek”.",
+    "metrics": ["rataKoncowa", "sumaOdsetek"],
+    "state": {
+      "v": 6,
+      "lokata": 3,
+      "chartMode": "rata",
+      "tableScn": "A",
+      "A": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 0,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 30,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": []
+      },
+      "B": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 0,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 30,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": [
+          { "type": "zmiana_wskaznika", "month": 12, "newWskaznik": 5.6 }
+        ]
+      }
+    }
+  },
+  {
+    "id": "skrocic-okres-czy-obnizyc-rate",
+    "question": "Nadpłacam 50 000 zł. Skrócić okres czy obniżyć ratę?",
+    "why": "To ta sama nadpłata w tym samym miesiącu — różni się tylko to, co bank zrobi z harmonogramem. „Skróć okres” zostawia ratę bez zmian i zabiera lata z końca kredytu. „Obniż ratę” zostawia okres i daje niższą ratę co miesiąc. Pierwsze jest wyraźnie tańsze, drugie luźniejsze dla budżetu.",
+    "settings": [
+      "A: nadpłata 50 000 zł w m. 12, tryb „skróć okres”",
+      "B: nadpłata 50 000 zł w m. 12, tryb „obniż ratę”"
+    ],
+    "lookAt": "„Suma odsetek” i „Skrócenie okresu” mówią, ile kosztuje wygoda; „Rata po ostatnim wydarzeniu” — ile z tej wygody masz co miesiąc.",
+    "metrics": ["sumaOdsetek", "rataKoncowa", "dataOstatniejRaty"],
+    "state": {
+      "v": 6,
+      "lokata": 3,
+      "chartMode": "saldo",
+      "tableScn": "A",
+      "A": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 0,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 30,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": [
+          { "type": "jednorazowa", "month": 12, "amount": 50000, "trybOverride": "skroc" }
+        ]
+      },
+      "B": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 0,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 30,
+        "start": "2027-01",
+        "tryb": "skroc",
+        "feePct": 3,
+        "feeMonths": 36,
+        "events": [
+          { "type": "jednorazowa", "month": 12, "amount": 50000, "trybOverride": "obniz" }
+        ]
+      }
+    }
+  }
+]

@@ -46,6 +46,8 @@
 11. ✅ Opłata za wcześniejszą spłatę wg ustawy o kredycie hipotecznym (art. 40): podpowiedź
     i `max="36"` na oknie opłaty (ust. 1, stopa zmienna) plus pułap kwotowy w silniku —
     `fee = min(amt·feePct/100, amt·r·12)` od stopy obowiązującej w miesiącu nadpłaty (ust. 4).
+12. ✅ Podstrona „Gotowe porównania” (`public/scenariusze.html`) — 5 pytań z gotowymi
+    linkami `#s=`, generowana z `tools/scenarios.json` przez `node tools/build-scenarios.mjs`.
 
 ## Do rozstrzygnięcia (wątpliwe punkty z audytu)
 - Skrócić notkę „Reguła RKM” do 2–3 punktów, cytat ustawy tylko w stopce?

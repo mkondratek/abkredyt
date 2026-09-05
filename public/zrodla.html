@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href="https://abkredyt.kondratek.pl/zrodla.html" />
+    <meta
+      name="description"
+      content="Źródła kalkulatora abkredyt: tekst jednolity ustawy o rodzinnym kredycie mieszkaniowym (Dz.U. 2024 poz. 1724), ustawa o kredycie hipotecznym z 2017 r., strony BGK i KNF, przegląd innych kalkulatorów oraz spis tego, co zostało sprawdzone, a co nie."
+    />
+    <title>Źródła — kalkulator kredytu abkredyt</title>
+    <style>
+      :root {
+        --tlo: #eef1ec;
+        --tekst: #1f2a26;
+        --tekst-cichy: #5c6b62;
+        --linia: #d7ddd0;
+        color-scheme: light dark;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --tlo: #141d19;
+          --tekst: #eef1ec;
+          --tekst-cichy: #a9b6ae;
+          --linia: #33453b;
+        }
+      }
+
+      body {
+        margin: 0 auto;
+        max-width: 42rem;
+        padding: 2rem 1.25rem 4rem;
+        background: var(--tlo);
+        color: var(--tekst);
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.65;
+      }
+
+      h1 {
+        font-size: 1.75rem;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.25rem;
+      }
+
+      h2 {
+        font-size: 1.25rem;
+        margin: 2.75rem 0 0.5rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--linia);
+      }
+
+      h3 {
+        font-size: 1.0625rem;
+        margin: 1.75rem 0 0.35rem;
+        scroll-margin-top: 1rem;
+      }
+
+      p {
+        margin: 0.5rem 0;
+      }
+
+      .data {
+        color: var(--tekst-cichy);
+        font-size: 0.875rem;
+        margin: 0 0 1.5rem;
+      }
+
+      .wstep {
+        color: var(--tekst-cichy);
+      }
+
+      nav.top {
+        font-size: 0.875rem;
+        margin: 0 0 1.5rem;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      ul {
+        padding-left: 1.25rem;
+      }
+
+      li {
+        margin: 0.4rem 0;
+      }
+
+      dl {
+        margin: 0.75rem 0;
+      }
+
+      dt {
+        font-weight: 600;
+        margin-top: 0.75rem;
+      }
+
+      dd {
+        margin: 0.1rem 0 0 0;
+        color: var(--tekst-cichy);
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.9em;
+        word-break: break-word;
+      }
+
+      blockquote {
+        margin: 0.75rem 0 0.75rem 0;
+        padding-left: 0.9rem;
+        border-left: 3px solid var(--linia);
+        color: var(--tekst-cichy);
+      }
+
+      .tabela {
+        overflow-x: auto;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.9375rem;
+      }
+
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 0.5rem 0.6rem 0.5rem 0;
+        border-bottom: 1px solid var(--linia);
+      }
+
+      th {
+        font-weight: 600;
+        border-bottom-width: 2px;
+      }
+
+      td.status {
+        color: var(--tekst-cichy);
+        white-space: normal;
+      }
+
+      footer {
+        margin-top: 3rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--linia);
+        font-size: 0.875rem;
+        color: var(--tekst-cichy);
+      }
+
+      footer p {
+        margin: 0.5rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="top"><a href="/">← kalkulator</a></nav>
+
+    <h1>Źródła</h1>
+    <p class="data">Stan na 5 września 2026 r.</p>
+
+    <p class="wstep">
+      Skąd biorą się liczby i zasady w kalkulatorze, czym zostały sprawdzone i czego sprawdzić się
+      nie udało. Odpowiedzi na konkretne pytania: <a href="/pytania.html">Pytania i odpowiedzi</a>.
+    </p>
+
+    <main>
+      <h2 id="akty-prawne">Akty prawne</h2>
+
+      <h3 id="ustawa-rkm">Ustawa o rodzinnym kredycie mieszkaniowym i bezpiecznym kredycie 2 %</h3>
+      <p>
+        Ustawa z dnia 1 października 2021 r. o rodzinnym kredycie mieszkaniowym i bezpiecznym
+        kredycie 2 %, w brzmieniu tekstu jednolitego ogłoszonego obwieszczeniem Marszałka Sejmu
+        z dnia 7 listopada 2024 r. — <strong>Dz.U. 2024 poz. 1724</strong>, stan prawny na
+        30 października 2024 r. To jest podstawowe źródło całej logiki RKM w kalkulatorze.
+      </p>
+      <p>
+        Tekst został przeczytany w całości <strong>2 września 2026 r.</strong> przez Sejmowe API ELI
+        (<code>https://api.sejm.gov.pl/eli/acts/DU/2024/1724/text.html</code>) — w odróżnieniu od
+        serwisu ISAP, który dla skryptów jest zabezpieczony CAPTCHĄ, API oddaje pełny tekst HTML.
+        Metryka aktu:
+        <a href="https://api.sejm.gov.pl/eli/acts/DU/2024/1724" rel="noopener">API ELI</a>,
+        strona w ISAP:
+        <a
+          href="https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU20240001724"
+          rel="noopener"
+          >isap.sejm.gov.pl</a
+        >.
+      </p>
+      <p>Przepisy, na których opiera się silnik:</p>
+      <dl>
+        <dt>art. 3 ust. 3 pkt 1 i 3, ust. 3b, ust. 4</dt>
+        <dd>
+          wkład własny nie wyższy niż 200 000 zł; okres kredytowania co najmniej 15 lat; gwarancją
+          objęta jest różnica między 20 % całkowitej kwoty wydatków a wkładem własnym; kredyt może
+          zostać udzielony do 31 grudnia 2030 r.
+        </dd>
+        <dt>art. 4a ust. 2, 3, 5, 6</dt>
+        <dd>
+          wkład i gwarancja łącznie nie więcej niż 200 000 zł i nie więcej niż 20 % wydatków; sama
+          gwarancja nie więcej niż 100 000 zł; jednorazowa opłata prowizyjna 1,0 % objętej gwarancją
+          części kredytu; spłaty części kapitałowej zalicza się w pierwszej kolejności na poczet
+          części objętej gwarancją i pomniejszają one jej wysokość, a gwarancja wygasa z dniem
+          spłacenia całej objętej nią kwoty.
+        </dd>
+        <dt>art. 5 ust. 1 pkt 5</dt>
+        <dd>
+          wkład własny nie przekracza 20 % całkowitej kwoty wydatków przy zmiennej stopie procentowej
+          albo 30 % przy stopie stałej przez co najmniej 5 lat.
+        </dd>
+        <dt>art. 7 ust. 1 pkt 3 i 7, ust. 3</dt>
+        <dd>
+          dziecko musi się urodzić (albo zostać przysposobione) po dniu udzielenia kredytu; brak
+          przedterminowej spłaty przez 3 lata od dnia udzielenia kredytu, chyba że spłata dotyczyła
+          części objętej gwarancją albo stanowiła spłatę rodzinną; kwoty spłaty rodzinnej — 20 000 zł
+          za drugie i 60 000 zł za trzecie albo kolejne dziecko, nie więcej niż pozostała do spłaty
+          część kapitałowa.
+        </dd>
+        <dt>art. 8 ust. 1 pkt 2, ust. 7</dt>
+        <dd>
+          zlecenie spłaty rodzinnej w terminie roku od powiększenia gospodarstwa domowego (albo od
+          pierwszego uruchomienia środków, jeśli dziecko urodziło się wcześniej); zwrot spłaty
+          rodzinnej tylko w dwóch przypadkach — skazania za przestępstwo z art. 297 Kodeksu karnego
+          oraz naruszenia 5-letniego obowiązku mieszkaniowego, z proporcjonalnym wzorem zwrotu.
+          Przedterminowa spłata nie jest podstawą zwrotu, dlatego jej skutkiem jest wyłącznie utrata
+          przyszłych spłat rodzinnych.
+        </dd>
+      </dl>
+
+      <h3 id="ustawa-kh">Ustawa o kredycie hipotecznym (rekompensata za wcześniejszą spłatę)</h3>
+      <p>
+        Ustawa z dnia 23 marca 2017 r. o kredycie hipotecznym oraz o nadzorze nad pośrednikami
+        kredytu hipotecznego i agentami — akt podstawowy <strong>Dz.U. 2017 poz. 819</strong>,
+        obowiązujący tekst jednolity <strong>Dz.U. 2025 poz. 720</strong> (obwieszczenie Marszałka
+        Sejmu z 21 maja 2025 r.). Pozycję tekstu jednolitego i brzmienie art. 40 sprawdzono
+        5 września 2026 r. przez to samo API ELI
+        (<a href="https://api.sejm.gov.pl/eli/acts/DU/2017/819" rel="noopener">metryka aktu</a>,
+        <a href="https://api.sejm.gov.pl/eli/acts/DU/2025/720" rel="noopener">metryka tekstu
+        jednolitego</a>). Art. 40 nie był zmieniany — jego brzmienie w tekście ogłoszonym i w tekstach
+        jednolitych jest identyczne.
+      </p>
+      <p>Stąd bierze się model opłaty za wcześniejszą spłatę:</p>
+      <blockquote>
+        <p>
+          art. 40 ust. 2: „W przypadku kredytu hipotecznego oprocentowanego zmienną stopą procentową
+          kredytodawca może pobierać rekompensatę wyłącznie, gdy spłata całości lub części kredytu
+          hipotecznego nastąpiła w okresie 36 miesięcy od dnia zawarcia umowy o kredyt hipoteczny.”
+        </p>
+        <p>
+          art. 40 ust. 3: „Rekompensata, o której mowa w ust. 2, nie może być większa niż wysokość
+          odsetek, które byłyby naliczone od spłaconej przed terminem całości lub części kredytu
+          hipotecznego w okresie roku od dnia faktycznej spłaty, ani większa niż 3 % spłacanej kwoty
+          kredytu hipotecznego.”
+        </p>
+      </blockquote>
+      <p>
+        Kalkulator respektuje oba limity naraz: opłata to mniejsza z dwóch wartości — wpisany procent
+        nadpłaty i odsetki od niej za 12 miesięcy, liczone stopą z miesiąca nadpłaty (art. 40 ust. 5).
+        Wariantu ze stałą stopą (art. 40 ust. 6) nie modeluje.
+      </p>
+
+      <h3 id="nowelizacja-2026">Nowelizacja Dz.U. 2026 poz. 635 — nieprzeczytana</h3>
+      <p>
+        Ustawa o zmianie ustawy o finansach publicznych oraz niektórych innych ustaw, obowiązująca od
+        27 maja 2026 r., nie została przeczytana — była dostępna wyłącznie jako PDF. Tytuł sugeruje
+        finansowanie Rządowego Funduszu Mieszkaniowego, a nie zmiany w art. 4a czy art. 7, ale to nie
+        jest potwierdzone lekturą treści. To jedyna znana luka w podstawie prawnej kalkulatora
+        i dlatego jest wymieniona także w stopce strony głównej.
+      </p>
+
+      <h2 id="strony-instytucji">Strony instytucji</h2>
+      <ul>
+        <li>
+          <a href="https://www.bgk.pl/produkty/rodzinny-kredyt-mieszkaniowy/" rel="noopener"
+            >BGK — Rodzinny Kredyt Mieszkaniowy</a
+          >
+          (strona produktowa). Sprawdzona 5 września 2026 r.: podaje te same wartości co ustawa —
+          kredyt bez wkładu własnego albo z wkładem nie wyższym niż 200 tys. zł, limit 20 % przy
+          stopie zmiennej i 30 % przy stałej na co najmniej 5 lat, okres minimum 15 lat. Innymi
+          słowy: Rada Ministrów nie skorzystała (na wrzesień 2026 r.) z art. 9f, który pozwala jej
+          podnieść te limity rozporządzeniem.
+        </li>
+        <li>
+          <a
+            href="https://www.knf.gov.pl/dla_rynku/regulacje_i_praktyka/rekomendacje_i_wytyczne/rekomendacje_dla_bankow?articleId=8522&amp;p_id=18"
+            rel="noopener"
+            >KNF — Rekomendacje dla banków, w tym Rekomendacja S</a
+          >
+          („dotycząca dobrych praktyk w zakresie zarządzania ekspozycjami kredytowymi zabezpieczonymi
+          hipotecznie”, ostatnia nowelizacja z czerwca 2023 r.). To stamtąd pochodzi rynkowa praktyka
+          wkładu własnego rzędu 10–20 %, o której kalkulator wspomina w podpowiedzi przy scenariuszu
+          poza programem RKM. Zastrzeżenie: samego tekstu rekomendacji nie udało się przeczytać
+          (PDF nie dał się pobrać do odczytu), więc jest to ustalenie wtórne, nie cytat.
+        </li>
+      </ul>
+
+      <h2 id="co-sprawdzone">Co zostało sprawdzone, a co nie</h2>
+      <div class="tabela">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Ustalenie</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Reguła 3 lat i malejący próg równy części objętej gwarancją</td>
+              <td class="status">Zweryfikowane dosłownym tekstem ustawy (art. 7 ust. 1 pkt 7, art. 4a ust. 6)</td>
+            </tr>
+            <tr>
+              <td>Kwoty spłaty rodzinnej 20 000 / 60 000 zł i przycięcie do salda</td>
+              <td class="status">Zweryfikowane (art. 7 ust. 3)</td>
+            </tr>
+            <tr>
+              <td>Limity wkładu własnego i gwarancji BGK; opłata 1,0 %</td>
+              <td class="status">Zweryfikowane (art. 3 ust. 3 i 3b, art. 4a ust. 2, 3, 5, art. 5 ust. 1 pkt 5)</td>
+            </tr>
+            <tr>
+              <td>Skutek naruszenia = utrata wyłącznie przyszłych spłat rodzinnych</td>
+              <td class="status">Zweryfikowane (art. 8 ust. 7 wymienia podstawy zwrotu wyczerpująco)</td>
+            </tr>
+            <tr>
+              <td>Rekompensata za wcześniejszą spłatę: 36 miesięcy, 3 %, roczne odsetki</td>
+              <td class="status">Zweryfikowane (art. 40 ust. 2, 3 i 5 ustawy o kredycie hipotecznym)</td>
+            </tr>
+            <tr>
+              <td>Maksymalny okres kredytu 35 lat</td>
+              <td class="status">Potwierdzone tylko źródłami wtórnymi — ustawa górnej granicy nie ustanawia, to praktyka banków</td>
+            </tr>
+            <tr>
+              <td>Wkład własny 10–20 % poza programem (Rekomendacja S)</td>
+              <td class="status">Potwierdzone tylko źródłami wtórnymi — tekstu rekomendacji nie przeczytano</td>
+            </tr>
+            <tr>
+              <td>Wybór „krótszy okres” albo „niższa rata” przy spłacie rodzinnej</td>
+              <td class="status">Potwierdzone tylko opisami produktowymi banków — ustawa tego nie rozstrzyga</td>
+            </tr>
+            <tr>
+              <td>Zwolnienie spłaty rodzinnej z PIT</td>
+              <td class="status">Niesprawdzone — jedno źródło wtórne, nie weryfikowane w ustawie o podatku dochodowym</td>
+            </tr>
+            <tr>
+              <td>Refinansowanie w innym banku = utrata spłaty rodzinnej</td>
+              <td class="status">Niesprawdzone — wniosek z konstrukcji programu; słowo „refinans” nie występuje w tekście ustawy</td>
+            </tr>
+            <tr>
+              <td>Nowelizacja Dz.U. 2026 poz. 635 (od 27 maja 2026 r.)</td>
+              <td class="status">Nieprzeczytana — dostępna tylko jako PDF</td>
+            </tr>
+            <tr>
+              <td>Kwartalne limity ceny 1 m² publikowane przez BGK</td>
+              <td class="status">Niesprawdzone i nie modelowane — kalkulator nie bada, czy nieruchomość mieści się w limicie cenowym</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="inne-kalkulatory">Przegląd innych kalkulatorów</h2>
+      <p>
+        Ten kalkulator powstał, bo we wrześniu 2026 r. nie udało się znaleźć narzędzia, które łączy
+        trzy rzeczy naraz: wiele wydarzeń rozłożonych w czasie, porównanie dwóch dowolnie
+        skonfigurowanych scenariuszy obok siebie i logikę RKM. Poniżej, co robią narzędzia, które
+        sprawdziłem — każde z nich jest dobre w swoim zakresie, po prostu odpowiada na inne pytanie.
+      </p>
+      <ul>
+        <li>
+          <a
+            href="https://expander.pl/kalkulatory/kredytowe/nadplaty-zmiany-oprocentowania/"
+            rel="noopener"
+            >Expander — nadpłaty i zmiany oprocentowania</a
+          >: najbliżej tego, czego szukałem — wiele reguł nadpłat, wybór skrócenia okresu albo
+          obniżenia raty, zmiany oprocentowania w czasie. Wynik pokazuje jako „bez nadpłat” kontra
+          „z nadpłatami”, czyli porównanie z jedną bazą, a nie dwóch niezależnych scenariuszy;
+          bez logiki RKM.
+        </li>
+        <li>
+          <a href="https://www.kalkulator.pl/kalkulator-nadplaty-kredytu-hipotecznego/" rel="noopener"
+            >kalkulator.pl — nadpłata kredytu hipotecznego</a
+          >: pokazuje trzy warianty jednej nadpłaty obok siebie (bez nadpłaty, krótszy okres, niższa
+          rata) z wykresem salda. Jedna reguła nadpłaty na raz, stałe oprocentowanie przez cały
+          okres, bez RKM.
+        </li>
+        <li>
+          <a href="https://hipoteczny.pl/kalkulatory/kalkulator-nadplaty/" rel="noopener"
+            >hipoteczny.pl — kalkulator nadpłaty</a
+          >: nadpłata jednorazowa i cykliczna, wybór trybu, oprocentowanie jako WIBOR plus marża.
+          Jedyne znalezione narzędzie, które w treści obok formularza wspomina o limicie nadpłat
+          w RKM — ale jako opis, nie jako parametr silnika.
+        </li>
+        <li>
+          <a
+            href="https://www.bankier.pl/smart/narzedzia/kalkulator-nadplaty-kredytu-hipotecznego"
+            rel="noopener"
+            >bankier.pl — kalkulator nadpłaty</a
+          >: prosty i szybki, jedna nadpłata, wybór niższej raty albo krótszego okresu. Bez wielu
+          zdarzeń, zmian stóp i RKM.
+        </li>
+        <li>
+          <a
+            href="https://www.totalmoney.pl/kalkulatory/kredyt-hipoteczny-kalkulator-nadplaty"
+            rel="noopener"
+            >totalmoney.pl — kalkulator nadpłaty</a
+          >: pokazuje oba warianty tej samej nadpłaty z oszczędnością miesięczną, roczną i całkowitą.
+          Bez wielu zdarzeń w czasie i bez RKM.
+        </li>
+        <li>
+          <a href="https://marciniwuc.com/kredyt-hipoteczny-kalkulator/" rel="noopener"
+            >kalkulator kredytu hipotecznego Marcina Iwucia</a
+          >: narzędzie dołączone do płatnego kursu, z nadpłatami w dowolnej konfiguracji i obsługą
+          transz wypłaty kredytu. Nie zweryfikowałem w nim porównania dwóch scenariuszy obok siebie
+          ani zmian oprocentowania w czasie; nie wspomina o RKM.
+        </li>
+      </ul>
+
+      <h2 id="kod-i-metoda">Kod i metoda</h2>
+      <p>
+        Cała strona to jeden plik bez zależności, a sposób liczenia jest jawny — kod jest na
+        <a href="https://github.com/mkondratek/abkredyt" rel="noopener">GitHubie</a> na licencji MIT.
+        Rata to zwykły annuitet z miesięczną kapitalizacją, a stopa nominalna to marża plus wskaźnik
+        referencyjny.
+      </p>
+      <p>
+        Silnik (czysta logika, bez interfejsu) jest pokryty testami w <code>tools/test-engine.mjs</code>,
+        które celowo nie przepisują liczb z samego silnika: ratę liczą z zapisanego wprost w teście
+        wzoru na annuitet, a sumy odsetek i miesiąc spłaty — z niezależnej symulacji referencyjnej,
+        czyli zwykłej pętli miesiąc po miesiącu, i porównują wyniki z tolerancją złotówki i miesiąca.
+        Liczby kontrolne dla kredytu 500 000 zł przy 5,50 %: rata 2 839 zł na 30 lat, 3 070 zł na
+        25 lat i 4 085 zł na 15 lat.
+      </p>
+      <p>
+        Błąd w wyliczeniach albo w opisie zasad najlepiej zgłosić przez
+        <a href="https://github.com/mkondratek/abkredyt/issues/new" rel="noopener">Issues</a> —
+        z konkretnym scenariuszem (kwota, okres, oprocentowanie, wydarzenia) i wynikiem, którego się
+        spodziewasz. Dopisanie przypadku regresyjnego do testów jest mile widziane nawet bez poprawki
+        w kodzie.
+      </p>
+    </main>
+
+    <footer>
+      <p>
+        Kalkulator poglądowy — nie stanowi oferty, symulacji bankowej ani porady. Zasady RKM wg
+        tekstu jednolitego ustawy (Dz.U. 2024 poz. 1724); sprawdzono 2 września 2026 r., nowelizacja
+        z 2026 r. (Dz.U. 2026 poz. 635) nieuwzględniona. Przed decyzją potwierdź warunki w banku.
+      </p>
+      <p>
+        Autorem strony jest Mikołaj Kondratek — programista, nie doradca kredytowy ·
+        <a href="https://www.linkedin.com/in/mkondratek/" rel="noopener">LinkedIn</a> ·
+        <a href="https://github.com/mkondratek" rel="noopener">GitHub</a>
+      </p>
+      <p>
+        <a href="/">← kalkulator</a> · <a href="/pytania.html">Pytania i odpowiedzi</a> ·
+        <a href="/polityka-prywatnosci.html">Polityka prywatności</a> ·
+        <a href="https://github.com/mkondratek/abkredyt" rel="noopener">Kod źródłowy</a>
+      </p>
+    </footer>
+  </body>
+</html>

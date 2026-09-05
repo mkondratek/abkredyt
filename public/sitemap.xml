@@ -6,8 +6,23 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://abkredyt.kondratek.pl/pytania.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://abkredyt.kondratek.pl/zrodla.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://abkredyt.kondratek.pl/polityka-prywatnosci.html</loc>
     <changefreq>yearly</changefreq>
     <priority>0.1</priority>
+  </url>
+  <url>
+    <loc>https://abkredyt.kondratek.pl/scenariusze.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
 </urlset>

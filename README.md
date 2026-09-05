@@ -21,6 +21,17 @@ można komuś wysłać albo zapisać w notatkach i wrócić do dokładnie tego s
 
 Strona: <https://abkredyt.kondratek.pl>
 
+Pytania i odpowiedzi oraz źródła są na osobnych podstronach: [`/pytania.html`](public/pytania.html)
+— szesnaście pytań o regułę nadpłat w RKM, gwarancję BGK i o to, jak liczy silnik — oraz
+[`/zrodla.html`](public/zrodla.html), gdzie stoją przepisy, na których opiera się kalkulator,
+i spis tego, co zostało sprawdzone z tekstem ustawy, a co nie.
+
+Gotowe porównania — pięć typowych pytań („nadpłacić od razu czy poczekać 3 lata?”, „15 lat
+czy 30 lat i nadpłacać?”, „RKM czy zwykły kredyt przy 20 % wkładu?”…) z linkami otwierającymi
+kalkulator w ustawionym stanie — są na `/scenariusze.html`. Źródłem prawdy jest
+`tools/scenarios.json`; stronę generuje `node tools/build-scenarios.mjs`, a test w CI sprawdza,
+że plik jest świeży i każdy link da się odczytać.
+
 ## Dlaczego to istnieje
 
 Żaden ze sprawdzonych polskich kalkulatorów kredytowych (bankier, totalmoney, hipoteczny.pl,
@@ -41,9 +52,9 @@ spłaca się szybciej) i „obniż ratę" (okres bez zmian, rata maleje). Zmiana
 zawsze przelicza ratę na nowo. Opłata za wcześniejszą spłatę (% przez pierwsze N miesięcy)
 dotyczy wyłącznie nadpłat dobrowolnych — nie spłaty rodzinnej — i respektuje oba limity
 z ustawy o kredycie hipotecznym z 23 marca 2017 r.: rekompensata przysługuje bankowi
-najwyżej przez **36 miesięcy** przy oprocentowaniu zmiennym (art. 40 ust. 1; kalkulator
+najwyżej przez **36 miesięcy** przy oprocentowaniu zmiennym (art. 40 ust. 2; kalkulator
 innego nie modeluje, więc pole „Obowiązuje przez" jest tam przycięte) i nie może
-przekroczyć **odsetek od nadpłacanej kwoty za 12 miesięcy** (art. 40 ust. 4). Ten drugi
+przekroczyć **odsetek od nadpłacanej kwoty za 12 miesięcy** (art. 40 ust. 3). Ten drugi
 limit widać dopiero przy niskiej stopie: umowne 3 % od 10 000 zł to 300 zł, ale przy
 oprocentowaniu 2 % bank może wziąć najwyżej 200 zł. Limit liczy się od stopy obowiązującej
 w miesiącu nadpłaty, więc po spadku wskaźnika idzie za nią.

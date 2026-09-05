@@ -55,10 +55,10 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   za wcześniejszą spłatę).
 - Opłata za wcześniejszą spłatę: % przez N miesięcy, dotyczy tylko nadpłat dobrowolnych
   (nie spłaty rodzinnej). Dwa limity z ustawy o kredycie hipotecznym z 23.03.2017:
-  okno maks. **36 mies.** przy stopie zmiennej (art. 40 ust. 1) — `max="36"` na polu
+  okno maks. **36 mies.** przy stopie zmiennej (art. 40 ust. 2) — `max="36"` na polu
   „Obowiązuje przez (mies.)”, `field-hint` z podstawą prawną, przycinanie przy wpisywaniu
   (`FEE_MONTHS_MAX`), w `toEngineConfig` i w `normaliseState`; oraz pułap kwotowy
-  (art. 40 ust. 4) — opłata nie większa niż odsetki od nadpłacanej kwoty za 12 miesięcy,
+  (art. 40 ust. 3) — opłata nie większa niż odsetki od nadpłacanej kwoty za 12 miesięcy,
   czyli w silniku `fee = min(amt·feePct/100, amt·r·12)` licząc `r` ze stopy
   **obowiązującej w tym miesiącu** (po zmianie wskaźnika limit idzie za nową stopą).
   Kalkulator modeluje wyłącznie stopę zmienną, więc wariantu 3-letniego dla stopy stałej
@@ -103,6 +103,19 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   tego miesiąca”) i delikatna lewa krawędź na wierszu roku z 36. miesiącem
   (`.year-row.rkm-window`). Opisy mówią wprost, że wygaśnięcie gwarancji NIE jest terminem
   na urodzenie dziecka — prawo do spłaty rodzinnej od niego nie zależy.
+- Znaczniki na wykresie mają teraz wyjaśnienie widoczne bez zawieszania kursora (SVG
+  `<title>` samo w sobie nie działa na dotyku i pokazuje się z opóźnieniem): druga linijka
+  legendy (`#chart-legend-markers`, tylko gdy dany znacznik faktycznie istnieje na bieżącym
+  wykresie) renderuje mini-swatch + etykietę jako `<button class="legend-info">`, klik/Enter
+  przełącza wyjaśnienie w jednej wspólnej notce (`#legend-note`, `role="status"`, drugi klik
+  albo klik na innym znaczniku zamyka/przełącza — `setLegendNote()`); dymek wykresu
+  (`showTooltipAt`) dokłada te same opisy pod wartościami A/B, gdy najechany/tapnięty miesiąc
+  leży w promieniu ±2 mies. od znacznika (`markerTooltipLines`, na bazie `markerFacts`
+  policzonych raz w `renderChart()`). Treść (etykiety + not) mieszka wyłącznie w jednej mapie
+  `MARKER_INFO` (klucze `window`/`guarantee`/`fullChild`), żeby legenda, notka i dymek nie
+  mogły się rozjechać ze sobą — `computeMarkerFacts()` powtarza dokładnie te same warunki
+  rysowania, na jakich `rkmWindowLine()`/`rkmMarkers()` w `buildChart()` decydują, czy dany
+  znacznik w ogóle istnieje.
 - Scenariusz nie ma już pól `rkmThreshold`/`rkmMonths` w stanie — próg to gwarancja
   (dynamiczna, patrz wyżej), a okno to stała silnika `RKM_WINDOW_MONTHS` (36 mies.).
 - **Gwarancja BGK jest WYLICZANA i tylko do czytania** — nie ma jej ani w stanie
@@ -135,6 +148,9 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   wyłącznie w postaci działki — bez limitu procentowego, wkład + kredyt ≤ 1 000 000 zł),
   art. 9f (Rada Ministrów może podnieść limity rozporządzeniem — na 09.2026 nie podniosła:
   strona produktowa BGK podaje te same 200 tys. / 20–30 % / 100 tys.).
+  Także art. 7 ust. 2: gdy warunek braku innego mieszkania spełniono w trybie art. 5 ust. 2,
+  spłata rodzinna przysługuje dopiero po wygaśnięciu gwarancji — niemodelowane, opisane
+  w /pytania.html przy pytaniu o „termin na dziecko”.
 - Stan w `localStorage` (klucz `abkredyt-state-v6`), w try/catch, z kontrolą kształtu
   (`looksLikeState`) — przy zmianie schematu stanu podbij sufiks klucza **i** stałą
   `RKM.STATE_VERSION` (= 6; siedzi w silniku, stan nosi ją jako pole `v`). Dekoder linku
@@ -219,6 +235,24 @@ dosłownym tekstem ustawy (brak trafień dla „refinans”). Luka rezydualna: n
 **Dz.U. 2026 poz. 635** (w mocy od 27.05.2026) nie została przeczytana (tylko PDF) — tytuł
 sugeruje finansowanie Rządowego Funduszu Mieszkaniowego, nie zmiany w art. 7/4a, ale to
 niepotwierdzone.
+
+## Gotowe porównania (`public/scenariusze.html`)
+Podstrona z 5 kartami „pytanie → dwa scenariusze → link `#s=`”, pod
+https://abkredyt.kondratek.pl/scenariusze.html. **Plik jest generowany — nie edytuj go
+ręcznie.** Źródło prawdy to `tools/scenarios.json` (pytanie, „dlaczego to ważne”,
+lista ustawień, „na co patrzeć”, wybrane metryki i PEŁNY stan v6 dla każdej karty);
+`tools/build-scenarios.mjs` wczytuje silnik z `<script id="engine">` tak samo jak
+`tools/test-engine.mjs`, waliduje kształt stanu (ostrzejszy odpowiednik `looksLikeState`
+plus zakresy okresu/opłaty i typy zdarzeń), liczy 2–3 liczby nagłówkowe przez
+`simulateScenario` i koduje link dokładnie jak przycisk „Kopiuj link…”:
+`shortenState` → JSON → `deflateRawSync` (zlib zamiast `CompressionStream`) → base64url.
+Regeneracja: `node tools/build-scenarios.mjs`. `tools/test-scenarios.mjs` (w CI po teście
+silnika) sprawdza świeżość pliku bajt w bajt, rozpakowuje każdy link i weryfikuje tezę
+każdej karty (naruszenie reguły w m. 6, gwarancja 0 przy wkładzie 20 %, rosnąca rata po
+zmianie wskaźnika itd.). Liczby w kartach nie są przepisane — biorą się z silnika przy
+każdym buildzie, więc zmiana silnika albo `STATE_VERSION` wymaga podbicia pól `v`
+w `tools/scenarios.json` i ponownego wygenerowania strony. Data w stopce jest stałą
+(`GENERATED_LABEL`), nie zegarem — inaczej test świeżości padałby co dobę.
 
 ## Konwencje
 - Jeden plik, bez bundlera, bez bibliotek; wykres w inline SVG. Fonty wyłącznie systemowe
