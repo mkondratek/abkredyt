@@ -33,6 +33,17 @@
 - Po wdrożeniu: wkleić token analityki, sprawdzić kartę OG (og.png) w podglądzie linku.
 - Audyt logiki (Opus) i audyt UI (Sonnet) — po zamknięciu powyższych.
 
+## Do zrobienia (zgłoszone 03.09.2026)
+8. „Kopiuj z A” / „Kopiuj z B” — przycisk w nagłówku panelu, który nadpisuje ten scenariusz
+   kopią drugiego (parametry kredytu, oprocentowanie, wydarzenia z nowymi `id`), żeby łatwo
+   zrobić wariant „to samo, tylko jedna rzecz inaczej”. Nadpisanie bez potwierdzenia, ale
+   z możliwością cofnięcia (jednorazowe „Cofnij” przez kilka sekund), bo kasuje pracę.
+9. Tryb RKM per scenariusz zamiast globalnego — porównanie „kredyt w RKM” vs „zwykły kredyt”
+   (np. wkład ≥ 20 %: spłata rodzinna kontra swoboda nadpłat od 1. miesiąca). Wymaga: opłaty
+   za gwarancję 1 % (art. 4a ust. 5) w łącznym koszcie i podpowiedzi o wkładzie 10–20 %
+   w zwykłym kredycie. Najlepiej razem z punktem 5, bo dopiero z kosztem alternatywnym
+   gotówki porównanie jest uczciwe.
+
 ## Pomysły dalsze
 - Trzeci scenariusz; eksport CSV harmonogramu; rata malejąca; transze (kredyt na budowę/remont).
 - Zaciąganie aktualnych limitów cen mieszkań w RKM (limit ceny za m² zależny od lokalizacji,
