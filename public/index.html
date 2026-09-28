@@ -466,7 +466,7 @@ footer.foot p{ margin:6px auto; max-width:88ch; }
     <div class="eyebrow" id="eyebrow">Rodzinny Kredyt Mieszkaniowy · porównanie scenariuszy A/B</div>
     <h1>Harmonogram spłaty i porównanie scenariuszy</h1>
     <p id="lede">Kalkulator do porównania dwóch wariantów kredytu RKM na zakup mieszkania — z nadpłatami, spłatą rodzinną przy narodzinach dziecka i zmianami oprocentowania w czasie.</p>
-    <p class="start-note">Nie wiesz, od czego zacząć? Zobacz <a href="/scenariusze">gotowe porównania</a> — pięć typowych pytań z ustawionym kalkulatorem — albo <a href="/pytania">pytania i odpowiedzi</a> o zasadach RKM.</p>
+    <p class="start-note">Nie wiesz, od czego zacząć? Zobacz <a href="/scenariusze">gotowe porównania</a> — sześć typowych pytań z ustawionym kalkulatorem — albo <a href="/pytania">pytania i odpowiedzi</a> o zasadach RKM.</p>
   </header>
 
   <div class="mode-row">
@@ -592,6 +592,87 @@ function solveMonths(balance,r,payment){
    żeby silnik był bezpieczny także wywołany bezpośrednio (testy, link, konsola). */
 function nonNeg(v){ const x = Number(v); return isFinite(x) && x>0 ? x : 0; }
 function atLeastMonth1(v){ const x = Math.round(Number(v)); return isFinite(x) && x>1 ? x : 1; }
+function round2(v){ return Math.round(v*100)/100; }
+function fmtPct(v){ return Number(v).toFixed(2).replace(".",",") + " %"; }
+
+/* ============================================================================
+   OPŁATA ZA WCZEŚNIEJSZĄ SPŁATĘ — art. 40 ustawy z 23.03.2017 o kredycie
+   hipotecznym (t.j. Dz.U. 2025 poz. 720):
+     • ust. 2 — przy stopie ZMIENNEJ rekompensata „wyłącznie, gdy spłata … nastąpiła
+       w okresie 36 miesięcy od dnia zawarcia umowy",
+     • ust. 3 — ta rekompensata (z ust. 2) nie większa niż odsetki od spłacanej kwoty
+       za rok od dnia spłaty „ani większa niż 3 % spłacanej kwoty",
+     • ust. 4 — gdy do końca umowy (stopa zmienna) zostało mniej niż rok: nie więcej
+       niż odsetki za pozostały okres,
+     • ust. 5 — odsetki z ust. 3–4 liczone stopą z dnia faktycznej spłaty,
+     • ust. 6 — gdy stała stopa „obowiązuje w danym okresie, kredytodawca może
+       pobierać rekompensatę w tym okresie" — bez limitu 36 mies. i bez pułapów
+       z ust. 3–4 (te dotyczą wyłącznie rekompensaty „o której mowa w ust. 2"),
+     • ust. 7 — nigdy więcej niż koszty banku bezpośrednio związane ze spłatą
+       (nie da się tego policzyć — obowiązuje stawka z umowy).
+   Po zakończeniu okresu stałej stopy kredyt jest oprocentowany zmiennie, więc
+   w miesiącach do 36. od zawarcia umowy działa ust. 2–3 (odczytanie ostrożne:
+   opłata dozwolona), a później opłaty już nie ma.
+   ========================================================================== */
+const FEE_WINDOW_ZMIENNA_MONTHS = 36; // art. 40 ust. 2
+const FEE_MAX_PCT_ZMIENNA = 3;        // art. 40 ust. 3
+/* Maksymalne ustawowe okno opłaty dla scenariusza: 36 mies. przy stopie zmiennej,
+   a przy okresowo stałej — dłuższe z dwóch: cały okres stałej stopy (ust. 6) albo
+   36 mies. (ust. 2, po przejściu na stopę zmienną). */
+function feeMonthsMax(o){
+  const F = fixedRateMonthsOf(o);
+  return Math.max(FEE_WINDOW_ZMIENNA_MONTHS, F);
+}
+
+/* ============================================================================
+   OKRESOWO STAŁA STOPA — plan oprocentowania dla silnika. Silnik zna tylko stopę
+   początkową i zdarzenia „zmiana_oprocentowania"; tu powstają z parametrów
+   scenariusza (marża, wskaźnik, rodzaj stopy) i zdarzeń „zmiana wskaźnika":
+     • zmienna — stopa = marża + wskaźnik, każda zmiana wskaźnika to zmiana stopy,
+     • stała przez L lat — stopa = stopa stała do m. 12·L; w m. 12·L + 1 zmiana na
+       marża + wskaźnik obowiązujący w tym momencie (ostatnia zmiana wskaźnika
+       z miesiącem ≤ 12·L + 1, a bez niej wskaźnik wyjściowy); zmiany wskaźnika
+       wewnątrz okresu stałej stopy nie zmieniają raty (`ignoredMonths`), zmiany
+       późniejsze działają normalnie.
+   ========================================================================== */
+const STALA_LATA_MIN = 1, STALA_LATA_MAX = 10;
+const DEFAULT_STALA_PCT = 5.8, DEFAULT_STALA_LATA = 5;
+function stalaLataOf(o){
+  const x = Math.round(Number(o && o.stalaLata));
+  if(!isFinite(x)) return DEFAULT_STALA_LATA;
+  return Math.max(STALA_LATA_MIN, Math.min(STALA_LATA_MAX, x));
+}
+function fixedRateMonthsOf(o){ return o && o.stopa==="stala" ? 12*stalaLataOf(o) : 0; }
+function planOprocentowania(o){
+  const marza = nonNeg(o && o.marza);
+  const wsk0 = nonNeg(o && o.wskaznik);
+  const changes = (Array.isArray(o && o.zmianyWskaznika) ? o.zmianyWskaznika : []).map(e=>({
+    month: atLeastMonth1(e && e.month), wsk: nonNeg(e && e.newWskaznik)
+  }));
+  function rateEvent(month, wsk, prefix){
+    return { type:"zmiana_oprocentowania", month:month, newRatePct: round2(marza + wsk),
+      note: (prefix||"") + "wskaźnik "+fmtPct(wsk)+" + marża "+fmtPct(marza) };
+  }
+  const F = fixedRateMonthsOf(o);
+  if(!F){
+    return { stala:false, fixedMonths:0, ratePct: round2(marza + wsk0),
+      events: changes.map(c=>rateEvent(c.month, c.wsk)), ignoredMonths: [] };
+  }
+  const switchMonth = F + 1;
+  /* Wskaźnik w chwili przejścia: ostatnia zmiana do m. F+1 włącznie. Przy kilku
+     zmianach w tym samym miesiącu wygrywa późniejsza na liście — tak samo jak
+     w silniku, który stosuje zdarzenia stopy w kolejności. */
+  let wskAtSwitch = wsk0, bestMonth = 0;
+  changes.forEach(c=>{ if(c.month<=switchMonth && c.month>=bestMonth){ bestMonth = c.month; wskAtSwitch = c.wsk; } });
+  const events = [rateEvent(switchMonth, wskAtSwitch, "koniec okresu stałej stopy: ")]
+    .concat(changes.filter(c=>c.month>switchMonth).map(c=>rateEvent(c.month, c.wsk)));
+  return {
+    stala:true, fixedMonths:F, lata:F/12, switchMonth,
+    ratePct: round2(nonNeg(o && o.stalaPct)),
+    rateAfterPct: round2(marza + wskAtSwitch),
+    events, ignoredMonths: changes.filter(c=>c.month<=F).map(c=>c.month)
+  };
+}
 
 /* ============================================================================
    LIMITY WKŁADU WŁASNEGO I GWARANCJI BGK — czyste funkcje, wyliczane z ceny,
@@ -602,8 +683,10 @@ function atLeastMonth1(v){ const x = Math.round(Number(v)); return isFinite(x) &
        jest CZĘŚĆ KREDYTU stanowiąca różnicę między 20 % wydatków a wkładem,
      • art. 4a ust. 3 — sama gwarancja maks. 100 000 zł,
      • art. 4a ust. 2 — gwarancja + wkład łącznie maks. 200 000 zł i maks. 20 % wydatków,
-     • art. 5 ust. 1 pkt 5 — wkład własny nie przekracza 20 % wydatków (stopa zmienna)
-       albo 30 % (stopa stała na co najmniej 5 lat).
+     • art. 5 ust. 1 pkt 5 — wkład własny nie przekracza 20 % wydatków (lit. a, stopa
+       zmienna) albo 30 % (lit. b, „kredyt o stałej stopie procentowej, a okres, dla
+       którego stopa ta jest stała, wynosi co najmniej 5 lat"). Stała stopa na krócej
+       niż 5 lat limitu nie podnosi (ostrożnie: 20 %).
    „Całkowita kwota wydatków" w kalkulatorze = cena + dodatkowa kwota kredytu
    (wykończenie/remont finansowane tym samym kredytem).
    Świadomie NIE modelowane (opisane w dokumentacji): art. 5 ust. 2 (rodzina z dwojgiem
@@ -613,6 +696,8 @@ function atLeastMonth1(v){ const x = Math.round(Number(v)); return isFinite(x) &
    na 09.2026 nie podniosła — strona produktowa BGK podaje te same kwoty).
    ========================================================================== */
 const RKM_WKLAD_MAX_PCT = 0.2;     // art. 5 ust. 1 pkt 5 lit. a / art. 4a ust. 2 pkt 2
+const RKM_WKLAD_MAX_PCT_STALA = 0.3; // art. 5 ust. 1 pkt 5 lit. b
+const RKM_STALA_MIN_LATA = 5;        // art. 5 ust. 1 pkt 5 lit. b
 const RKM_WKLAD_MAX_KWOTA = 200000; // art. 3 ust. 3 pkt 1
 const RKM_GWARANCJA_MAX = 100000;   // art. 4a ust. 3
 const RKM_SUMA_MAX = 200000;        // art. 4a ust. 2 pkt 1 (gwarancja + wkład)
@@ -641,12 +726,19 @@ function gwarancjaBGK(o){
 /* Naruszone limity RKM — kody + liczby pomocnicze do komunikatu w UI.
    `suma_200k` raportujemy tylko wtedy, gdy nie wynika już z innego naruszenia
    (inaczej banner powtarzałby tę samą przyczynę dwa razy). */
+/* `o.stala` + `o.stalaLata` (opcjonalne) — rodzaj oprocentowania: przy stopie stałej
+   na co najmniej 5 lat górna granica wkładu to 30 % wydatków (art. 5 ust. 1 pkt 5
+   lit. b). Wzór gwarancji się nie zmienia — gwarancja zawsze domyka do 20 % wydatków
+   (art. 3 ust. 3b), więc przy wkładzie 20–30 % wynosi zero. */
 function rkmLimitIssues(o){
   const wklad = nonNeg(o && o.wklad);
   const wydatki = rkmWydatki(o);
-  const maxWklad = RKM_WKLAD_MAX_PCT*wydatki;
-  const minWklad = Math.max(0, maxWklad - RKM_GWARANCJA_MAX);
-  const brakDo20 = Math.max(0, maxWklad - wklad);
+  const prog20 = RKM_WKLAD_MAX_PCT*wydatki;
+  const stala30 = !!(o && o.stala) && stalaLataOf(o) >= RKM_STALA_MIN_LATA;
+  const maxWkladPct = stala30 ? 100*RKM_WKLAD_MAX_PCT_STALA : 100*RKM_WKLAD_MAX_PCT;
+  const maxWklad = (maxWkladPct/100)*wydatki;
+  const minWklad = Math.max(0, prog20 - RKM_GWARANCJA_MAX);
+  const brakDo20 = Math.max(0, prog20 - wklad);
   const potrzebna = rkmGwarancjaPotrzebna(o);
   const issues = [];
   if(wklad - maxWklad > 0.005) issues.push("wklad_pct");
@@ -654,7 +746,8 @@ function rkmLimitIssues(o){
   if(brakDo20 - RKM_GWARANCJA_MAX > 0.005) issues.push("gwarancja_niedobor");
   if(issues.length===0 && wklad + potrzebna - RKM_SUMA_MAX > 0.005) issues.push("suma_200k");
   return {
-    issues, wydatki, minWklad, maxWklad, brakDo20,
+    issues, wydatki, minWklad, maxWklad, maxWkladPct, prog20, brakDo20,
+    stala: !!(o && o.stala), stala30,
     gwarancjaPotrzebna: potrzebna, gwarancja: gwarancjaBGK(o),
     pctWkladu: wydatki>0 ? 100*wklad/wydatki : 0
   };
@@ -666,8 +759,29 @@ function simulateScenario(cfg){
   const ratePct = nonNeg(cfg.ratePct);
   const feePct = nonNeg(cfg.feePct);
   const feeMonths = Math.round(nonNeg(cfg.feeMonths));
+  /* Liczba pierwszych miesięcy ze stałą stopą (0 = stopa zmienna od początku) —
+     decyduje o reżimie opłaty za wcześniejszą spłatę (art. 40 ust. 6 vs ust. 2–4).
+     Samą stopę w tym okresie podaje `ratePct` + zdarzenia (patrz planOprocentowania). */
+  const fixedRateMonths = Math.round(nonNeg(cfg.fixedRateMonths));
+  /* Wkład własny — nie wpływa na kapitał (ten przychodzi w `principal`), ale jest
+     wypływem kredytobiorcy w dniu startu: wchodzi do sumy wpłat i do kosztu
+     z lokatą, żeby dało się porównać większy wkład z mniejszym wkładem i nadpłatą. */
+  const wklad = nonNeg(cfg.wklad);
   let r = ratePct/100/12;
   let n = Math.max(1, Math.round(nonNeg(cfg.years)*12));
+  const nContract = n;
+  /* Rekompensata za nadpłatę `amt` w miesiącu `m` przy stopie miesięcznej `rm`
+     obowiązującej w tym miesiącu — art. 40 (opis przy FEE_WINDOW_ZMIENNA_MONTHS). */
+  function earlyRepaymentFee(amt, m, rm){
+    if(m > feeMonths) return 0;                       // poza oknem z umowy
+    const umowna = amt*(feePct/100);
+    if(m <= fixedRateMonths) return umowna;           // ust. 6 (ust. 3–4 nie dotyczą)
+    if(m > FEE_WINDOW_ZMIENNA_MONTHS) return 0;       // ust. 2
+    let cap = Math.min(amt*FEE_MAX_PCT_ZMIENNA/100, amt*rm*12); // ust. 3 + ust. 5
+    const left = nContract - m;
+    if(left < 12) cap = Math.min(cap, amt*rm*Math.max(0,left)); // ust. 4
+    return Math.min(umowna, cap);
+  }
   let balance = principal;
   let currentRata = annuity(balance,r,n);
   let remainingMonths = n;
@@ -762,11 +876,10 @@ function simulateScenario(cfg){
         }
       }
       guaranteeLeft = Math.min(Math.max(0, guaranteeLeft - amt), balance - amt);
-      /* Art. 40 ust. 4 ustawy z 23.03.2017 o kredycie hipotecznym: rekompensata nie
-         może przekroczyć odsetek, które kredytobiorca zapłaciłby od spłacanej kwoty
-         w okresie roku od dnia spłaty. Przy niskiej stopie to ten limit, a nie procent
-         z umowy, wyznacza opłatę (amt·r·12 = amt·ratePct/100). */
-      const fee = m<=feeMonths ? Math.min(amt*(feePct/100), amt*r*12) : 0;
+      /* Art. 40 ustawy o kredycie hipotecznym — przy stopie zmiennej pułap 3 % i odsetek
+         od spłacanej kwoty za rok (ust. 3, stopą z miesiąca spłaty — ust. 5); w okresie
+         stałej stopy stawka z umowy bez tych pułapów (ust. 6). */
+      const fee = earlyRepaymentFee(amt, m, r);
       feeThisMonth += fee; totalFees += fee;
       balance -= amt; nadplataThisMonth += amt; totalNadplaty += amt;
       const useTryb = (e.trybOverride && e.trybOverride!=="auto") ? e.trybOverride : tryb;
@@ -828,10 +941,11 @@ function simulateScenario(cfg){
   const last = monthsOut[monthsOut.length-1];
   const payoffMonths = monthsOut.length;
   const paidOff = balance<=0.5;
-  /* Wpłaty kredytobiorcy = raty + nadpłaty dobrowolne + opłaty za wcześniejszą spłatę
-     + jednorazowa opłata za gwarancję. Spłata rodzinna NIE jest jego pieniądzem, więc
-     do wpłat nie wchodzi — to samo rozgraniczenie robi kosztZLokata(). */
-  let totalWplaty = gwarancjaFee;
+  /* Wpłaty kredytobiorcy = wkład własny + raty + nadpłaty dobrowolne + opłaty za
+     wcześniejszą spłatę + jednorazowa opłata za gwarancję. Spłata rodzinna NIE jest
+     jego pieniądzem, więc do wpłat nie wchodzi — to samo rozgraniczenie robi
+     kosztZLokata(). Dodatkowa kwota kredytu to pieniądz pożyczony, nie wpłata. */
+  let totalWplaty = wklad + gwarancjaFee;
   monthsOut.forEach(mo=>{ totalWplaty += mo.rata + mo.nadplata + mo.oplata; });
   /* Ostatni miesiąc, w którym saldo jeszcze pozwala przyjąć PEŁNĄ spłatę rodzinną za
      trzecie dziecko (60 000 zł). Gdy saldo nigdy nie schodzi poniżej tego progu przed
@@ -853,7 +967,7 @@ function simulateScenario(cfg){
   return {
     months:monthsOut, rataHistory,
     totalInterest, totalFees, totalNadplaty, totalSplataRodzinna,
-    gwarancjaFee, gwarancjaFeePct, totalWplaty,
+    gwarancjaFee, gwarancjaFeePct, totalWplaty, wklad, fixedRateMonths,
     totalCost: totalInterest+totalFees+gwarancjaFee,
     payoffDate: last? last.date : null,
     payoffMonths,
@@ -879,16 +993,19 @@ function simulateScenario(cfg){
    kredytobiorcy na miesiąc `horizonMonths`, przy kapitalizacji miesięcznej
    r = lokataPct/100/12.
    Do wypływów wchodzą: rata, nadpłata dobrowolna i opłata za wcześniejszą spłatę
-   (per miesiąc) oraz jednorazowa opłata za gwarancję w miesiącu 0. NIE wchodzi
-   spłata rodzinna — to pieniądz BGK, nie kredytobiorcy, więc nie mógłby pracować
-   na jego lokacie.
+   (per miesiąc) oraz w miesiącu 0 wkład własny i jednorazowa opłata za gwarancję.
+   Wkład jest tu celowo: bez niego większy wkład wyglądałby na darmowy, a scenariusz
+   „mniejszy wkład + nadpłata później" byłby karany za gotówkę, która w obu
+   przypadkach i tak idzie do banku — tylko w innym czasie.
+   NIE wchodzi spłata rodzinna — to pieniądz BGK, nie kredytobiorcy, więc nie mógłby
+   pracować na jego lokacie. Ani dodatkowa kwota kredytu — to pieniądz pożyczony.
    Przy lokacie 0 % wynik jest po prostu sumą wpłat (= result.totalWplaty).
    ========================================================================== */
 function kosztZLokata(result, lokataPct, horizonMonths){
   if(!result || !Array.isArray(result.months)) return 0;
   const rl = nonNeg(lokataPct)/100/12;
   const H = Math.max(0, Math.round(nonNeg(horizonMonths)));
-  let fv = nonNeg(result.gwarancjaFee) * Math.pow(1+rl, H);
+  let fv = (nonNeg(result.wklad) + nonNeg(result.gwarancjaFee)) * Math.pow(1+rl, H);
   for(let i=0;i<result.months.length;i++){
     const mo = result.months[i];
     const out = nonNeg(mo.rata) + nonNeg(mo.nadplata) + nonNeg(mo.oplata);
@@ -904,24 +1021,29 @@ function kosztZLokata(result, lokataPct, horizonMonths){
    przez CompressionStream) robi warstwa UI; tutaj tylko część przenośna,
    testowana w tools/test-engine.mjs.
    ========================================================================== */
-const STATE_VERSION = 6;
+const STATE_VERSION = 7;
 /* Starsze ładunki są przyjmowane i podnoszone do bieżącej wersji:
      • v4 niósł jeszcze pole `gwarancja` (skrócony klucz „g”), dziś wyliczane
        z ceny, wkładu i dodatkowej kwoty — jest po prostu pomijane;
      • v4 i v5 miały GLOBALNY przełącznik RKM (`rkmOn`, klucz „k”); od v6 tryb RKM
        jest cechą scenariusza, więc wartość globalna trafia do obu (A.rkm = B.rkm);
      • lokata (koszt alternatywny gotówki) pojawia się dopiero w v6 — starsze ładunki
-       dostają DEFAULT_LOKATA_PCT.
+       dostają DEFAULT_LOKATA_PCT;
+     • rodzaj oprocentowania (`stopa`, `stalaPct`, `stalaLata`) pojawia się w v7 —
+       starsze ładunki dostają stopę zmienną (i domyślne parametry stopy stałej,
+       żeby przełączenie w UI miało od czego zacząć).
    Każda inna wersja przechodzi dalej nietknięta i UI ją odrzuca. */
-const ACCEPTED_STATE_VERSIONS = [4, 5, 6];
+const ACCEPTED_STATE_VERSIONS = [4, 5, 6, 7];
 const LEGACY_GLOBAL_RKM_VERSIONS = [4, 5];
 const DEFAULT_LOKATA_PCT = 3;
 
 const STATE_KEYS = { v:"v", chartMode:"c", tableScn:"t", lokata:"o", A:"a", B:"b" };
 const SCN_KEYS = {
   rkm:"r", cena:"p", wklad:"w", remont:"d", marza:"m", wskaznik:"x",
-  start:"s", tryb:"y", feePct:"f", feeMonths:"n", years:"l", events:"e"
+  start:"s", tryb:"y", feePct:"f", feeMonths:"n", years:"l",
+  stopa:"z", stalaPct:"q", stalaLata:"j", events:"e"
 };
+const STOPA_VALS = { zmienna:"z", stala:"s" };
 /* `id` zdarzenia świadomie NIE trafia do linku — jest lokalnym uchwytem UI
    i po odczytaniu linku nadawany jest od nowa. */
 const EVT_KEYS = {
@@ -932,7 +1054,7 @@ const EVT_TYPES = { jednorazowa:"1", cykliczna:"2", dziecko:"3", zmiana_wskaznik
 const TRYB_VALS = { skroc:"s", obniz:"o", auto:"a" };
 const CHART_VALS = { saldo:"s", rata:"r" };
 function invert(m){ const o={}; Object.keys(m).forEach(k=>{ o[m[k]]=k; }); return o; }
-const EVT_TYPES_R = invert(EVT_TYPES), TRYB_R = invert(TRYB_VALS), CHART_R = invert(CHART_VALS);
+const EVT_TYPES_R = invert(EVT_TYPES), TRYB_R = invert(TRYB_VALS), CHART_R = invert(CHART_VALS), STOPA_R = invert(STOPA_VALS);
 
 let idSeq = 0;
 function linkEventId(){ idSeq++; return "l" + idSeq.toString(36); }
@@ -941,6 +1063,7 @@ function shortenScenario(s){
   const o = {};
   Object.keys(SCN_KEYS).forEach(k=>{ if(k!=="events" && s[k]!==undefined) o[SCN_KEYS[k]] = s[k]; });
   if(s.tryb!==undefined) o[SCN_KEYS.tryb] = TRYB_VALS[s.tryb] || s.tryb;
+  if(s.stopa!==undefined) o[SCN_KEYS.stopa] = STOPA_VALS[s.stopa] || s.stopa;
   o[SCN_KEYS.events] = (Array.isArray(s.events)?s.events:[]).map(e=>{
     const x = {};
     Object.keys(EVT_KEYS).forEach(k=>{ if(e[k]!==undefined) x[EVT_KEYS[k]] = e[k]; });
@@ -955,6 +1078,7 @@ function expandScenario(o){
   if(!o || typeof o!=="object") return s;
   Object.keys(SCN_KEYS).forEach(k=>{ if(k!=="events" && o[SCN_KEYS[k]]!==undefined) s[k] = o[SCN_KEYS[k]]; });
   if(s.tryb!==undefined) s.tryb = TRYB_R[s.tryb] || s.tryb;
+  if(s.stopa!==undefined) s.stopa = STOPA_R[s.stopa] || s.stopa;
   const evts = Array.isArray(o[SCN_KEYS.events]) ? o[SCN_KEYS.events] : [];
   s.events = evts.map(x=>{
     const e = { id: linkEventId() };
@@ -983,6 +1107,14 @@ function expandState(o){
   if(LEGACY_GLOBAL_RKM_VERSIONS.indexOf(o.v)>=0){
     const on = !!o.k;
     A.rkm = on; B.rkm = on;
+  }
+  /* Ładunki sprzed v7 nie znały stopy stałej — były zawsze na stopie zmiennej. */
+  if(ACCEPTED_STATE_VERSIONS.indexOf(o.v)>=0 && o.v<7){
+    [A, B].forEach(s=>{
+      if(s.stopa===undefined) s.stopa = "zmienna";
+      if(s.stalaPct===undefined) s.stalaPct = DEFAULT_STALA_PCT;
+      if(s.stalaLata===undefined) s.stalaLata = DEFAULT_STALA_LATA;
+    });
   }
   return {
     // Wersja z akceptowanego zakresu jest podnoszona do bieżącej — patrz
@@ -1039,7 +1171,11 @@ const api = {
   simulateScenario, annuity, solveMonths, addMonthsUTC, kosztZLokata,
   RKM_WINDOW_MONTHS, RKM_PELNA_SPLATA_RODZINNA, DEFAULT_LOKATA_PCT,
   gwarancjaBGK, rkmLimitIssues,
-  RKM_WKLAD_MAX_PCT, RKM_WKLAD_MAX_KWOTA, RKM_GWARANCJA_MAX, RKM_SUMA_MAX,
+  RKM_WKLAD_MAX_PCT, RKM_WKLAD_MAX_PCT_STALA, RKM_STALA_MIN_LATA,
+  RKM_WKLAD_MAX_KWOTA, RKM_GWARANCJA_MAX, RKM_SUMA_MAX,
+  planOprocentowania, feeMonthsMax, fixedRateMonthsOf, stalaLataOf,
+  FEE_WINDOW_ZMIENNA_MONTHS, FEE_MAX_PCT_ZMIENNA,
+  STALA_LATA_MIN, STALA_LATA_MAX, DEFAULT_STALA_PCT, DEFAULT_STALA_LATA,
   STATE_VERSION, ACCEPTED_STATE_VERSIONS,
   shortenState, expandState, encodeStateJson, decodeStateJson,
   bytesToB64url, b64urlToBytes
@@ -1059,10 +1195,10 @@ if (typeof globalThis !== "undefined") globalThis.RKM = api;
 const simulateScenario = RKM.simulateScenario;
 const STATE_VERSION = RKM.STATE_VERSION;
 const DEFAULT_LOKATA_PCT = RKM.DEFAULT_LOKATA_PCT;
-/* Art. 40 ust. 1 ustawy z 23.03.2017 o kredycie hipotecznym: przy oprocentowaniu
-   zmiennym (jedyne, jakie kalkulator modeluje) rekompensata za wcześniejszą spłatę
-   przysługuje bankowi najwyżej przez 36 miesięcy od udzielenia kredytu. */
-const FEE_MONTHS_MAX = 36;
+/* Ustawowe maksimum okna opłaty za wcześniejszą spłatę (art. 40 ustawy o kredycie
+   hipotecznym): 36 mies. przy stopie zmiennej (ust. 2), a przy okresowo stałej —
+   cały okres stałej stopy (ust. 6), jeśli jest dłuższy. Arytmetyka w silniku. */
+function feeMonthsMaxOf(s){ return RKM.feeMonthsMax(s); }
 
 const MONTHS_PL = ["sty","lut","mar","kwi","maj","cze","lip","sie","wrz","paź","lis","gru"];
 function fmtDate(d){ return MONTHS_PL[d.getUTCMonth()] + " " + d.getUTCFullYear(); }
@@ -1113,11 +1249,24 @@ function mon(v){ const x = Math.round(Number(v)); return isFinite(x) && x>1 ? x 
 
 /* Stopa nominalna = marża banku + wskaźnik referencyjny (WIBOR/WIRON). */
 function nominalRate(s){ return round2(nn(s.marza) + nn(s.wskaznik)); }
+/* Rodzaj oprocentowania scenariusza: „zmienna” (marża + wskaźnik) albo „stala” —
+   okresowo stała stopa `stalaPct` przez `stalaLata` lat, potem marża + wskaźnik.
+   Plan (stopa początkowa + zdarzenia zmiany stopy dla silnika) liczy silnik
+   w RKM.planOprocentowania — UI i generator gotowych porównań biorą go stamtąd. */
+function isStala(s){ return !!s && s.stopa==="stala"; }
+function ratePlanOf(s){
+  return RKM.planOprocentowania({
+    marza:s.marza, wskaznik:s.wskaznik, stopa:s.stopa, stalaPct:s.stalaPct, stalaLata:s.stalaLata,
+    zmianyWskaznika: activeEvents(s).filter(e=>e.type==="zmiana_wskaznika")
+  });
+}
+/* Stopa obowiązująca w 1. miesiącu — stała albo marża + wskaźnik. */
+function initialRatePct(s){ return ratePlanOf(s).ratePct; }
 function principalOf(s){ return Math.max(0, nn(s.cena) - nn(s.wklad)) + nn(s.remont); }
 /* Gwarancja BGK jest WYLICZANA, nie wpisywana (art. 3 ust. 3b + art. 4a ust. 2–3) —
    stan scenariusza nie ma już pola `gwarancja`. Cała arytmetyka siedzi w silniku
    (RKM.gwarancjaBGK / RKM.rkmLimitIssues) i jest tam pokryta testami. */
-function limitsArgs(s){ return {cena:nn(s.cena), wklad:nn(s.wklad), remont:nn(s.remont)}; }
+function limitsArgs(s){ return {cena:nn(s.cena), wklad:nn(s.wklad), remont:nn(s.remont), stala:isStala(s), stalaLata:s.stalaLata}; }
 function gwarancjaOf(s){ return RKM.gwarancjaBGK(limitsArgs(s)); }
 function rkmLimitsOf(s){ return RKM.rkmLimitIssues(limitsArgs(s)); }
 
@@ -1132,6 +1281,7 @@ function defaultScenario(which){
     cena:500000, wklad:0, remont:0,
     marza:1.9, wskaznik:3.6,
     start:"2027-01", tryb:"skroc",
+    stopa:"zmienna", stalaPct:RKM.DEFAULT_STALA_PCT, stalaLata:RKM.DEFAULT_STALA_LATA,
     feePct:3, feeMonths:36
   };
   if(which==="A"){
@@ -1155,7 +1305,10 @@ function defaultState(){
 }
 
 /* ============ persistence ============ */
-const STORAGE_KEY = "abkredyt-state-v6";
+const STORAGE_KEY = "abkredyt-state-v7";
+/* Stan zapisany przez poprzednią wersję strony — czytany tylko wtedy, gdy pod
+   bieżącym kluczem nic nie ma, i od razu podnoszony przez normaliseState(). */
+const LEGACY_STORAGE_KEYS = ["abkredyt-state-v6"];
 
 /* Lekka kontrola kształtu — żeby stan z innej (starszej, spersonalizowanej)
    wersji nie odżył po zmianie schematu. */
@@ -1164,6 +1317,7 @@ function looksLikeScenario(s){
   const nums = ["cena","wklad","marza","wskaznik","years","feePct","feeMonths"];
   if(!nums.every(k=>typeof s[k]==="number" && isFinite(s[k]))) return false;
   if(typeof s.start!=="string" || !/^\d{4}-\d{2}$/.test(s.start)) return false;
+  if(s.stopa!==undefined && typeof s.stopa!=="string") return false;
   if(!Array.isArray(s.events)) return false;
   return s.events.every(e=>e && typeof e==="object" && typeof e.type==="string");
 }
@@ -1176,7 +1330,9 @@ function looksLikeState(st){
    traci pole `gwarancja` (dziś wyliczane z ceny, wkładu i dodatkowej kwoty),
    a stan sprzed wersji 6 — globalne `rkmOn`, które staje się flagą per scenariusz.
    Tu też domykamy limity, które od wersji 6 obowiązują na wejściu: opłata za
-   wcześniejszą spłatę maks. 36 mies. (art. 40 u.k.h.) i okres w granicach trybu. */
+   wcześniejszą spłatę w ustawowym oknie (art. 40 ust. 2 i 6 u.k.h. — 36 mies. albo
+   cały okres stałej stopy) i okres w granicach trybu. Stan sprzed wersji 7 nie zna
+   rodzaju oprocentowania — dostaje stopę zmienną. */
 function normaliseState(st){
   if(!st || typeof st!=="object") return st;
   if(typeof st.lokata!=="number" || !isFinite(st.lokata) || st.lokata<0) st.lokata = DEFAULT_LOKATA_PCT;
@@ -1189,7 +1345,10 @@ function normaliseState(st){
     if("gwarancja" in s) delete s.gwarancja;
     // Pozostałość po wersjach 4–5: tryb RKM był jeden dla całej strony.
     if(typeof s.rkm!=="boolean") s.rkm = globalRkm===null ? true : globalRkm;
-    if(typeof s.feeMonths==="number") s.feeMonths = clamp(Math.round(s.feeMonths), 0, FEE_MONTHS_MAX);
+    if(s.stopa!=="stala" && s.stopa!=="zmienna") s.stopa = "zmienna";
+    if(typeof s.stalaPct!=="number" || !isFinite(s.stalaPct) || s.stalaPct<0) s.stalaPct = RKM.DEFAULT_STALA_PCT;
+    s.stalaLata = RKM.stalaLataOf(s);
+    if(typeof s.feeMonths==="number") s.feeMonths = clamp(Math.round(s.feeMonths), 0, feeMonthsMaxOf(s));
     if(typeof s.years==="number") s.years = clamp(Math.round(s.years), yearsMin(s), 35);
     if(!Array.isArray(s.events)) return;
     s.events.forEach(e=>{ if(e && e.type==="dziecko") e.childNumber = childNo(e); });
@@ -1199,7 +1358,8 @@ function normaliseState(st){
 
 let state = defaultState();
 try{
-  const saved = localStorage.getItem(STORAGE_KEY);
+  let saved = localStorage.getItem(STORAGE_KEY);
+  for(let i=0; !saved && i<LEGACY_STORAGE_KEYS.length; i++) saved = localStorage.getItem(LEGACY_STORAGE_KEYS[i]);
   if(saved){
     const parsed = JSON.parse(saved);
     if(looksLikeState(parsed)) state = normaliseState(parsed);
@@ -1297,21 +1457,22 @@ function applyRkmMode(){
 function activeEvents(s){
   return s.rkm ? s.events : s.events.filter(e=>e.type!=="dziecko");
 }
+/* Zmiany wskaźnika nie idą do silnika wprost — przechodzą przez plan
+   oprocentowania (RKM.planOprocentowania): przy stopie zmiennej każda staje się
+   zmianą stopy (marża + nowy wskaźnik), przy okresowo stałej te z okresu stałej
+   stopy tylko ustalają wskaźnik na moment przejścia (m. 12·lata + 1), w którym
+   plan dokłada syntetyczną zmianę stopy na marża + wskaźnik. */
 function toEngineConfig(s){
-  const nominal = nominalRate(s);
-  const events = activeEvents(s).map(e=>{
+  const plan = ratePlanOf(s);
+  const events = activeEvents(s).filter(e=>e.type!=="zmiana_wskaznika").map(e=>{
     if(e.type==="dziecko") return {type:"dziecko", month:mon(e.month), amount:nn(e.amount), childNumber:e.childNumber, trybOverride:e.trybOverride};
     if(e.type==="cykliczna") return {type:"cykliczna", startMonth:mon(e.startMonth), endMonth:mon(e.endMonth), monthlyAmount:nn(e.monthlyAmount), trybOverride:e.trybOverride};
-    if(e.type==="zmiana_wskaznika") return {
-      type:"zmiana_oprocentowania", month:mon(e.month),
-      newRatePct: round2(nn(s.marza) + nn(e.newWskaznik)),
-      note: "wskaźnik "+pct(nn(e.newWskaznik))+" + marża "+pct(nn(s.marza))
-    };
     return {type:"jednorazowa", month:mon(e.month), amount:nn(e.amount), trybOverride:e.trybOverride};
-  });
+  }).concat(plan.events);
   return {
-    principal: principalOf(s), ratePct:nominal, years:s.years, startDate:s.start+"-01",
-    tryb:s.tryb, feePct:nn(s.feePct), feeMonths:clamp(Math.round(nn(s.feeMonths)), 0, FEE_MONTHS_MAX),
+    principal: principalOf(s), wklad: nn(s.wklad), ratePct:plan.ratePct, fixedRateMonths:plan.fixedMonths,
+    years:s.years, startDate:s.start+"-01",
+    tryb:s.tryb, feePct:nn(s.feePct), feeMonths:clamp(Math.round(nn(s.feeMonths)), 0, feeMonthsMaxOf(s)),
     gwarancja: s.rkm ? gwarancjaOf(s) : 0,
     /* Art. 4a ust. 5 — jednorazowa opłata prowizyjna 1,0 % objętej gwarancją części
        kredytu. Poza programem nie ma gwarancji, więc i opłaty. */
@@ -1350,8 +1511,11 @@ function strategySummary(s){
   if(items.length<=MAX) return items.join(" + ");
   return items.slice(0,MAX).join(" + ") + " + " + (items.length-MAX) + " więcej";
 }
+function rateSummary(s){
+  return isStala(s) ? "stała "+pct(nn(s.stalaPct))+" ("+plYears(RKM.stalaLataOf(s))+")" : pct(nominalRate(s));
+}
 function summaryLine(s){
-  const parts = [money(principalOf(s)), plYears(s.years), pct(nominalRate(s)), strategySummary(s)];
+  const parts = [money(principalOf(s)), plYears(s.years), rateSummary(s), strategySummary(s)];
   // Prefiks „RKM · ” niesie tryb scenariusza w streszczeniu — a więc i w legendzie wykresu.
   return (s.rkm ? "RKM · " : "") + parts.join(" · ");
 }
@@ -1393,7 +1557,7 @@ function sameEvent(a, b){
    większa od samej raty (wtedy preset nie ma sensu). */
 function initialRataOf(s){
   const n = Math.max(1, Math.round(s.years*12));
-  return RKM.annuity(principalOf(s), nominalRate(s)/100/12, n);
+  return RKM.annuity(principalOf(s), initialRatePct(s)/100/12, n);
 }
 /* Zwraca null (preset użyteczny) albo powód po polsku, dlaczego jest wyłączony. */
 function presetDisabledReason(s, e){
@@ -1622,7 +1786,9 @@ function fieldEventControls(s, e){
 /* Banner „kredyt nie spełnia warunków RKM" — jeden punkt na naruszony limit.
    Informacyjny: kalkulator dalej liczy, wkładu własnego nie przycinamy po cichu. */
 const RKM_ISSUE_TEXT = {
-  wklad_pct: (s,l)=> "wkład własny "+money(nn(s.wklad))+" to "+pct(l.pctWkladu)+" wydatków — RKM dopuszcza maks. 20 % (30 % przy stopie stałej na co najmniej 5 lat)",
+  wklad_pct: (s,l)=> "wkład własny "+money(nn(s.wklad))+" to "+pct(l.pctWkladu)+" wydatków — RKM dopuszcza maks. "+
+    (l.stala30 ? "30 % przy stopie stałej na co najmniej 5 lat"
+      : (l.stala ? "20 %: stopa stała na krócej niż 5 lat nie podnosi limitu do 30 %" : "20 % (30 % przy stopie stałej na co najmniej 5 lat)")),
   wklad_kwota: ()=> "wkład własny przekracza 200 000 zł",
   gwarancja_niedobor: (s,l)=> "gwarancja BGK pokrywa maks. 100 000 zł, a do 20 % wydatków brakuje "+money(l.brakDo20)+" — potrzebny wkład własny co najmniej "+money(Math.ceil(l.minWklad)),
   suma_200k: (s,l)=> "wkład własny "+money(nn(s.wklad))+" i część objęta gwarancją potrzebna do 20 % wydatków ("+money(l.gwarancjaPotrzebna)+") dają razem "+money(nn(s.wklad)+l.gwarancjaPotrzebna)+" — RKM dopuszcza maks. 200 000 zł"
@@ -1670,10 +1836,15 @@ function renderPanel(key, s, result, baseline){
   html += field(key,"Cena mieszkania","cena",s.cena,"number");
   /* W trybie RKM pod wkładem własnym pokazujemy dopuszczalny przedział dla obecnej
      ceny: dolna granica bierze się z pułapu gwarancji (art. 4a ust. 3), górna
-     z art. 5 ust. 1 pkt 5 lit. a. */
-  html += field(key,"Wkład własny","wklad",s.wklad,"number",null,
-    limits ? "W RKM: od "+money(Math.ceil(limits.minWklad))+" do 20 % wydatków ("+money(limits.maxWklad)+")"
-           : "Poza RKM banki wymagają zwykle 10–20 % wkładu własnego (rekomendacja S KNF)");
+     z art. 5 ust. 1 pkt 5 — lit. a (20 %, stopa zmienna) albo lit. b (30 %, stopa
+     stała na co najmniej 5 lat). */
+  let wkladHint = "Poza RKM banki wymagają zwykle 10–20 % wkładu własnego (rekomendacja S KNF)";
+  if(limits){
+    wkladHint = "W RKM: od "+money(Math.ceil(limits.minWklad))+" do "+num(limits.maxWkladPct)+" % wydatków ("+money(limits.maxWklad)+")";
+    if(limits.stala30) wkladHint += " — stopa stała na co najmniej 5 lat";
+    else if(limits.stala) wkladHint += " — 30 % tylko przy stopie stałej na co najmniej 5 lat";
+  }
+  html += field(key,"Wkład własny","wklad",s.wklad,"number",null,wkladHint);
   if(s.rkm){
     /* Gwarancja BGK jest wyliczana z ustawy, nie wpisywana (decyzja: nie pozwalać
        użytkownikowi na błąd) — pole tylko do czytania, jak „Kwota kredytu (razem)”.
@@ -1682,7 +1853,7 @@ function renderPanel(key, s, result, baseline){
     const gwId = fieldId(key,"gwarancja");
     const gw = limits.gwarancja;
     const bezGwarancjiHint = gw>0 ? '' : '<div class="field-hint">'+
-      (nn(s.wklad) >= limits.maxWklad
+      (nn(s.wklad) >= limits.prog20
         ? 'Bez gwarancji (wkład własny ≥ 20 %) każda nadpłata dobrowolna w pierwszych 3 latach odbiera przyszłe spłaty rodzinne.'
         : 'Bez gwarancji BGK każda nadpłata dobrowolna w pierwszych 3 latach odbiera przyszłe spłaty rodzinne.')+
       '</div>';
@@ -1698,12 +1869,27 @@ function renderPanel(key, s, result, baseline){
 
   if(limits && limits.issues.length) html += rkmLimitsBanner(s, limits);
 
+  const stala = isStala(s);
+  const plan = ratePlanOf(s);
   html += '<div class="section-title">Oprocentowanie</div>';
   html += '<div class="field-grid">';
+  /* Rodzaj oprocentowania — radia jak „Tryb nadpłat”: `data-f="stopa"` + value
+     są kluczem przywracania fokusu po przerysowaniu. */
+  html += '<div class="field span2"><span class="field-group-label">Oprocentowanie</span><div class="radio-row">'+
+    '<label><input type="radio" name="stopa-'+key+'" value="zmienna" data-f="stopa" '+(!stala?'checked':'')+'> zmienne</label>'+
+    '<label><input type="radio" name="stopa-'+key+'" value="stala" data-f="stopa" '+(stala?'checked':'')+'> okresowo stałe</label>'+
+    '</div></div>';
+  if(stala){
+    html += field(key,"Stopa stała %","stalaPct",s.stalaPct,"number",0.01);
+    html += field(key,"Okres stałej stopy (lata)","stalaLata",s.stalaLata,"number",1,
+      "Od m. "+plan.switchMonth+" oprocentowanie = marża + wskaźnik", RKM.STALA_LATA_MAX, RKM.STALA_LATA_MIN);
+  }
   html += field(key,"Marża %","marza",s.marza,"number",0.01);
-  html += field(key,"Wskaźnik referencyjny <span class=\'sub\'>(WIBOR/WIRON)</span> %","wskaznik",s.wskaznik,"number",0.01);
+  html += field(key,"Wskaźnik referencyjny <span class=\'sub\'>(WIBOR/WIRON"+(stala?", po okresie stałej stopy":"")+")</span> %","wskaznik",s.wskaznik,"number",0.01);
   const nominalId = fieldId(key,"nominalRate");
-  html += '<div class="field"><label for="'+nominalId+'">Oprocentowanie nominalne <span class="sub">(marża + wskaźnik)</span></label><input id="'+nominalId+'" type="text" class="mono" readonly value="'+pct(nominalRate(s))+'"></div>';
+  html += stala
+    ? '<div class="field span2"><label for="'+nominalId+'">Oprocentowanie nominalne</label><input id="'+nominalId+'" type="text" class="mono" readonly value="'+escapeXml("stała "+pct(nn(s.stalaPct))+" do m. "+plan.fixedMonths+", potem marża + wskaźnik")+'"></div>'
+    : '<div class="field"><label for="'+nominalId+'">Oprocentowanie nominalne <span class="sub">(marża + wskaźnik)</span></label><input id="'+nominalId+'" type="text" class="mono" readonly value="'+pct(nominalRate(s))+'"></div>';
   const yearsId = fieldId(key,"years");
   html += '<div class="field"><label for="'+yearsId+'">Okres — <span class="mono">'+s.years+'</span> lat</label><div class="slider-row"><input id="'+yearsId+'" type="range" min="'+yearsMin(s)+'" max="35" step="1" data-f="years" value="'+s.years+'"></div></div>';
   html += startField(s);
@@ -1715,11 +1901,22 @@ function renderPanel(key, s, result, baseline){
 
   html += '<div class="section-title">Opłata za wcześniejszą spłatę '+(s.rkm?'<span style="text-transform:none;font-weight:400;">(nie dot. spłaty rodzinnej)</span>':'')+'</div>';
   html += '<div class="field-grid">';
-  html += field(key,"Opłata %","feePct",s.feePct,"number",0.5,
-    "Nie więcej niż odsetki od nadpłacanej kwoty za 12 mies. (art. 40 ust. 3) — przy oprocentowaniu "+
-    pct(nominalRate(s))+" faktyczna stawka to "+pct(Math.min(nn(s.feePct), nominalRate(s))));
-  html += field(key,"Obowiązuje przez (mies.)","feeMonths",s.feeMonths,"number",null,
-    "Ustawowo maks. 36 mies. przy stopie zmiennej (art. 40 ustawy o kredycie hipotecznym)", FEE_MONTHS_MAX);
+  /* Art. 40 ustawy o kredycie hipotecznym — patrz opis w silniku przy
+     FEE_WINDOW_ZMIENNA_MONTHS. Podpowiedź mówi, który reżim obowiązuje. */
+  const capZm = RKM.FEE_MAX_PCT_ZMIENNA;
+  let feeHint, feeMonthsHint;
+  if(!stala){
+    feeHint = "Nie więcej niż "+capZm+" % i niż odsetki od nadpłacanej kwoty za 12 mies. (art. 40 ust. 3) — przy oprocentowaniu "+
+      pct(nominalRate(s))+" faktyczna stawka to "+pct(Math.min(nn(s.feePct), capZm, nominalRate(s)));
+    feeMonthsHint = "Ustawowo maks. 36 mies. od zawarcia umowy przy stopie zmiennej (art. 40 ust. 2 ustawy o kredycie hipotecznym)";
+  } else {
+    const F = plan.fixedMonths;
+    feeHint = "W okresie stałej stopy (m. 1–"+F+") stawka z umowy, bez pułapu "+capZm+" % i odsetek za 12 mies. — ogranicza ją tylko koszt banku (art. 40 ust. 6–7)"+
+      (F < 36 ? "; od m. "+(F+1)+" do m. 36 jak przy stopie zmiennej: maks. "+capZm+" % i odsetki za 12 mies. (ust. 2–3)" : "; po okresie stałej stopy opłaty już nie ma (minęło 36 mies., ust. 2)");
+    feeMonthsHint = "Ustawowo maks. "+feeMonthsMaxOf(s)+" mies.: "+(F >= 36 ? "cały okres stałej stopy (art. 40 ust. 6)" : "36 mies. od zawarcia umowy (art. 40 ust. 2; okres stałej stopy jest krótszy)");
+  }
+  html += field(key,"Opłata %","feePct",s.feePct,"number",0.5,feeHint);
+  html += field(key,"Obowiązuje przez (mies.)","feeMonths",s.feeMonths,"number",null,feeMonthsHint, feeMonthsMaxOf(s));
   html += '</div>';
 
   if(s.rkm){
@@ -1766,6 +1963,9 @@ function renderPanel(key, s, result, baseline){
     const isLost = e.type==="dziecko" && lostMonths.has(mon(e.month));
     const isOff = e.type==="dziecko" && !s.rkm;
     const isAfter = !isOff && !isLost && isAfterPayoff(e);
+    /* Zmiana wskaźnika w okresie stałej stopy nie zmienia raty — ustala najwyżej
+       wskaźnik, od którego po tym okresie liczy się marża + wskaźnik. */
+    const isFixedIgnored = !isOff && !isAfter && e.type==="zmiana_wskaznika" && plan.stala && mon(e.month)<=plan.fixedMonths;
     html += '<div class="event-row'+(isOff?' off':'')+'" data-id="'+e.id+'">';
     // typ zawsze zawiera aktualną wartość, żeby wyszarzony wiersz „dziecko" dał się przestawić
     const typeOpts = types.indexOf(e.type)>=0 ? types : types.concat([e.type]);
@@ -1776,6 +1976,7 @@ function renderPanel(key, s, result, baseline){
     html += fieldEventControls(s,e);
     if(isOff) html += '<span class="event-badge muted">ukryte — poza RKM</span>';
     else if(isLost) html += '<span class="event-badge lost">utracona</span>';
+    else if(isFixedIgnored) html += '<span class="event-badge muted" title="'+escapeXml("Do m. "+plan.fixedMonths+" obowiązuje stała stopa "+pct(nn(s.stalaPct))+" — zmiana wskaźnika nie zmienia raty. Od m. "+plan.switchMonth+" oprocentowanie to marża + wskaźnik obowiązujący w tym momencie.")+'">bez wpływu — okres stałej stopy</span>';
     else if(isAfter) html += '<span class="event-badge after" title="'+escapeXml(e.type==="dziecko" ? "Kredyt spłacony przed narodzinami — spłata rodzinna nie przysługuje" : "Miesiąc wypada po spłacie kredytu — zdarzenie nie ma wpływu")+'">po spłacie</span>';
     html += '<button type="button" class="rm" title="Usuń" data-remove data-key="remove">×</button>';
     html += '</div>';
@@ -1805,7 +2006,7 @@ function renderPanel(key, s, result, baseline){
        (art. 4a ust. 5) — dlatego etykieta mówi „opłaty”, a nie tylko o nadpłatach. */
     ["Łączny koszt (odsetki + opłaty)", money(result.totalCost), "",
      result.gwarancjaFee>0.5 ? "w tym opłata za gwarancję "+money(result.gwarancjaFee) : ""],
-    ["Suma wpłat (raty + nadpłaty + opłaty)", money(result.totalWplaty), "",
+    ["Suma wpłat (wkład + raty + nadpłaty + opłaty)", money(result.totalWplaty), "",
      "bez spłaty rodzinnej — to nie jest pieniądz kredytobiorcy"],
     ["Data ostatniej raty", payoffLabel(result)],
     ["Oszczędność odsetek vs bez nadpłat", decisions ? money(saving) : "—", decisions ? savingTone(saving) : ""],
@@ -1834,8 +2035,8 @@ function renderPanel(key, s, result, baseline){
 /* Wszystkie pola liczbowe kredytu to kwoty albo procenty — żadna nie ma sensu
    ujemna, więc `min="0"` wchodzi z automatu (walidację i tak dubluje `nn()`).
    `panelKey` + `key` dają stabilne, unikalne id — do <label for> (p. 4 audytu). */
-function field(panelKey, label, key, val, type, step, hint, max){
-  const min = type==="number" ? ' min="0"' : '';
+function field(panelKey, label, key, val, type, step, hint, max, minVal){
+  const min = type==="number" ? ' min="'+(minVal!==undefined?minVal:0)+'"' : '';
   const id = fieldId(panelKey, key);
   return '<div class="field"><label for="'+id+'">'+label+'</label><input id="'+id+'" type="'+type+'" data-f="'+key+'" value="'+val+'"'+min+(max!==undefined?' max="'+max+'"':'')+(step?' step="'+step+'"':'')+'>'+
     (hint ? '<div class="field-hint">'+hint+'</div>' : '')+'</div>';
@@ -2077,7 +2278,10 @@ function buildChart(resA, resB, mode, sA, sB){
       else if(e.type==="dziecko"){ month=mon(e.month); isLost=lostMonths.has(month); label = isLost ? "Spłata rodzinna: utracona (nadpłata dobrowolna w pierwszych 3 latach przekroczyła pozostałą część gwarantowaną)" : "Spłata rodzinna: "+num(nn(e.amount))+" zł"; }
       else if(e.type==="zmiana_wskaznika"){
         month=mon(e.month);
-        label="Zmiana wskaźnika od mies. "+month+": "+pct(nn(e.newWskaznik))+" → nominalnie "+pct(round2(nn(s.marza)+nn(e.newWskaznik)));
+        const fixedM = RKM.fixedRateMonthsOf(s);
+        label = month<=fixedM
+          ? "Zmiana wskaźnika od mies. "+month+": "+pct(nn(e.newWskaznik))+" — bez wpływu na ratę (stała stopa do m. "+fixedM+")"
+          : "Zmiana wskaźnika od mies. "+month+": "+pct(nn(e.newWskaznik))+" → nominalnie "+pct(round2(nn(s.marza)+nn(e.newWskaznik)));
       }
       else return;
       /* Dziecko po spłacie kredytu: pusty znacznik przy ostatniej racie, żeby
@@ -2254,17 +2458,21 @@ function renderCompare(resA, resB){
 
   /* Koszt alternatywny gotówki. Wspólny horyzont = dłuższy z dwóch kredytów, bo tylko
      na tej samej dacie da się zestawić dwa strumienie wpłat. Każdą wpłatę do banku
-     „przenosimy" na koniec horyzontu tak, jakby do tego czasu leżała na lokacie —
-     scenariusz z niższymi ratami zyskuje, bo uwolniona gotówka pracuje. Spłata
-     rodzinna z tego wypada: to pieniądz BGK, nie kredytobiorcy. */
+     — z wkładem własnym w dniu startu — „przenosimy" na koniec horyzontu tak, jakby
+     do tego czasu leżała na lokacie; scenariusz z niższymi ratami zyskuje, bo
+     uwolniona gotówka pracuje. Spłata rodzinna z tego wypada: to pieniądz BGK, nie
+     kredytobiorcy. Różnicę pokazujemy też w dzisiejszych pieniądzach (dyskonto tą
+     samą lokatą), bo kwota za 20–30 lat sama w sobie mało mówi. */
   const horizon = Math.max(resA.payoffMonths, resB.payoffMonths, 1);
   const fvA = RKM.kosztZLokata(resA, state.lokata, horizon);
   const fvB = RKM.kosztZLokata(resB, state.lokata, horizon);
   const dLok = fvA - fvB;
+  const dLokDzis = dLok / Math.pow(1 + nn(state.lokata)/100/12, horizon);
   html += '<div class="compare-row">'+
-    '<div class="lbl">Łączny koszt z uwzględnieniem lokaty <span style="text-transform:none;">(na koniec wspólnego horyzontu, '+months2ym(horizon)+')</span></div>'+
+    '<div class="lbl">Łączny koszt z uwzględnieniem lokaty <span style="text-transform:none;">(wkład + raty + nadpłaty + opłaty, na koniec wspólnego horyzontu, '+months2ym(horizon)+')</span></div>'+
     '<div class="val">'+money(fvA)+' <span class="vs">vs</span> '+money(fvB)+' &nbsp;'+who(dLok,true)+'</div>'+
-    '<div class="note">Każda złotówka wpłacona do banku mogła do końca horyzontu pracować na lokacie '+pct(state.lokata)+' netto; scenariusz z niższymi ratami zyskuje, bo uwolniona gotówka pracuje.</div>'+
+    (Math.abs(dLok)>=1 ? '<div class="note">Różnica '+money(Math.abs(dLok))+' na koniec horyzontu, czyli ok. '+money(Math.abs(dLokDzis))+' w dzisiejszych pieniądzach.</div>' : '')+
+    '<div class="note">Każda złotówka wpłacona do banku mogła do końca horyzontu pracować na lokacie '+pct(state.lokata)+' netto; scenariusz z niższymi ratami zyskuje, bo uwolniona gotówka pracuje. Wkład własny liczy się jako wpłata w dniu startu — dzięki temu da się uczciwie porównać większy wkład z mniejszym wkładem i nadpłatą później.</div>'+
     '</div>';
   return html;
 }
@@ -2598,9 +2806,14 @@ function attachPanelHandlers(){
         if(inp.type==="number" && inp.value.trim()===""){ inp.value = s[f]; return; }
         let v = inp.type==="number" ? Math.max(0, parseFloat(inp.value)||0) : inp.value;
         if(f==="years") v = clamp(Math.round(v),yearsMin(s),35);
-        // Art. 40 ust. 1 u.k.h.: rekompensata najwyżej przez 36 mies. (stopa zmienna).
-        if(f==="feeMonths") v = clamp(Math.round(v), 0, FEE_MONTHS_MAX);
+        if(f==="stalaLata") v = clamp(Math.round(v), RKM.STALA_LATA_MIN, RKM.STALA_LATA_MAX);
+        // Art. 40 ust. 2 i 6 u.k.h.: rekompensata najwyżej przez 36 mies. (stopa
+        // zmienna) albo przez cały okres stałej stopy.
+        if(f==="feeMonths") v = clamp(Math.round(v), 0, feeMonthsMaxOf(s));
+        if(inp.type==="radio" && !inp.checked) return;
         s[f] = v;
+        // Krótszy okres stałej stopy albo powrót do zmiennej zawęża ustawowe okno opłaty.
+        if(f==="stopa" || f==="stalaLata") s.feeMonths = clamp(Math.round(nn(s.feeMonths)), 0, feeMonthsMaxOf(s));
         recompute();
       };
       inp.addEventListener(inp.tagName==="SELECT"||inp.type==="range" ? "input":"change", handler);

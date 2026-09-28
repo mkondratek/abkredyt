@@ -2,7 +2,7 @@
 /**
  * Generator podstrony „Gotowe porównania” (public/scenariusze.html).
  *
- * Źródłem prawdy są tools/scenarios.json (pytania, opisy i PEŁNY stan v6 dla
+ * Źródłem prawdy są tools/scenarios.json (pytania, opisy i PEŁNY stan v7 dla
  * każdej karty) oraz silnik z <script id="engine"> w public/index.html — ten sam
  * blok, który uruchamia tools/test-engine.mjs. Skrypt:
  *   1. wczytuje silnik i wystawia go jako globalThis.RKM,
@@ -53,6 +53,7 @@ export function loadEngine() {
    paść, zanim niesprawny link trafi na stronę. */
 const SCN_NUMS = ["cena", "wklad", "marza", "wskaznik", "years", "feePct", "feeMonths"];
 const TRYBY = ["skroc", "obniz"];
+const STOPY = ["zmienna", "stala"];
 const TRYB_OVERRIDES = ["skroc", "obniz", "auto"];
 const EVENT_FIELDS = {
   jednorazowa: ["month", "amount"],
@@ -63,7 +64,7 @@ const EVENT_FIELDS = {
 
 function isNum(v) { return typeof v === "number" && isFinite(v); }
 
-function validateScenario(s, where, errs) {
+function validateScenario(s, where, errs, RKM) {
   if (!s || typeof s !== "object") { errs.push(where + ": nie jest obiektem"); return; }
   SCN_NUMS.forEach((k) => { if (!isNum(s[k])) errs.push(where + "." + k + ": oczekiwano liczby"); });
   if (typeof s.rkm !== "boolean") errs.push(where + ".rkm: oczekiwano true/false");
@@ -76,8 +77,17 @@ function validateScenario(s, where, errs) {
   if (isNum(s.years) && (s.years < minYears || s.years > 35)) {
     errs.push(where + ".years: " + s.years + " poza zakresem " + minYears + "–35");
   }
-  if (isNum(s.feeMonths) && (s.feeMonths < 0 || s.feeMonths > 36)) {
-    errs.push(where + ".feeMonths: poza zakresem 0–36 (art. 40 ust. 1 u.k.h.)");
+  // Rodzaj oprocentowania (v7): zmienna albo okresowo stała na 1–10 lat.
+  if (STOPY.indexOf(s.stopa) < 0) errs.push(where + '.stopa: oczekiwano "zmienna" albo "stala"');
+  if (!isNum(s.stalaPct) || s.stalaPct < 0) errs.push(where + ".stalaPct: oczekiwano liczby >= 0");
+  if (!Number.isInteger(s.stalaLata) || s.stalaLata < RKM.STALA_LATA_MIN || s.stalaLata > RKM.STALA_LATA_MAX) {
+    errs.push(where + ".stalaLata: oczekiwano liczby całkowitej " + RKM.STALA_LATA_MIN + "–" + RKM.STALA_LATA_MAX);
+  }
+  // Okno opłaty: 36 mies. przy stopie zmiennej (art. 40 ust. 2 u.k.h.), przy
+  // okresowo stałej — cały okres stałej stopy, jeśli dłuższy (art. 40 ust. 6).
+  const feeMax = RKM.feeMonthsMax(s);
+  if (isNum(s.feeMonths) && (s.feeMonths < 0 || s.feeMonths > feeMax)) {
+    errs.push(where + ".feeMonths: poza zakresem 0–" + feeMax + " (art. 40 ust. 2 i 6 u.k.h.)");
   }
   if (!Array.isArray(s.events)) { errs.push(where + ".events: oczekiwano tablicy"); return; }
   s.events.forEach((e, i) => {
@@ -101,28 +111,35 @@ export function validateState(st, RKM) {
   if (!isNum(st.lokata) || st.lokata < 0) errs.push("lokata: oczekiwano liczby >= 0");
   if (["saldo", "rata"].indexOf(st.chartMode) < 0) errs.push('chartMode: "saldo" albo "rata"');
   if (["A", "B"].indexOf(st.tableScn) < 0) errs.push('tableScn: "A" albo "B"');
-  validateScenario(st.A, "A", errs);
-  validateScenario(st.B, "B", errs);
+  validateScenario(st.A, "A", errs, RKM);
+  validateScenario(st.B, "B", errs, RKM);
   return errs;
 }
 
 /* ============ stan scenariusza -> wejście silnika ============ */
-/* Lustro toEngineConfig z public/index.html: stopa nominalna = marża + wskaźnik,
-   gwarancja BGK wyliczana z ustawy, poza programem RKM zdarzenia „dziecko”
-   nie trafiają do silnika, a opłata za gwarancję znika razem z gwarancją. */
-function round2(v) { return Math.round(v * 100) / 100; }
-
+/* Lustro toEngineConfig z public/index.html: stopa i zdarzenia zmiany stopy z planu
+   oprocentowania silnika (RKM.planOprocentowania — marża + wskaźnik albo okresowo
+   stała stopa z przejściem na marża + wskaźnik), gwarancja BGK wyliczana z ustawy,
+   poza programem RKM zdarzenia „dziecko” nie trafiają do silnika, a opłata za
+   gwarancję znika razem z gwarancją. Wkład własny idzie do silnika jako wpłata
+   w dniu startu (suma wpłat, koszt z lokatą). */
 export function toEngineConfig(s, RKM) {
-  const events = (s.rkm ? s.events : s.events.filter((e) => e.type !== "dziecko")).map((e) => {
+  const active = s.rkm ? s.events : s.events.filter((e) => e.type !== "dziecko");
+  const plan = RKM.planOprocentowania({
+    marza: s.marza, wskaznik: s.wskaznik, stopa: s.stopa, stalaPct: s.stalaPct, stalaLata: s.stalaLata,
+    zmianyWskaznika: active.filter((e) => e.type === "zmiana_wskaznika")
+  });
+  const events = active.filter((e) => e.type !== "zmiana_wskaznika").map((e) => {
     if (e.type === "dziecko") return { type: "dziecko", month: e.month, amount: e.amount, childNumber: e.childNumber, trybOverride: e.trybOverride };
     if (e.type === "cykliczna") return { type: "cykliczna", startMonth: e.startMonth, endMonth: e.endMonth, monthlyAmount: e.monthlyAmount, trybOverride: e.trybOverride };
-    if (e.type === "zmiana_wskaznika") return { type: "zmiana_oprocentowania", month: e.month, newRatePct: round2(s.marza + e.newWskaznik) };
     return { type: "jednorazowa", month: e.month, amount: e.amount, trybOverride: e.trybOverride };
-  });
+  }).concat(plan.events);
   const limits = { cena: s.cena, wklad: s.wklad, remont: s.remont };
   return {
     principal: Math.max(0, s.cena - s.wklad) + s.remont,
-    ratePct: round2(s.marza + s.wskaznik),
+    wklad: s.wklad,
+    ratePct: plan.ratePct,
+    fixedRateMonths: plan.fixedMonths,
     years: s.years,
     startDate: s.start + "-01",
     tryb: s.tryb,
@@ -153,7 +170,9 @@ const MONTHS_PL = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz"
 function fmtDate(d) { return d ? MONTHS_PL[d.getUTCMonth()] + " " + d.getUTCFullYear() : "—"; }
 
 /* Liczby nagłówkowe, które karta może pokazać. Nazwy etykiet są celowo takie same
-   jak w KPI kalkulatora — karta ma mówić, gdzie szukać po otwarciu linku. */
+   jak w KPI kalkulatora — karta ma mówić, gdzie szukać po otwarciu linku.
+   `get(r, ctx)` — ctx = {RKM, state, horizon} dla metryk liczonych na wspólnym
+   horyzoncie obu scenariuszy (koszt z lokatą). */
 export const METRICS = {
   rataPoczatkowa: { label: "Rata początkowa", get: (r) => money(r.initialRata) },
   rataKoncowa: { label: "Rata po ostatnim wydarzeniu", get: (r) => money(r.finalRata) },
@@ -161,7 +180,12 @@ export const METRICS = {
   lacznyKoszt: { label: "Łączny koszt (odsetki + opłaty)", get: (r) => money(r.totalCost) },
   dataOstatniejRaty: { label: "Data ostatniej raty", get: (r) => fmtDate(r.payoffDate) },
   splataRodzinna: { label: "Wypłacona spłata rodzinna", get: (r) => money(r.totalSplataRodzinna) },
-  czescGwarantowana36: { label: "Część gwarantowana po 3 latach", get: (r) => money(r.guaranteeLeftAt36) }
+  czescGwarantowana36: { label: "Część gwarantowana po 3 latach", get: (r) => money(r.guaranteeLeftAt36) },
+  oplataZaNadplaty: { label: "Opłata za wcześniejszą spłatę", get: (r) => money(r.totalFees) },
+  kosztZLokata: {
+    label: "Łączny koszt z uwzględnieniem lokaty",
+    get: (r, ctx) => money(ctx.RKM.kosztZLokata(r, ctx.state.lokata, ctx.horizon))
+  }
 };
 
 /* ============ link #s=d.… ============ */
@@ -189,7 +213,7 @@ const HEAD = `<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href="https://abkredyt.kondratek.pl/scenariusze" />
-    <meta name="description" content="Pięć gotowych porównań kredytu hipotecznego z kalkulatora abkredyt: nadpłata a spłata rodzinna z RKM, 15 czy 30 lat, RKM przy 20 % wkładu, wzrost WIBOR-u, skrócenie okresu kontra niższa rata. Każde otwiera się w kalkulatorze jednym kliknięciem." />
+    <meta name="description" content="Sześć gotowych porównań kredytu hipotecznego z kalkulatora abkredyt: nadpłata a spłata rodzinna z RKM, 15 czy 30 lat, RKM przy 20 % wkładu, wzrost WIBOR-u, skrócenie okresu kontra niższa rata, duży wkład kontra RKM ze stopą stałą. Każde otwiera się w kalkulatorze jednym kliknięciem." />
     <title>Gotowe porównania — kalkulator kredytu abkredyt</title>
     <style>
       /* Paleta i typografia jak w kalkulatorze (public/index.html) — te same nazwy
@@ -311,7 +335,7 @@ const HEAD = `<!doctype html>
     <a class="back" href="/">← kalkulator</a>
     <h1>Gotowe porównania</h1>
     <p class="lede">
-      Pięć pytań, które ludzie zadają sobie przed podpisaniem umowy kredytowej — każde
+      Sześć pytań, które ludzie zadają sobie przed podpisaniem umowy kredytowej — każde
       rozpisane na dwa scenariusze i gotowe do otwarcia w kalkulatorze.
     </p>
     <p class="note">
@@ -349,7 +373,7 @@ function footer(dateLabel) {
    się co dobę i test świeżości fałszywie by padał. Bierzemy ją z pliku źródłowego
    (mtime nie, bo git go nie przechowuje) — po prostu stała, aktualizowana ręcznie
    razem z treścią kart. */
-const GENERATED_LABEL = "5 września 2026 r.";
+const GENERATED_LABEL = "28 września 2026 r.";
 
 /* ============ złożenie strony ============ */
 export function buildHtml() {
@@ -370,6 +394,7 @@ export function buildHtml() {
     const resB = RKM.simulateScenario(toEngineConfig(sc.state.B, RKM));
     const metrics = Array.isArray(sc.metrics) ? sc.metrics : [];
     if (metrics.length < 2 || metrics.length > 3) throw new Error("scenariusz „" + sc.id + "”: podaj 2–3 liczby w metrics");
+    const ctx = { RKM, state: sc.state, horizon: Math.max(resA.payoffMonths, resB.payoffMonths, 1) };
 
     html += '      <article class="card" id="' + esc(sc.id) + '">\n';
     html += "        <h2>" + esc(sc.question) + "</h2>\n";
@@ -383,7 +408,7 @@ export function buildHtml() {
       const m = METRICS[key];
       if (!m) throw new Error("scenariusz „" + sc.id + "”: nieznana metryka „" + key + "”");
       html += "          <dt>" + esc(m.label) + "</dt>\n";
-      html += "          <dd>" + esc(m.get(resA)) + ' <span class="vs">vs</span> ' + esc(m.get(resB)) + "</dd>\n";
+      html += "          <dd>" + esc(m.get(resA, ctx)) + ' <span class="vs">vs</span> ' + esc(m.get(resB, ctx)) + "</dd>\n";
     });
     html += "        </dl>\n";
     html += '        <p class="cta"><a class="btn-primary" href="' + esc(encodeLink(sc.state, RKM)) + '">Otwórz porównanie</a></p>\n';

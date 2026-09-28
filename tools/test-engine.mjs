@@ -84,8 +84,13 @@ function monthsRef(balance, r, rata) {
      • `rates` = {miesiąc: nowa stopa nominalna %} — obowiązuje OD tego miesiąca,
        rata przeliczana od razu (jeszcze przed naliczeniem odsetek tego miesiąca),
      • opłata za wcześniejszą spłatę = feePct od min(kwota, saldo), tylko w oknie
-       feeMonths i tylko od nadpłat dobrowolnych, przycięta do odsetek za 12 miesięcy
-       od spłacanej kwoty (art. 40 ust. 4 ustawy o kredycie hipotecznym),
+       feeMonths i tylko od nadpłat dobrowolnych (art. 40 ustawy o kredycie
+       hipotecznym): w okresie stałej stopy (`fixedMonths`) stawka z umowy bez pułapów
+       (ust. 6); poza nim tylko do m. 36 (ust. 2), przycięta do 3 % i do odsetek za
+       12 miesięcy od spłacanej kwoty (ust. 3), a gdy do końca umowy zostało < 12 mies.
+       — do odsetek za ten pozostały okres (ust. 4),
+     • `flows[m-1]` = wszystko, co kredytobiorca wpłacił w miesiącu m (rata + nadpłaty
+       + opłaty) — do niezależnej referencji kosztu z lokatą,
      • reguła RKM: część gwarantowana startuje z min(gwarancja, kapitał) i maleje
        o KAŻDĄ spłatę kapitału (rata, nadpłata, spłata rodzinna), nigdy nie przekracza
        salda; przekroczenie = nadpłata dobrowolna > pozostała część w oknie 36 mies.;
@@ -101,6 +106,7 @@ function refSim(o) {
   const children = o.children || [];
   const feePct = o.feePct || 0;
   const feeMonths = o.feeMonths || 0;
+  const fixedMonths = o.fixedMonths || 0;
   const principal = Math.max(0, o.principal);
   const gwarancja = Math.min(Math.max(0, o.gwarancja || 0), principal);
 
@@ -113,7 +119,7 @@ function refSim(o) {
   let guaranteeAt36 = guarantee;
   let totalInterest = 0, totalFees = 0, voluntary = 0, splataRodzinna = 0;
   let breachMonth = null, breachAllowanceAtStart = 0, breachMonthTotal = 0;
-  const lostChildren = [], childrenAfterPayoff = [];
+  const lostChildren = [], childrenAfterPayoff = [], flows = [];
   let initialRata = rata;
   let month = 0;
 
@@ -134,7 +140,7 @@ function refSim(o) {
     if (month === 1) initialRata = payment;
 
     const allowanceAtMonthStart = guarantee;
-    let monthVoluntary = 0;
+    let monthVoluntary = 0, monthFees = 0;
     let list = [];
     if (oneOff[month]) list.push(oneOff[month]);
     if (extras[month]) list = list.concat(extras[month]);
@@ -148,7 +154,17 @@ function refSim(o) {
         if (amt - guarantee > 0.005 && breachMonth === null) breachMonth = month;
       }
       guarantee = Math.min(Math.max(0, guarantee - amt), balance - amt);
-      if (month <= feeMonths) totalFees += Math.min(amt * (feePct / 100), amt * r * 12);
+      if (month <= feeMonths) {
+        let fee = 0;
+        if (month <= fixedMonths) fee = amt * (feePct / 100);
+        else if (month <= 36) {
+          fee = Math.min(amt * (feePct / 100), amt * 0.03, amt * r * 12);
+          const left = n - month;
+          if (left < 12) fee = Math.min(fee, amt * r * Math.max(0, left));
+        }
+        totalFees += fee;
+        monthFees += fee;
+      }
       balance -= amt;
       monthVoluntary += amt;
       if (balance > 0.5) {
@@ -157,6 +173,7 @@ function refSim(o) {
       }
     });
     if (breachMonth === month) { breachMonthTotal = monthVoluntary; breachAllowanceAtStart = allowanceAtMonthStart; }
+    flows.push(payment + monthVoluntary + monthFees);
 
     children.filter((c) => c.month === month).forEach((c) => {
       if (balance <= 0.5) { childrenAfterPayoff.push(c.childNumber); return; }
@@ -181,7 +198,7 @@ function refSim(o) {
     totalInterest, totalFees, payoffMonths: month, paidOff, initialRata,
     voluntary, splataRodzinna, guaranteeLeftAt36: guaranteeAt36,
     breachMonth, breachAllowanceAtStart, breachMonthTotal,
-    lostChildren, childrenAfterPayoff, guaranteeStart: gwarancja,
+    lostChildren, childrenAfterPayoff, guaranteeStart: gwarancja, flows,
   };
 }
 
@@ -549,7 +566,7 @@ ok(
 );
 near("nadpłata większa od salda kończy kredyt w m. 1", oplataOdSalda.payoffMonths, 1, 0, " mies.");
 
-/* ---------- 6b. limit opłaty za wcześniejszą spłatę (art. 40 ust. 4 u.k.h.) ----------
+/* ---------- 6b. limit opłaty za wcześniejszą spłatę (art. 40 ust. 3 u.k.h.) ----------
    Rekompensata nie może przekroczyć odsetek, które kredytobiorca zapłaciłby od
    spłacanej kwoty przez rok. Przy 2 % rocznie odsetki od 10 000 zł to 200 zł, więc
    umowne 3 % (300 zł) jest przycinane; przy 5,50 % limit (550 zł) nie wiąże. */
@@ -560,7 +577,7 @@ function oplataOd10k(ratePct) {
 }
 near("stopa 2 %: opłata 3 % przycięta do odsetek za 12 mies. = 200 zł", oplataOd10k(2), 200, 0.01, " zł");
 near("stopa 5,50 %: opłata 3 % bez przycięcia = 300 zł", oplataOd10k(5.5), 300, 0.01, " zł");
-ok("limit z art. 40 ust. 4 realnie obniża opłatę przy niskiej stopie", oplataOd10k(2) < oplataOd10k(5.5), oplataOd10k(2) + " vs " + oplataOd10k(5.5));
+ok("limit z art. 40 ust. 3 realnie obniża opłatę przy niskiej stopie", oplataOd10k(2) < oplataOd10k(5.5), oplataOd10k(2) + " vs " + oplataOd10k(5.5));
 near("stopa 2 %: opłata = referencja", oplataOd10k(2), refSim({ principal: P, ratePct: 2, years: 30, oneOff: { 1: 10000 }, feePct: 3, feeMonths: 36 }).totalFees, 0.01, " zł");
 /* Limit liczy się od stopy OBOWIĄZUJĄCEJ w miesiącu spłaty, nie od pierwotnej:
    po spadku wskaźnika do 2 % opłata za nadpłatę w m. 24 jest już przycięta. */
@@ -574,6 +591,32 @@ const oplataPoSpadku = simulateScenario(
   })
 );
 near("limit opłaty idzie za aktualną stopą (po spadku do 2 % → 200 zł)", oplataPoSpadku.totalFees, 200, 0.01, " zł");
+/* Art. 40 ust. 3 ma DWA pułapy: odsetki za rok i 3 % spłacanej kwoty. Umowne 5 % przy
+   stopie zmiennej 5,50 % jest więc przycinane do 3 % (300 zł od 10 000 zł). */
+near(
+  "stopa zmienna: umowne 5 % przycięte do 3 % (art. 40 ust. 3)",
+  simulateScenario(cfg({ years: 30, feePct: 5, feeMonths: 36, events: [{ type: "jednorazowa", month: 1, amount: 10000, trybOverride: "auto" }] })).totalFees,
+  300, 0.01, " zł"
+);
+/* Silnik sam pilnuje 36 mies. z ust. 2 — okno z umowy dłuższe niż ustawowe nie daje
+   opłaty w m. 40 przy stopie zmiennej (obrona w głąb; UI i tak przycina pole). */
+ok(
+  "stopa zmienna: opłata nie przysługuje po 36. miesiącu mimo dłuższego okna z umowy",
+  simulateScenario(cfg({ years: 30, feePct: 3, feeMonths: 60, events: [{ type: "jednorazowa", month: 40, amount: 10000, trybOverride: "auto" }] })).totalFees === 0
+);
+/* Ust. 4: do końca umowy zostało mniej niż rok → nie więcej niż odsetki za ten okres.
+   Kredyt na 3 lata, nadpłata w m. 30: zostaje 6 mies., więc 10 000·r·6 = 275 zł < 300 zł. */
+near(
+  "stopa zmienna: mniej niż rok do końca umowy → odsetki za pozostały okres (art. 40 ust. 4)",
+  simulateScenario(cfg({ years: 3, gwarancja: 0, feePct: 3, feeMonths: 36, events: [{ type: "jednorazowa", month: 30, amount: 10000, trybOverride: "auto" }] })).totalFees,
+  10000 * r * 6, 0.01, " zł"
+);
+near(
+  "art. 40 ust. 4: silnik = referencja",
+  simulateScenario(cfg({ years: 3, gwarancja: 0, feePct: 3, feeMonths: 36, events: [{ type: "jednorazowa", month: 30, amount: 10000, trybOverride: "auto" }] })).totalFees,
+  refSim({ principal: P, ratePct: RATE, years: 3, oneOff: { 30: 10000 }, feePct: 3, feeMonths: 36 }).totalFees,
+  0.01, " zł"
+);
 
 /* ---------- 7. zmiana oprocentowania przelicza ratę ---------- */
 const zmiana = simulateScenario(
@@ -664,7 +707,8 @@ near("solveMonths = referencja (saldo 300 000, rata 30-letnia)", solveMonths(300
    same mapy kluczy, więc round trip pokrywa jedno i drugie. */
 const { STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson, bytesToB64url, b64urlToBytes } = RKM;
 ok("kodek jest wystawiony na RKM", [STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson].every((v) => v !== undefined));
-ok("wersja stanu = 6", STATE_VERSION === 6, "jest " + STATE_VERSION);
+ok("wersja stanu = 7", STATE_VERSION === 7, "jest " + STATE_VERSION);
+ok("akceptowane wersje linku 4–7", JSON.stringify(RKM.ACCEPTED_STATE_VERSIONS) === "[4,5,6,7]", JSON.stringify(RKM.ACCEPTED_STATE_VERSIONS));
 ok("silnik podaje domyślne oprocentowanie lokaty", RKM.DEFAULT_LOKATA_PCT === 3, "jest " + RKM.DEFAULT_LOKATA_PCT);
 
 const sampleState = {
@@ -677,6 +721,7 @@ const sampleState = {
     cena: 500000, wklad: 0, remont: 25000,
     marza: 1.9, wskaznik: 3.6, start: "2027-03", tryb: "skroc",
     feePct: 3, feeMonths: 36, years: 30,
+    stopa: "zmienna", stalaPct: 5.8, stalaLata: 5,
     events: [
       { id: "x1", type: "cykliczna", startMonth: 1, endMonth: 360, monthlyAmount: 500, trybOverride: "auto" },
       { id: "x2", type: "jednorazowa", month: 37, amount: 50000, trybOverride: "obniz" },
@@ -688,6 +733,7 @@ const sampleState = {
     cena: 500000, wklad: 60000, remont: 0,
     marza: 2.1, wskaznik: 3.6, start: "2026-12", tryb: "obniz",
     feePct: 0, feeMonths: 0, years: 25,
+    stopa: "stala", stalaPct: 6.1, stalaLata: 7,
     events: [{ id: "y1", type: "dziecko", month: 24, amount: 20000, childNumber: 2, trybOverride: "auto" }],
   },
 };
@@ -717,6 +763,12 @@ ok(
   JSON.stringify([roundTrip.A.rkm, roundTrip.B.rkm])
 );
 ok("oprocentowanie lokaty przeżywa round trip", roundTrip.lokata === 4.5, "jest " + roundTrip.lokata);
+ok(
+  "rodzaj oprocentowania (v7) przeżywa round trip osobno dla A i B",
+  roundTrip.A.stopa === "zmienna" && roundTrip.B.stopa === "stala" && roundTrip.B.stalaPct === 6.1 && roundTrip.B.stalaLata === 7,
+  JSON.stringify([roundTrip.A.stopa, roundTrip.B.stopa, roundTrip.B.stalaPct, roundTrip.B.stalaLata])
+);
+ok("rodzaj oprocentowania jedzie w linku skrócony do jednego znaku", shortenState(sampleState).b.z === "s" && shortenState(sampleState).a.z === "z", JSON.stringify(shortenState(sampleState).b));
 ok("stan nie nosi już globalnego rkmOn", shortenState(sampleState).k === undefined && roundTrip.rkmOn === undefined);
 ok(
   "skrócony stan nie zawiera id zdarzeń",
@@ -750,6 +802,7 @@ function legacyPayload(version, rkmOn) {
   delete short.a.r;            // per-scenariuszowej flagi jeszcze nie było
   delete short.b.r;
   delete short.o;              // ani oprocentowania lokaty
+  ["a", "b"].forEach((k) => { delete short[k].z; delete short[k].q; delete short[k].j; }); // ani stopy stałej (v7)
   if (version === 4) { short.a.g = 100000; short.b.g = 0; }
   return bytesToB64url(new TextEncoder().encode(JSON.stringify(short)));
 }
@@ -773,8 +826,8 @@ function sortedJson(v) {
 ok(
   "ładunek v4 zachowuje pozostałe pola scenariuszy",
   fromV4 &&
-    sortedJson(stripIds(fromV4).A) === sortedJson(Object.assign(stripIds(sampleState).A, { rkm: true })) &&
-    sortedJson(stripIds(fromV4).B) === sortedJson(Object.assign(stripIds(sampleState).B, { rkm: true })),
+    sortedJson(stripIds(fromV4).A) === sortedJson(Object.assign(stripIds(sampleState).A, { rkm: true, stopa: "zmienna", stalaPct: 5.8, stalaLata: 5 })) &&
+    sortedJson(stripIds(fromV4).B) === sortedJson(Object.assign(stripIds(sampleState).B, { rkm: true, stopa: "zmienna", stalaPct: 5.8, stalaLata: 5 })),
   sortedJson(fromV4 && stripIds(fromV4).A)
 );
 
@@ -805,10 +858,41 @@ ok(
   "ładunek z nieznanej wersji zostaje odrzucony (wersja nietknięta)",
   (() => {
     const short = shortenState(sampleState);
-    short.v = 7;
+    short.v = 8;
     const decoded = decodeStateJson(bytesToB64url(new TextEncoder().encode(JSON.stringify(short))));
-    return decoded && decoded.v === 7;
+    return decoded && decoded.v === 8;
   })()
+);
+
+/* Sedno migracji do wersji 7: ładunek v6 nie zna rodzaju oprocentowania — dostaje
+   stopę zmienną (i domyślne parametry stopy stałej na wypadek przełączenia w UI),
+   a wszystko inne zostaje tak, jak było. */
+function v6Payload() {
+  const short = shortenState(sampleState);
+  short.v = 6;
+  ["a", "b"].forEach((k) => { delete short[k].z; delete short[k].q; delete short[k].j; });
+  return bytesToB64url(new TextEncoder().encode(JSON.stringify(short)));
+}
+const fromV6 = decodeStateJson(v6Payload());
+ok("ładunek v6 jest podnoszony do wersji 7", fromV6 && fromV6.v === 7, "jest " + (fromV6 && fromV6.v));
+ok(
+  "ładunek v6 dostaje stopę zmienną w obu scenariuszach",
+  fromV6 && fromV6.A.stopa === "zmienna" && fromV6.B.stopa === "zmienna",
+  JSON.stringify(fromV6 && [fromV6.A.stopa, fromV6.B.stopa])
+);
+ok(
+  "ładunek v6 dostaje domyślne parametry stopy stałej (5,80 % / 5 lat)",
+  fromV6 && fromV6.B.stalaPct === RKM.DEFAULT_STALA_PCT && fromV6.B.stalaLata === RKM.DEFAULT_STALA_LATA && RKM.DEFAULT_STALA_PCT === 5.8 && RKM.DEFAULT_STALA_LATA === 5,
+  JSON.stringify(fromV6 && [fromV6.B.stalaPct, fromV6.B.stalaLata])
+);
+ok(
+  "ładunek v6 zachowuje pozostałe pola (tryb RKM, lokata, zdarzenia)",
+  fromV6 && fromV6.A.rkm === true && fromV6.B.rkm === false && fromV6.lokata === 4.5 && fromV6.A.events.length === 3 && fromV6.B.marza === 2.1,
+  JSON.stringify(fromV6 && stripIds(fromV6).B)
+);
+ok(
+  "ładunek v7 NIE jest nadpisywany domyślną stopą zmienną",
+  roundTrip.B.stopa === "stala"
 );
 
 /* ---------- 10. wartości ujemne i bezsensowne (obrona w głąb) ----------
@@ -1013,19 +1097,19 @@ near(
 const { kosztZLokata } = RKM;
 ok("silnik wystawia kosztZLokata", typeof kosztZLokata === "function");
 function wplatyRef(res) {
-  let sum = res.gwarancjaFee;
+  let sum = res.wklad + res.gwarancjaFee;
   res.months.forEach((mo) => { sum += mo.rata + mo.nadplata + mo.oplata; });
   return sum;
 }
 function fvRef(res, lokataPct, horizon) {
   const rl = lokataPct / 100 / 12;
-  let fv = res.gwarancjaFee * Math.pow(1 + rl, horizon);
+  let fv = (res.wklad + res.gwarancjaFee) * Math.pow(1 + rl, horizon);
   res.months.forEach((mo) => {
     fv += (mo.rata + mo.nadplata + mo.oplata) * Math.pow(1 + rl, Math.max(0, horizon - mo.month));
   });
   return fv;
 }
-near("suma wpłat = raty + nadpłaty + opłaty + opłata za gwarancję", s30.totalWplaty, wplatyRef(s30), 0.01, " zł");
+near("suma wpłat = wkład + raty + nadpłaty + opłaty + opłata za gwarancję", s30.totalWplaty, wplatyRef(s30), 0.01, " zł");
 near("lokata 0 % → wartość przyszła równa sumie wpłat", kosztZLokata(s30, 0, s30.payoffMonths), s30.totalWplaty, 0.01, " zł");
 ok(
   "lokata > 0 % → wartość przyszła większa niż suma wpłat",
@@ -1040,7 +1124,7 @@ ok(
   Math.round(kosztZLokata(s30, 7, 360)) + " vs " + Math.round(kosztZLokata(s30, 3, 360))
 );
 /* Spłata rodzinna poza wypłatami: gdyby wchodziła, suma wpłat urosłaby dokładnie o nią. */
-let sumaZeSplata = gDziecko.gwarancjaFee;
+let sumaZeSplata = gDziecko.wklad + gDziecko.gwarancjaFee;
 gDziecko.months.forEach((mo) => { sumaZeSplata += mo.rata + mo.nadplata + mo.oplata + mo.splataRodzinna; });
 ok("scenariusz kontrolny naprawdę dostał spłatę rodzinną", gDziecko.totalSplataRodzinna > 0, String(gDziecko.totalSplataRodzinna));
 near("suma wpłat pomija spłatę rodzinną", sumaZeSplata - gDziecko.totalSplataRodzinna, gDziecko.totalWplaty, 1, " zł");
@@ -1111,6 +1195,180 @@ ok("nadpłaty przesuwają ten miesiąc w przód (kredyt topi się szybciej)", cy
 const malyKredyt = simulateScenario(cfg({ principal: 50000, years: 30, gwarancja: 0 }));
 ok("kredyt zawsze poniżej 60 000 → brak znacznika (null)", malyKredyt.fullChildRepaymentUntilMonth === null, String(malyKredyt.fullChildRepaymentUntilMonth));
 ok("kredyt, który się nie amortyzuje, też nie dostaje znacznika", zaDlugi.fullChildRepaymentUntilMonth === null, String(zaDlugi.fullChildRepaymentUntilMonth));
+
+/* ---------- 16b. wkład własny w sumie wpłat i w koszcie z lokatą ----------
+   Wkład własny to wpłata kredytobiorcy w dniu startu (miesiąc 0). Bez niego większy
+   wkład wyglądałby na darmowy, a „mniejszy wkład + nadpłata później" byłby karany
+   za gotówkę, która w obu wariantach i tak idzie do banku — tylko w innym czasie.
+   Referencja FV liczona tu z przepływów niezależnej symulacji (`refSim().flows`). */
+function fvFromFlows(wkladRef, flows, lokataPct, horizon) {
+  const rl = lokataPct / 100 / 12;
+  let fv = wkladRef * Math.pow(1 + rl, horizon);
+  flows.forEach((f, i) => { fv += f * Math.pow(1 + rl, Math.max(0, horizon - (i + 1))); });
+  return fv;
+}
+const zWkladem = simulateScenario(cfg({ principal: 400000, wklad: 100000, gwarancja: 0, years: 30 }));
+const zWklademBez = simulateScenario(cfg({ principal: 400000, gwarancja: 0, years: 30 }));
+ok("silnik oddaje wkład własny w wyniku", zWkladem.wklad === 100000, "jest " + zWkladem.wklad);
+near("wkład nie zmienia odsetek (kapitał przychodzi w principal)", zWkladem.totalInterest, zWklademBez.totalInterest, 0.01, " zł");
+near("suma wpłat = wkład + suma wpłat bez wkładu", zWkladem.totalWplaty, 100000 + zWklademBez.totalWplaty, 0.01, " zł");
+near("lokata 0 % → FV = wkład + wpłaty bez wkładu", kosztZLokata(zWkladem, 0, 360), 100000 + zWklademBez.totalWplaty, 0.01, " zł");
+near("lokata 3 % → wkład rośnie jak lokata przez cały horyzont", kosztZLokata(zWkladem, 3, 360) - kosztZLokata(zWklademBez, 3, 360), 100000 * Math.pow(1 + 0.03 / 12, 360), 0.01, " zł");
+ok("obrona w głąb: ujemny wkład = brak wkładu", simulateScenario(cfg({ wklad: -5000 })).wklad === 0);
+
+/* Ta sama gotówka, różny moment: X wpłaca 100 000 więcej wkładu, Y bierze o 100 000
+   większy kredyt i nadpłaca te 100 000 w m. 37 (poza oknem RKM i opłatą, gwarancja 0,
+   tryb „obniż ratę”, żeby oba kredyty trwały tyle samo). Przy lokacie niższej niż
+   oprocentowanie kredytu wkład z góry jest tańszy, przy wyższej — odwrotnie. */
+const cashX = { principal: 300000, wklad: 200000, gwarancja: 0, gwarancjaFeePct: 0, years: 30, tryb: "obniz" };
+const cashY = { principal: 400000, wklad: 100000, gwarancja: 0, gwarancjaFeePct: 0, years: 30, tryb: "obniz", events: [{ type: "jednorazowa", month: 37, amount: 100000, trybOverride: "auto" }] };
+const resX = simulateScenario(cfg(cashX)), resY = simulateScenario(cfg(cashY));
+const refX = refSim({ principal: 300000, ratePct: RATE, years: 30, tryb: "obniz" });
+const refY = refSim({ principal: 400000, ratePct: RATE, years: 30, tryb: "obniz", oneOff: { 37: 100000 } });
+const HXY = Math.max(resX.payoffMonths, resY.payoffMonths);
+[3, 7].forEach((lok) => {
+  near("ta sama gotówka: FV X (lokata " + lok + " %) = referencja", kosztZLokata(resX, lok, HXY), fvFromFlows(200000, refX.flows, lok, HXY), 1, " zł");
+  near("ta sama gotówka: FV Y (lokata " + lok + " %) = referencja", kosztZLokata(resY, lok, HXY), fvFromFlows(100000, refY.flows, lok, HXY), 1, " zł");
+});
+ok(
+  "lokata 3 % < kredyt 5,5 %: większy wkład z góry wychodzi taniej niż mniejszy wkład + nadpłata w m. 37",
+  kosztZLokata(resX, 3, HXY) < kosztZLokata(resY, 3, HXY) && fvFromFlows(200000, refX.flows, 3, HXY) < fvFromFlows(100000, refY.flows, 3, HXY),
+  Math.round(kosztZLokata(resX, 3, HXY)) + " vs " + Math.round(kosztZLokata(resY, 3, HXY))
+);
+ok(
+  "lokata 7 % > kredyt 5,5 %: mniejszy wkład + nadpłata później wychodzi taniej",
+  kosztZLokata(resY, 7, HXY) < kosztZLokata(resX, 7, HXY) && fvFromFlows(100000, refY.flows, 7, HXY) < fvFromFlows(200000, refX.flows, 7, HXY),
+  Math.round(kosztZLokata(resY, 7, HXY)) + " vs " + Math.round(kosztZLokata(resX, 7, HXY))
+);
+const bezWkladuRoznica = (kosztZLokata(resY, 3, HXY) - resY.wklad * Math.pow(1.0025, HXY)) - (kosztZLokata(resX, 3, HXY) - resX.wklad * Math.pow(1.0025, HXY));
+ok(
+  "bez wkładu w FV Y wyglądałby na droższy o ponad 100 000 zł — dodatkowy wkład X byłby „darmowy”",
+  bezWkladuRoznica > 100000,
+  String(Math.round(bezWkladuRoznica))
+);
+
+/* Przypadek kontrolny od właściciela (cena 599 000 zł, 20 lat, 5,50 %, lokata 3 %,
+   start 2027-01, opłata 3 % przez 36 mies., nadpłaty w trybie „obniż ratę”):
+     A — bez RKM, wkład 200 000, bez zdarzeń,
+     C — RKM, wkład 119 800 (20 % → gwarancja 0), nadpłata 80 200 w m. 37.
+   Bez dziecka C jest droższe o ≈ 7 750 zł na koniec horyzontu (≈ 4 260 zł dziś);
+   z 3. dzieckiem w m. 24 C jest tańsze o ≈ 117 500 zł. */
+const kontrolaBase = { ratePct: 5.5, years: 20, startDate: "2027-01-01", tryb: "obniz", feePct: 3, feeMonths: 36 };
+const kA = simulateScenario(Object.assign({}, kontrolaBase, { principal: 399000, wklad: 200000, gwarancja: 0, gwarancjaFeePct: 0, events: [] }));
+const gwC = gwarancjaBGK({ cena: 599000, wklad: 119800, remont: 0 });
+function kontrolaC(zDzieckiem) {
+  const evts = [{ type: "jednorazowa", month: 37, amount: 80200, trybOverride: "auto" }];
+  if (zDzieckiem) evts.push({ type: "dziecko", month: 24, amount: 60000, childNumber: 3, trybOverride: "auto" });
+  return simulateScenario(Object.assign({}, kontrolaBase, { principal: 479200, wklad: 119800, gwarancja: gwC, events: evts }));
+}
+const kC = kontrolaC(false), kC3 = kontrolaC(true);
+const kH = Math.max(kA.payoffMonths, kC.payoffMonths);
+const kDisc = Math.pow(1 + 0.03 / 12, kH);
+ok("kontrola: gwarancja C = 0 (wkład równo 20 %)", gwC === 0, String(gwC));
+ok("kontrola: wspólny horyzont 240 mies.", kH === 240, String(kH));
+ok("kontrola: nadpłata w m. 37 bez opłaty i bez naruszenia reguły", kC.totalFees === 0 && kC.rkmBreachMonth === null && kC3.rkmBreachMonth === null);
+const kDiff = kosztZLokata(kC, 3, kH) - kosztZLokata(kA, 3, kH);
+const kDiff3 = kosztZLokata(kC3, 3, kH) - kosztZLokata(kA, 3, kH);
+near("kontrola: bez dziecka C droższe o ≈ 7 750 zł na koniec horyzontu", kDiff, 7750, 50, " zł");
+near("kontrola: to ≈ 4 260 zł w dzisiejszych pieniądzach", kDiff / kDisc, 4260, 50, " zł");
+near("kontrola: z 3. dzieckiem w m. 24 C tańsze o ≈ 117 500 zł", kDiff3, -117500, 50, " zł");
+const kRefA = refSim({ principal: 399000, ratePct: 5.5, years: 20, tryb: "obniz", feePct: 3, feeMonths: 36 });
+const kRefC = refSim({ principal: 479200, ratePct: 5.5, years: 20, tryb: "obniz", feePct: 3, feeMonths: 36, oneOff: { 37: 80200 } });
+near("kontrola: różnica = referencja", kDiff, fvFromFlows(119800, kRefC.flows, 3, kH) - fvFromFlows(200000, kRefA.flows, 3, kH), 1, " zł");
+
+/* ---------- 18. okresowo stała stopa ----------
+   Plan oprocentowania (RKM.planOprocentowania): stopa stała do m. 12·L, w m. 12·L + 1
+   zmiana na marża + wskaźnik obowiązujący w tym momencie; zmiany wskaźnika wewnątrz
+   okresu stałej stopy nie zmieniają raty. */
+const { planOprocentowania, feeMonthsMax } = RKM;
+ok("silnik wystawia planOprocentowania / feeMonthsMax", typeof planOprocentowania === "function" && typeof feeMonthsMax === "function");
+const planZm = planOprocentowania({ marza: 1.9, wskaznik: 3.6, stopa: "zmienna", zmianyWskaznika: [{ month: 24, newWskaznik: 5.6 }] });
+ok("stopa zmienna: stopa = marża + wskaźnik, zmiana wskaźnika = zmiana stopy od jej miesiąca",
+  planZm.ratePct === 5.5 && planZm.fixedMonths === 0 && planZm.events.length === 1 && planZm.events[0].month === 24 && planZm.events[0].newRatePct === 7.5,
+  JSON.stringify(planZm));
+const planSt = planOprocentowania({ marza: 1.9, wskaznik: 3.6, stopa: "stala", stalaPct: 5.8, stalaLata: 5, zmianyWskaznika: [{ month: 24, newWskaznik: 5.6 }, { month: 80, newWskaznik: 2.6 }] });
+ok("stała 5,80 % na 5 lat: stopa początkowa 5,80 %, okres 60 mies., przejście w m. 61",
+  planSt.ratePct === 5.8 && planSt.fixedMonths === 60 && planSt.switchMonth === 61, JSON.stringify(planSt));
+ok("przejście w m. 61 na marżę + wskaźnik z m. 24 (1,90 + 5,60 = 7,50 %)",
+  planSt.events[0].month === 61 && planSt.events[0].newRatePct === 7.5 && planSt.rateAfterPct === 7.5, JSON.stringify(planSt.events));
+ok("zmiana wskaźnika po okresie stałej stopy działa normalnie (m. 80 → 4,50 %)",
+  planSt.events.length === 2 && planSt.events[1].month === 80 && planSt.events[1].newRatePct === 4.5, JSON.stringify(planSt.events));
+ok("zmiana wskaźnika w okresie stałej stopy oznaczona jako bez wpływu", JSON.stringify(planSt.ignoredMonths) === "[24]", JSON.stringify(planSt.ignoredMonths));
+const planBez = planOprocentowania({ marza: 1.9, wskaznik: 3.6, stopa: "stala", stalaPct: 5.8, stalaLata: 5, zmianyWskaznika: [] });
+ok("bez zmian wskaźnika przejście na marżę + wskaźnik wyjściowy (5,50 %)", planBez.events.length === 1 && planBez.events[0].newRatePct === 5.5, JSON.stringify(planBez.events));
+const planM61 = planOprocentowania({ marza: 1.9, wskaznik: 3.6, stopa: "stala", stalaPct: 5.8, stalaLata: 5, zmianyWskaznika: [{ month: 61, newWskaznik: 4.1 }] });
+ok("zmiana wskaźnika dokładnie w m. przejścia wchodzi w przejście (bez duplikatu)", planM61.events.length === 1 && planM61.events[0].newRatePct === 6 && planM61.ignoredMonths.length === 0, JSON.stringify(planM61));
+ok("okres stałej stopy przycinany do 1–10 lat",
+  planOprocentowania({ stopa: "stala", stalaLata: 0 }).fixedMonths === 12 && planOprocentowania({ stopa: "stala", stalaLata: 15 }).fixedMonths === 120,
+  planOprocentowania({ stopa: "stala", stalaLata: 0 }).fixedMonths + " / " + planOprocentowania({ stopa: "stala", stalaLata: 15 }).fixedMonths);
+
+/* Symulacja z tym planem: odsetki do m. 60 stopą 5,80 %, od m. 61 stopą 7,50 %,
+   a rata w m. 61 przeliczona annuitetem na pozostałe 180 mies. od salda po m. 60. */
+const PST = 400000;
+const stSim = simulateScenario(cfg({ principal: PST, gwarancja: 0, years: 20, ratePct: planSt.ratePct, fixedRateMonths: planSt.fixedMonths, events: planSt.events }));
+const stRef = refSim({ principal: PST, ratePct: 5.8, years: 20, rates: { 61: 7.5, 80: 4.5 } });
+const rSt = 5.8 / 100 / 12, rPo = 7.5 / 100 / 12;
+near("stała stopa: rata początkowa wg 5,80 %", stSim.initialRata, rataRef(PST, rSt, 240), 0.01, " zł");
+near("stała stopa: odsetki m. 60 wg 5,80 %", stSim.months[59].odsetki, stSim.months[58].saldo * rSt, 0.01, " zł");
+near("po przejściu: odsetki m. 61 wg 7,50 %", stSim.months[60].odsetki, stSim.months[59].saldo * rPo, 0.01, " zł");
+near("rata m. 60 = rata początkowa (bez zmian w okresie stałej stopy)", stSim.months[59].rata, stSim.initialRata, 0.01, " zł");
+near("rata m. 61 przeliczona na pozostałe 180 mies.", stSim.months[60].rata, rataRef(stSim.months[59].saldo, rPo, 180), 0.01, " zł");
+near("stała stopa: odsetki = referencja", stSim.totalInterest, stRef.totalInterest, 1, " zł");
+near("stała stopa: miesiąc spłaty = referencja", stSim.payoffMonths, stRef.payoffMonths, 1, " mies.");
+const stSimBez = simulateScenario(cfg({ principal: PST, gwarancja: 0, years: 20, ratePct: 5.8, fixedRateMonths: 60,
+  events: planOprocentowania({ marza: 1.9, wskaznik: 3.6, stopa: "stala", stalaPct: 5.8, stalaLata: 5, zmianyWskaznika: [{ month: 80, newWskaznik: 2.6 }] }).events }));
+const stSimZ24 = simulateScenario(cfg({ principal: PST, gwarancja: 0, years: 20, ratePct: 5.8, fixedRateMonths: 60,
+  events: planOprocentowania({ marza: 1.9, wskaznik: 3.6, stopa: "stala", stalaPct: 5.8, stalaLata: 5, zmianyWskaznika: [{ month: 24, newWskaznik: 5.6 }, { month: 80, newWskaznik: 2.6 }] }).events }));
+ok("zmiana wskaźnika w m. 24 nie zmienia żadnej raty w okresie stałej stopy",
+  stSimBez.months.slice(0, 60).every((mo, i) => Math.abs(mo.rata - stSimZ24.months[i].rata) < 0.005 && Math.abs(mo.odsetki - stSimZ24.months[i].odsetki) < 0.005));
+ok("…ale ustala wskaźnik na moment przejścia (rata m. 61 wyższa)", stSimZ24.months[60].rata > stSimBez.months[60].rata + 1,
+  Math.round(stSimZ24.months[60].rata) + " vs " + Math.round(stSimBez.months[60].rata));
+
+/* Opłata za wcześniejszą spłatę w okresie stałej stopy — art. 40 ust. 6: bank „może
+   pobierać rekompensatę w tym okresie"; pułapy z ust. 3 (3 %, odsetki za rok) dotyczą
+   wyłącznie rekompensaty z ust. 2 (stopa zmienna, 36 mies.). */
+ok("okno opłaty: stopa zmienna 36 mies.", feeMonthsMax({ stopa: "zmienna" }) === 36);
+ok("okno opłaty: stała na 5 lat → 60 mies. (cały okres stałej stopy)", feeMonthsMax({ stopa: "stala", stalaLata: 5 }) === 60);
+ok("okno opłaty: stała na 10 lat → 120 mies.", feeMonthsMax({ stopa: "stala", stalaLata: 10 }) === 120);
+ok("okno opłaty: stała na 2 lata → 36 mies. (ust. 2 po przejściu na zmienną)", feeMonthsMax({ stopa: "stala", stalaLata: 2 }) === 36);
+function oplataStala(o) {
+  return simulateScenario(cfg(Object.assign({ gwarancja: 0, years: 20, feePct: 3 }, o, {
+    events: [{ type: "jednorazowa", month: o.at, amount: 10000, trybOverride: "auto" }]
+  }))).totalFees;
+}
+near("stała 5 lat: nadpłata w m. 37 płaci 3 % (bez limitu 36 mies.)", oplataStala({ ratePct: 5.8, fixedRateMonths: 60, feeMonths: 60, at: 37 }), 300, 0.01, " zł");
+near("stała 5 lat, stopa 2 %: bez pułapu odsetek za rok (300 zł, nie 200 zł)", oplataStala({ ratePct: 2, fixedRateMonths: 60, feeMonths: 60, at: 50 }), 300, 0.01, " zł");
+near("stała 5 lat: umowne 5 % bez przycięcia do 3 %", oplataStala({ ratePct: 5.8, fixedRateMonths: 60, feeMonths: 60, feePct: 5, at: 12 }), 500, 0.01, " zł");
+ok("stała 5 lat: po okresie stałej stopy (m. 61) opłaty już nie ma", oplataStala({ ratePct: 5.8, fixedRateMonths: 60, feeMonths: 120, at: 61 }) === 0);
+ok("okno z umowy nadal obowiązuje w okresie stałej stopy (36 mies. z umowy → m. 37 bez opłaty)", oplataStala({ ratePct: 5.8, fixedRateMonths: 60, feeMonths: 36, at: 37 }) === 0);
+/* Stała na 2 lata, potem zmienna 2 %: w m. 20 stawka z umowy (ust. 6), w m. 30 —
+   już reżim zmienny do 36. miesiąca, więc pułap odsetek za rok (200 zł). */
+const plan2 = planOprocentowania({ marza: 1, wskaznik: 1, stopa: "stala", stalaPct: 2, stalaLata: 2 });
+function oplata2(at) {
+  return simulateScenario(cfg({ gwarancja: 0, years: 20, feePct: 3, feeMonths: 36, ratePct: plan2.ratePct, fixedRateMonths: plan2.fixedMonths, events: plan2.events.concat([{ type: "jednorazowa", month: at, amount: 10000, trybOverride: "auto" }]) })).totalFees;
+}
+near("stała 2 lata (2 %): nadpłata w m. 20 — stawka z umowy 300 zł (ust. 6)", oplata2(20), 300, 0.01, " zł");
+near("stała 2 lata, potem zmienna 2 %: nadpłata w m. 30 — pułap odsetek za rok 200 zł (ust. 2–3)", oplata2(30), 200, 0.01, " zł");
+ok("stała 2 lata: nadpłata w m. 37 — bez opłaty (ust. 2)", oplata2(37) === 0);
+near("stała 2 lata: m. 30 = referencja", oplata2(30),
+  refSim({ principal: P, ratePct: 2, years: 20, rates: { 25: 2 }, fixedMonths: 24, oneOff: { 30: 10000 }, feePct: 3, feeMonths: 36 }).totalFees, 0.01, " zł");
+near("stała 5 lat: m. 50 = referencja", oplataStala({ ratePct: 2, fixedRateMonths: 60, feeMonths: 60, at: 50 }),
+  refSim({ principal: P, ratePct: 2, years: 20, fixedMonths: 60, oneOff: { 50: 10000 }, feePct: 3, feeMonths: 60 }).totalFees, 0.01, " zł");
+
+/* ---------- 19. limit wkładu własnego przy stopie stałej (art. 5 ust. 1 pkt 5 lit. b) ----------
+   30 % wydatków, gdy stopa jest stała na co najmniej 5 lat; krócej — 20 %. Wzór gwarancji
+   bez zmian (domyka do 20 %), więc przy wkładzie 20–30 % gwarancja wynosi zero. */
+ok("stała na 5 lat: wkład 150 000 z 500 000 (30 %) mieści się w limicie", issuesOf({ cena: 500000, wklad: 150000, remont: 0, stala: true, stalaLata: 5 }) === "", issuesOf({ cena: 500000, wklad: 150000, remont: 0, stala: true, stalaLata: 5 }));
+const l30 = rkmLimitIssues({ cena: 500000, wklad: 150000, remont: 0, stala: true, stalaLata: 5 });
+ok("stała na 5 lat: limit 30 % i 150 000 zł", l30.maxWkladPct === 30 && Math.abs(l30.maxWklad - 150000) < 0.01 && l30.stala30 === true, JSON.stringify(l30));
+near("wkład 30 % → gwarancja 0 (domyka tylko do 20 %)", l30.gwarancja, 0, 0.01, " zł");
+ok("stała na 3 lata: wkład 30 % przekracza limit 20 %", issuesOf({ cena: 500000, wklad: 150000, remont: 0, stala: true, stalaLata: 3 }) === "wklad_pct", issuesOf({ cena: 500000, wklad: 150000, remont: 0, stala: true, stalaLata: 3 }));
+ok("stała na 3 lata: limit zostaje 20 %", rkmLimitIssues({ cena: 500000, wklad: 150000, remont: 0, stala: true, stalaLata: 3 }).maxWkladPct === 20);
+ok("stopa zmienna: wkład 30 % przekracza limit 20 %", issuesOf({ cena: 500000, wklad: 150000, remont: 0 }) === "wklad_pct");
+ok("stała na 5 lat: wkład 32 % przekracza limit 30 %", issuesOf({ cena: 500000, wklad: 160000, remont: 0, stala: true, stalaLata: 5 }) === "wklad_pct");
+ok("stała na 5 lat: 26 % z 800 000 = 208 000 > 200 000 zł (art. 3 ust. 3 pkt 1)", issuesOf({ cena: 800000, wklad: 208000, remont: 0, stala: true, stalaLata: 5 }) === "wklad_kwota", issuesOf({ cena: 800000, wklad: 208000, remont: 0, stala: true, stalaLata: 5 }));
+ok("stała na 10 lat też daje 30 %", rkmLimitIssues({ cena: 500000, wklad: 0, remont: 0, stala: true, stalaLata: 10 }).maxWkladPct === 30);
+ok("próg 20 % (do gwarancji) nie zależy od stopy", rkmLimitIssues({ cena: 500000, wklad: 0, remont: 0, stala: true, stalaLata: 5 }).prog20 === 100000);
 
 /* ---------- podsumowanie ---------- */
 if (failures > 0) {

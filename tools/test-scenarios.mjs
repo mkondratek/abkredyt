@@ -159,6 +159,39 @@ if (s5) {
   ok("karta 5 / B: niższa rata na koniec", s5.B.finalRata < s5.B.initialRata);
 }
 
+/* Karta 6: duży wkład bez RKM kontra RKM ze stopą stałą na 5 lat, wkładem 30 %
+   i resztą gotówki nadpłaconą w m. 37. Teza karty: przy stopie stałej ≥ 5 lat
+   wkład 30 % mieści się w RKM (art. 5 ust. 1 pkt 5 lit. b), gwarancja wynosi zero,
+   nadpłata w m. 37 jest już poza oknem reguły, ale jeszcze w okresie stałej stopy
+   — więc płaci opłatę (art. 40 ust. 6 u.k.h.); z dzieckiem RKM wygrywa w koszcie
+   z lokatą (który liczy wkład), bez dziecka — przegrywa. */
+const s6 = byId("duzy-wklad-czy-rkm");
+ok("karta 6: stan odczytany", !!s6);
+if (s6) {
+  const lim = (s) => RKM.rkmLimitIssues({ cena: s.cena, wklad: s.wklad, remont: s.remont, stala: s.stopa === "stala", stalaLata: s.stalaLata });
+  eq("karta 6: ta sama gotówka w obu wariantach (wkład + nadpłata)",
+    s6.st.A.wklad, s6.st.B.wklad + s6.st.B.events.filter((e) => e.type === "jednorazowa").reduce((a, e) => a + e.amount, 0));
+  eq("karta 6: cena ilustracyjna 500 000 zł", s6.st.B.cena, 500000);
+  eq("karta 6 / B: stopa stała na 5 lat", s6.st.B.stopa + "/" + s6.st.B.stalaLata, "stala/5");
+  eq("karta 6 / B: wkład 30 % mieści się w limicie RKM przy stopie stałej ≥ 5 lat", lim(s6.st.B).issues.join(","), "");
+  eq("karta 6 / B: ten sam wkład przy stopie zmiennej przekracza limit 20 %", lim(Object.assign({}, s6.st.B, { stopa: "zmienna" })).issues.join(","), "wklad_pct");
+  eq("karta 6 / B: gwarancja BGK", s6.B.gwarancja, 0);
+  eq("karta 6 / B: nadpłata w m. 37 nie narusza reguły", s6.B.rkmBreachMonth, null);
+  eq("karta 6 / B: wypłacona spłata rodzinna", s6.B.totalSplataRodzinna, 60000);
+  ok("karta 6 / B: nadpłata w okresie stałej stopy płaci 3 % (1 500 zł)", Math.abs(s6.B.totalFees - 1500) < 0.01, String(s6.B.totalFees));
+  ok("karta 6 / B: stopa zmienia się w m. 61 (koniec okresu stałej stopy)",
+    s6.B.eventLog.some((e) => e.type === "rate" && e.month === 61), JSON.stringify(s6.B.eventLog.filter((e) => e.type === "rate")));
+  const H = Math.max(s6.A.payoffMonths, s6.B.payoffMonths);
+  const fvA = RKM.kosztZLokata(s6.A, s6.st.lokata, H), fvB = RKM.kosztZLokata(s6.B, s6.st.lokata, H);
+  ok("karta 6: z dzieckiem RKM tańszy w koszcie z lokatą", fvB < fvA, Math.round(fvB) + " vs " + Math.round(fvA));
+  const bezDziecka = Object.assign({}, s6.st.B, { events: s6.st.B.events.filter((e) => e.type !== "dziecko") });
+  const resB0 = RKM.simulateScenario(toEngineConfig(bezDziecka, RKM));
+  const H0 = Math.max(s6.A.payoffMonths, resB0.payoffMonths);
+  ok("karta 6: bez dziecka RKM droższy w koszcie z lokatą (przewaga znika)",
+    RKM.kosztZLokata(resB0, s6.st.lokata, H0) > RKM.kosztZLokata(s6.A, s6.st.lokata, H0),
+    Math.round(RKM.kosztZLokata(resB0, s6.st.lokata, H0)) + " vs " + Math.round(RKM.kosztZLokata(s6.A, s6.st.lokata, H0)));
+}
+
 /* ---------- podsumowanie ---------- */
 if (failures) {
   console.error("\n" + failures + " z " + checks + " sprawdzeń nie przeszło.");

@@ -3,7 +3,7 @@
 Jednoplikowy kalkulator porównujący dwa scenariusze spłaty kredytu hipotecznego (A vs B)
 obok siebie, z wydarzeniami rozłożonymi w czasie: nadpłaty jednorazowe i cykliczne, zmiana
 wskaźnika referencyjnego, narodziny dziecka. Każdy scenariusz ma własną kwotę, okres,
-oprocentowanie i strategię — nad wykresem widać jednolinijkowe streszczenie każdego z nich
+oprocentowanie (zmienne albo okresowo stałe) i strategię — nad wykresem widać jednolinijkowe streszczenie każdego z nich
 (kwota · okres · stopa · strategia), żeby dało się odczytać wykres bez zaglądania w formularz.
 
 Osobny moduł, włączany przełącznikiem „Kredyt w programie RKM", dolicza zasady programu
@@ -22,12 +22,13 @@ można komuś wysłać albo zapisać w notatkach i wrócić do dokładnie tego s
 Strona: <https://abkredyt.kondratek.pl>
 
 Pytania i odpowiedzi oraz źródła są na osobnych podstronach: [`/pytania.html`](public/pytania.html)
-— szesnaście pytań o regułę nadpłat w RKM, gwarancję BGK i o to, jak liczy silnik — oraz
+— siedemnaście pytań o regułę nadpłat w RKM, gwarancję BGK i o to, jak liczy silnik — oraz
 [`/zrodla.html`](public/zrodla.html), gdzie stoją przepisy, na których opiera się kalkulator,
 i spis tego, co zostało sprawdzone z tekstem ustawy, a co nie.
 
-Gotowe porównania — pięć typowych pytań („nadpłacić od razu czy poczekać 3 lata?”, „15 lat
-czy 30 lat i nadpłacać?”, „RKM czy zwykły kredyt przy 20 % wkładu?”…) z linkami otwierającymi
+Gotowe porównania — sześć typowych pytań („nadpłacić od razu czy poczekać 3 lata?”, „15 lat
+czy 30 lat i nadpłacać?”, „RKM czy zwykły kredyt przy 20 % wkładu?”, „duży wkład bez RKM czy
+RKM z mniejszym wkładem?”…) z linkami otwierającymi
 kalkulator w ustawionym stanie — są na `/scenariusze.html`. Źródłem prawdy jest
 `tools/scenarios.json`; stronę generuje `node tools/build-scenarios.mjs`, a test w CI sprawdza,
 że plik jest świeży i każdy link da się odczytać.
@@ -45,29 +46,39 @@ tylko z wariantem „bez nadpłat".
 
 Rata równa (annuitet), kapitalizacja miesięczna, oprocentowanie miesięczne `r = nominal/12`.
 Oprocentowanie wpisuje się jako marża + wskaźnik referencyjny (WIBOR/WIRON) — zdarzenie
-„zmiana oprocentowania" to zmiana wskaźnika, nie ręczne wpisanie nowej stopy.
+„zmiana oprocentowania" to zmiana wskaźnika, nie ręczne wpisanie nowej stopy. Scenariusz
+może mieć też oprocentowanie **okresowo stałe**: stopa stała (np. 5,80 %) przez 1–10 lat,
+potem marża + wskaźnik obowiązujący w tym momencie; zmiany wskaźnika w okresie stałej stopy
+nie zmieniają raty (w panelu mają etykietę „bez wpływu — okres stałej stopy”).
 
 Nadpłaty (jednorazowe i cykliczne) mają dwa tryby: „skróć okres" (rata bez zmian, kredyt
 spłaca się szybciej) i „obniż ratę" (okres bez zmian, rata maleje). Zmiana oprocentowania
 zawsze przelicza ratę na nowo. Opłata za wcześniejszą spłatę (% przez pierwsze N miesięcy)
-dotyczy wyłącznie nadpłat dobrowolnych — nie spłaty rodzinnej — i respektuje oba limity
-z ustawy o kredycie hipotecznym z 23 marca 2017 r.: rekompensata przysługuje bankowi
-najwyżej przez **36 miesięcy** przy oprocentowaniu zmiennym (art. 40 ust. 2; kalkulator
-innego nie modeluje, więc pole „Obowiązuje przez" jest tam przycięte) i nie może
-przekroczyć **odsetek od nadpłacanej kwoty za 12 miesięcy** (art. 40 ust. 3). Ten drugi
-limit widać dopiero przy niskiej stopie: umowne 3 % od 10 000 zł to 300 zł, ale przy
-oprocentowaniu 2 % bank może wziąć najwyżej 200 zł. Limit liczy się od stopy obowiązującej
-w miesiącu nadpłaty, więc po spadku wskaźnika idzie za nią.
+dotyczy wyłącznie nadpłat dobrowolnych — nie spłaty rodzinnej — i idzie za art. 40 ustawy
+o kredycie hipotecznym z 23 marca 2017 r. (t.j. Dz.U. 2025 poz. 720). Przy oprocentowaniu
+zmiennym rekompensata przysługuje bankowi najwyżej przez **36 miesięcy** od zawarcia umowy
+(ust. 2) i nie może przekroczyć ani **3 %** spłacanej kwoty, ani **odsetek od niej za
+12 miesięcy** (ust. 3; ostatni rok umowy — odsetek za pozostały okres, ust. 4). Limit
+odsetkowy widać dopiero przy niskiej stopie: umowne 3 % od 10 000 zł to 300 zł, ale przy
+oprocentowaniu 2 % bank może wziąć najwyżej 200 zł; liczy się od stopy obowiązującej
+w miesiącu nadpłaty (ust. 5). W **okresie stałej stopy** bank może pobierać rekompensatę
+przez cały ten okres (ust. 6), bez limitu 36 miesięcy i bez pułapów z ust. 3 — kalkulator
+bierze wtedy stawkę z umowy; po okresie stałej stopy do 36. miesiąca działa reżim zmienny,
+później opłaty nie ma. Pole „Obowiązuje przez" jest przycinane do 36 miesięcy albo do
+całego okresu stałej stopy, jeśli jest dłuższy.
 
 **Koszt alternatywny gotówki.** Nad panelami stoi jeden wspólny parametr — oprocentowanie
 lokaty netto (domyślnie 3 %). Pod porównaniem A vs B dochodzi wiersz „Łączny koszt
-z uwzględnieniem lokaty": każda złotówka wpłacona do banku (rata, nadpłata dobrowolna,
-opłata za wcześniejszą spłatę, opłata za gwarancję) mogła zamiast tego pracować na lokacie
-do końca wspólnego horyzontu — czyli do ostatniej raty dłuższego z dwóch kredytów. Bez tego
+z uwzględnieniem lokaty": każda złotówka wpłacona do banku (wkład własny w dniu startu,
+rata, nadpłata dobrowolna, opłata za wcześniejszą spłatę, opłata za gwarancję) mogła
+zamiast tego pracować na lokacie do końca wspólnego horyzontu — czyli do ostatniej raty
+dłuższego z dwóch kredytów. Wkład własny jest tu celowo: dopiero z nim da się uczciwie
+porównać większy wkład z mniejszym wkładem i nadpłatą później (np. 200 000 zł wkładu bez
+RKM kontra 20–30 % wkładu w RKM i resztę gotówki nadpłaconą w 37. miesiącu). Bez tego
 porównanie „nadpłacić teraz" kontra „poczekać do miesiąca 37 i zachować spłatę rodzinną"
 jest jednostronne: widać oszczędność na odsetkach, nie widać, co przez ten czas zarabiała
 gotówka. Spłata rodzinna do wpłat nie wchodzi — to pieniądz BGK, nie kredytobiorcy —
-i z tego samego powodu nie liczy się jej w KPI „Suma wpłat".
+i z tego samego powodu nie liczy się jej w KPI „Suma wpłat (wkład + raty + nadpłaty + opłaty)".
 
 **Znaczniki reguły RKM** (tylko dla scenariusza w programie) pokazują na wykresie
 i w rozwiniętym harmonogramie trzy momenty: koniec 36-miesięcznego okna, po którym nadpłata
@@ -83,7 +94,7 @@ własnego i dodatkowej kwoty kredytu i pokazuje jako pole tylko do czytania:
 `min(20 % wydatków − wkład; 100 000 zł; 200 000 zł − wkład; kwota kredytu)`, gdzie
 „całkowita kwota wydatków" to cena plus dodatkowa kwota kredytu (art. 3 ust. 3b, art. 4a
 ust. 2–3). Gdy wkład własny wychodzi poza ustawowe granice — ponad 20 % wydatków
-(art. 5 ust. 1 pkt 5), ponad 200 000 zł (art. 3 ust. 3 pkt 1), za mało, by pełna gwarancja
+(30 % przy stopie stałej na co najmniej 5 lat; art. 5 ust. 1 pkt 5), ponad 200 000 zł (art. 3 ust. 3 pkt 1), za mało, by pełna gwarancja
 domknęła 20 % wydatków, albo tak, że wkład i gwarancja dają razem ponad 200 000 zł
 (art. 4a ust. 2 pkt 1) — panel pokazuje listę niespełnionych warunków. Kalkulator dalej
 liczy taki kredyt (nic nie jest po cichu przycinane), ale mówi wprost, że nie jest to już
@@ -145,8 +156,9 @@ kredytu (art. 7 ust. 1 pkt 7); ta część gwarantowana maleje z każdą spłat�
 ≥ 20%) próg wynosi zero i każda przedterminowa spłata w tym okresie odbiera prawo do
 przyszłych spłat rodzinnych. Naruszenie nie powoduje zwrotu spłat już wypłaconych — tylko
 utratę tych przyszłych. Wkład własny może wynosić maksymalnie 20% całkowitej kwoty wydatków
-przy stopie zmiennej albo 30% przy stopie stałej na co najmniej 5 lat (art. 5 ust. 1 pkt 5)
-i nie więcej niż 200 000 zł (art. 3 ust. 3 pkt 1). Jeżeli wkład jest niższy niż 20% wydatków,
+przy stopie zmiennej albo 30% przy stopie stałej na co najmniej 5 lat (art. 5 ust. 1 pkt 5;
+kalkulator stosuje 30 % przy oprocentowaniu okresowo stałym na co najmniej 5 lat, a przy
+krótszym okresie stałej stopy zostaje przy 20 %) i nie więcej niż 200 000 zł (art. 3 ust. 3 pkt 1). Jeżeli wkład jest niższy niż 20% wydatków,
 gwarancją BGK objęta jest ta właśnie różnica (art. 3 ust. 3b) — sama gwarancja maksymalnie
 100 000 zł (art. 4a ust. 3), a gwarancja i wkład łącznie maksymalnie 200 000 zł i 20% wydatków
 (art. 4a ust. 2; opłata jednorazowa 1% objętej gwarancją części). Ponieważ gwarancja urywa się
@@ -166,7 +178,7 @@ zapisem ustawy.
 ## Prywatność
 
 Wszystko liczy się w przeglądarce — nic z tego, co wpisujesz, nie opuszcza Twojego
-urządzenia. Stan porównania zapisuje się w `localStorage` (klucz `abkredyt-state-v6`),
+urządzenia. Stan porównania zapisuje się w `localStorage` (klucz `abkredyt-state-v7`),
 żeby przetrwał odświeżenie strony; usuwa się razem z danymi strony w przeglądarce.
 Przycisk „Kopiuj link do tego porównania” zaszywa parametry (kwoty, oprocentowanie,
 wydarzenia) w **fragmencie** adresu — a fragment, w odróżnieniu od query stringu,

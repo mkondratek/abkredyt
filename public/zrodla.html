@@ -255,11 +255,24 @@
           hipotecznego w okresie roku od dnia faktycznej spłaty, ani większa niż 3 % spłacanej kwoty
           kredytu hipotecznego.”
         </p>
+        <p>
+          art. 40 ust. 6: „W przypadku kredytu hipotecznego, w którym stała stopa oprocentowania
+          kredytu hipotecznego obowiązuje w danym okresie, kredytodawca może pobierać rekompensatę
+          w tym okresie.”
+        </p>
       </blockquote>
       <p>
-        Kalkulator respektuje oba limity naraz: opłata to mniejsza z dwóch wartości — wpisany procent
-        nadpłaty i odsetki od niej za 12 miesięcy, liczone stopą z miesiąca nadpłaty (art. 40 ust. 5).
-        Wariantu ze stałą stopą (art. 40 ust. 6) nie modeluje.
+        Przy stopie zmiennej kalkulator respektuje wszystkie limity naraz: opłata to najmniejsza
+        z wartości — wpisany procent nadpłaty, 3 % i odsetki od niej za 12 miesięcy, liczone stopą
+        z miesiąca nadpłaty (art. 40 ust. 5), a w ostatnim roku umowy odsetki za pozostały okres
+        (ust. 4). W okresie stałej stopy (oprocentowanie „okresowo stałe”) liczy stawkę z umowy
+        przez cały ten okres, bez limitu 36 miesięcy i bez pułapów z ust. 3, które dotyczą
+        wyłącznie rekompensaty „o której mowa w ust. 2”; górną granicę z ust. 7 (koszty banku
+        bezpośrednio związane ze spłatą) trudno policzyć, więc jej nie modeluje. Po zakończeniu
+        okresu stałej stopy kredyt jest zmienny: do 36. miesiąca od zawarcia umowy obowiązują
+        ust. 2–3, później opłaty nie ma — tu ustawa nie mówi wprost, jak liczyć kredyt okresowo
+        stały, więc kalkulator przyjmuje ostrożnie, że opłata jest dozwolona. Brzmienie art. 40
+        ponownie sprawdzono 28 września 2026 r. (tekst jednolity dostępny w API ELI tylko jako PDF).
       </p>
 
       <h3 id="nowelizacja-2026">Nowelizacja Dz.U. 2026 poz. 635 — nieprzeczytana</h3>
@@ -324,8 +337,8 @@
               <td class="status">Zweryfikowane (art. 8 ust. 7 wymienia podstawy zwrotu wyczerpująco)</td>
             </tr>
             <tr>
-              <td>Rekompensata za wcześniejszą spłatę: 36 miesięcy, 3 %, roczne odsetki</td>
-              <td class="status">Zweryfikowane (art. 40 ust. 2, 3 i 5 ustawy o kredycie hipotecznym)</td>
+              <td>Rekompensata za wcześniejszą spłatę: 36 miesięcy, 3 %, roczne odsetki przy stopie zmiennej; cały okres stałej stopy bez tych pułapów</td>
+              <td class="status">Zweryfikowane (art. 40 ust. 2–6 ustawy o kredycie hipotecznym); reżim po zakończeniu okresu stałej stopy — odczytanie ostrożne</td>
             </tr>
             <tr>
               <td>Maksymalny okres kredytu 35 lat</td>

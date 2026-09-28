@@ -7,7 +7,7 @@
     <link rel="canonical" href="https://abkredyt.kondratek.pl/pytania" />
     <meta
       name="description"
-      content="Pytania i odpowiedzi o Rodzinnym Kredycie Mieszkaniowym i o tym, jak liczy kalkulator abkredyt: limit nadpłat w pierwszych 3 latach, gwarancja BGK, spłata rodzinna, wkład własny, opłata za wcześniejszą spłatę."
+      content="Pytania i odpowiedzi o Rodzinnym Kredycie Mieszkaniowym i o tym, jak liczy kalkulator abkredyt: limit nadpłat w pierwszych 3 latach, gwarancja BGK, spłata rodzinna, wkład własny, stopa stała czy zmienna, opłata za wcześniejszą spłatę."
     />
     <title>Pytania i odpowiedzi — kalkulator kredytu abkredyt</title>
     <style>
@@ -165,11 +165,12 @@
         <li><a href="#koszt-gwarancji">Ile kosztuje gwarancja BGK?</a></li>
         <li><a href="#gwarancja-tylko-do-odczytu">Dlaczego nie mogę wpisać kwoty gwarancji?</a></li>
         <li><a href="#wklad-wlasny">Jaki wkład własny jest dozwolony w RKM?</a></li>
+        <li><a href="#stala-czy-zmienna">Stopa stała czy zmienna — co zmienia w RKM?</a></li>
         <li><a href="#oplata-za-wczesniejsza-splate">Czy opłata za wcześniejszą spłatę (3 % przez 36 miesięcy) to standard?</a></li>
       </ol>
 
       <p>Jak liczy kalkulator</p>
-      <ol start="13">
+      <ol start="14">
         <li><a href="#skroc-okres-obniz-rate">Co znaczy „skróć okres” i „obniż ratę”?</a></li>
         <li><a href="#koszt-z-lokata">Co to jest „Łączny koszt z uwzględnieniem lokaty”?</a></li>
         <li><a href="#uproszczenia">Co kalkulator upraszcza?</a></li>
@@ -305,10 +306,33 @@
         domknąć różnicę do 20 % wydatków, a nie może przekroczyć 100 000 zł, to przy wydatkach
         powyżej 500 000 zł trzeba wnieść co najmniej „20 % wydatków − 100 000 zł” (przy 600 000 zł
         to 20 000 zł, przy 1 000 000 zł — 100 000 zł). Powyżej miliona złotych wydatków programu nie
-        da się już domknąć żadnym wkładem. Kalkulator liczy tylko wariant ze stopą zmienną, czyli
-        limit 20 %, i nie modeluje dwóch wyjątków: 10 % dla rodziny z dwojgiem dzieci posiadającej
-        jedno niewielkie mieszkanie (art. 5 ust. 2) ani wkładu wyłącznie w postaci niezabudowanej
-        działki (art. 3 ust. 3a w związku z art. 5 ust. 2d).
+        da się już domknąć żadnym wkładem. Kalkulator stosuje limit 30 %, gdy w panelu wybierzesz
+        oprocentowanie okresowo stałe na co najmniej 5 lat, a w każdym innym przypadku 20 %. Nie
+        modeluje dwóch wyjątków: 10 % dla rodziny z dwojgiem dzieci posiadającej jedno niewielkie
+        mieszkanie (art. 5 ust. 2) ani wkładu wyłącznie w postaci niezabudowanej działki (art. 3
+        ust. 3a w związku z art. 5 ust. 2d).
+      </p>
+
+      <h3 id="stala-czy-zmienna">Stopa stała czy zmienna — co zmienia w RKM?</h3>
+      <p>
+        Dwie rzeczy. Pierwsza to limit wkładu własnego: przy kredycie o stałej stopie, jeśli okres,
+        w którym stopa jest stała, wynosi co najmniej 5 lat, wkład może sięgnąć 30 % wydatków
+        zamiast 20 % (art. 5 ust. 1 pkt 5 lit. b). Stała stopa na krócej — na 2 czy 3 lata — tego
+        limitu nie podnosi. Gwarancja BGK dalej domyka tylko do 20 % wydatków, więc przy wkładzie
+        między 20 a 30 % wynosi zero, a wtedy każda nadpłata w pierwszych 3 latach odbiera
+        przyszłe spłaty rodzinne.
+      </p>
+      <p>
+        Druga to opłata za wcześniejszą spłatę. W okresie stałej stopy bank może pobierać
+        rekompensatę przez cały ten okres (art. 40 ust. 6 ustawy o kredycie hipotecznym), a nie
+        tylko przez 36 miesięcy, i nie obowiązują go wtedy pułapy 3 % ani odsetek za rok — te
+        dotyczą wyłącznie stopy zmiennej. Ogranicza go tylko zasada, że rekompensata nie może
+        przekroczyć kosztów banku związanych ze spłatą (ust. 7). Nadpłata odłożona do 37. miesiąca,
+        żeby nie stracić spłaty rodzinnej, przy stopie stałej na 5 lat wciąż wypada w okresie,
+        w którym bank może wziąć opłatę. W kalkulatorze wybierasz „okresowo stałe” w bloku
+        „Oprocentowanie”: do końca okresu stałej stopy obowiązuje stopa stała, a potem
+        marża plus wskaźnik z tego momentu. Zmiany wskaźnika wpisane w okresie stałej stopy
+        nie zmieniają raty.
       </p>
 
       <h3 id="oplata-za-wczesniejsza-splate">Czy opłata za wcześniejszą spłatę (3 % przez 36 miesięcy) to standard?</h3>
@@ -322,6 +346,17 @@
         dopuszczalny wariant; jeśli Twój bank nie pobiera opłaty, wpisz 0. Drugi limit widać dopiero
         przy niskiej stopie: przy oprocentowaniu 2 % bank weźmie od nadpłaconych 10 000 zł najwyżej
         200 zł, a nie 300 zł.
+      </p>
+      <p>
+        Przy stopie stałej jest inaczej: w okresie, w którym stopa jest stała, bank może pobierać
+        rekompensatę przez cały ten okres (art. 40 ust. 6) — przy stałej na 5 lat także za nadpłatę
+        w 37. czy 50. miesiącu — i nie dotyczą go pułapy 3 % ani odsetek za rok, tylko ogólna
+        zasada, że rekompensata nie może przekroczyć kosztów banku związanych ze spłatą (ust. 7).
+        Kalkulator liczy wtedy stawkę z umowy przez wpisaną liczbę miesięcy, najwyżej przez cały
+        okres stałej stopy. Po jego zakończeniu kredyt jest zmienny, więc do 36. miesiąca od
+        zawarcia umowy obowiązują limity z ust. 2–3, a później opłaty nie ma. Ustawa nie mówi
+        wprost, jak traktować kredyt okresowo stały po przejściu na stopę zmienną — kalkulator
+        przyjmuje ostrożnie, że opłata jest wtedy dozwolona.
       </p>
 
       <h2 id="jak-liczy">Jak liczy kalkulator</h2>
@@ -339,22 +374,27 @@
 
       <h3 id="koszt-z-lokata">Co to jest „Łączny koszt z uwzględnieniem lokaty”?</h3>
       <p>
-        Każda złotówka, która idzie do banku — rata, nadpłata dobrowolna, opłata za wcześniejszą
-        spłatę, opłata za gwarancję — mogłaby zamiast tego leżeć na lokacie. Ten wiersz oprocentowuje
-        wszystkie wpłaty do końca wspólnego horyzontu, czyli do ostatniej raty dłuższego z dwóch
-        kredytów, po wpisanej stopie lokaty netto, i dopiero takie kwoty zestawia. Bez tego
-        porównanie „nadpłacić teraz” z „poczekać do miesiąca 37 i zachować spłatę rodzinną” jest
-        jednostronne: widać oszczędność na odsetkach, nie widać, co przez ten czas zarabiała
-        odłożona gotówka. Spłata rodzinna do wpłat nie wchodzi — to pieniądz BGK, nie Twój.
+        Każda złotówka, która idzie do banku — wkład własny, rata, nadpłata dobrowolna, opłata za
+        wcześniejszą spłatę, opłata za gwarancję — mogłaby zamiast tego leżeć na lokacie. Ten
+        wiersz oprocentowuje wszystkie wpłaty do końca wspólnego horyzontu, czyli do ostatniej
+        raty dłuższego z dwóch kredytów, po wpisanej stopie lokaty netto, i dopiero takie kwoty
+        zestawia; różnicę pokazuje też w dzisiejszych pieniądzach. Bez tego porównanie „nadpłacić
+        teraz” z „poczekać do miesiąca 37 i zachować spłatę rodzinną” jest jednostronne: widać
+        oszczędność na odsetkach, nie widać, co przez ten czas zarabiała odłożona gotówka.
+        Wkład własny liczy się jako wpłata w dniu startu — dzięki temu da się uczciwie porównać
+        większy wkład z mniejszym wkładem i nadpłatą później, np. 200 000 zł wkładu bez RKM
+        z 20–30 % wkładu w RKM i resztą gotówki nadpłaconą w 37. miesiącu. Spłata rodzinna do
+        wpłat nie wchodzi — to pieniądz BGK, nie Twój — a dodatkowa kwota kredytu też nie, bo to
+        pieniądz pożyczony.
       </p>
 
       <h3 id="uproszczenia">Co kalkulator upraszcza?</h3>
       <p>
         Kilka rzeczy, świadomie. Okno 36 miesięcy liczy od miesiąca uruchomienia kredytu, a ustawa
         liczy je od dnia udzielenia, czyli zawarcia umowy — przy kredycie wypłacanym w transzach to
-        bywają różne daty. Modeluje wyłącznie oprocentowanie zmienne (marża plus wskaźnik), więc
-        wariant ze stopą stałą i wkładem do 30 % jest poza zakresem, podobnie jak wyjątki od limitu
-        wkładu z art. 5 ust. 2 i art. 3 ust. 3a. Nie liczy skutków podatkowych ani opłat bankowych za
+        bywają różne daty. Stopa stała jest modelowana jako okresowo stała (1–10 lat, potem marża
+        plus wskaźnik); kredytu ze stopą stałą przez ponad 10 lat ani wyjątków od limitu wkładu
+        z art. 5 ust. 2 i art. 3 ust. 3a kalkulator nie liczy. Nie liczy skutków podatkowych ani opłat bankowych za
         aneks. Gdy naruszenie reguły i spłata rodzinna wypadają w tym samym miesiącu, silnik
         przetwarza najpierw nadpłatę, więc taka spłata jest już „utracona” — ustawa kolejności nie
         rozstrzyga, to wybór po ostrożnej stronie. Wszystko opiera się na tekście jednolitym

@@ -30,10 +30,26 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   referencyjnej w tym samym pliku (zgodność ±1 zł / ±1 mies.).
 - Oprocentowanie w UI = marża + wskaźnik referencyjny (WIBOR/WIRON); silnik dostaje stopę
   nominalną. Presetów banków nie ma i nie dodawaj ich (to była personalizacja).
+- **Rodzaj oprocentowania per scenariusz** (`s.stopa`: `"zmienna"` | `"stala"`, radia
+  „Oprocentowanie: zmienne | okresowo stałe” w bloku „Oprocentowanie”, `data-f="stopa"`).
+  „Okresowo stałe” dokłada pola `stalaPct` („Stopa stała %”, domyślnie 5,80) i `stalaLata`
+  („Okres stałej stopy (lata)”, 1–10, domyślnie 5; `RKM.STALA_LATA_MIN/MAX`). Kontrakt
+  `simulateScenario` się nie zmienił: plan liczy czysta funkcja silnika
+  `RKM.planOprocentowania({marza, wskaznik, stopa, stalaPct, stalaLata, zmianyWskaznika})`
+  → `{ratePct, fixedMonths, switchMonth, events, ignoredMonths}`: stopa początkowa = stała,
+  w m. `12·lata + 1` syntetyczne `zmiana_oprocentowania` na marża + wskaźnik obowiązujący
+  w tym momencie (ostatnia zmiana wskaźnika z miesiącem ≤ `12·lata + 1`, inaczej wskaźnik
+  wyjściowy), zmiany wskaźnika po przejściu działają normalnie, a te z okresu stałej stopy
+  nie zmieniają raty (`ignoredMonths` → w UI badge „bez wpływu — okres stałej stopy”
+  z wyjaśnieniem w `title`). `toEngineConfig` w UI i w `tools/build-scenarios.mjs`
+  biorą plan stąd (nie duplikuj logiki). Pole nominalne pokazuje „stała 5,80 % do m. 60,
+  potem marża + wskaźnik”, streszczenie „stała 5,80 % (5 lat)” zamiast stopy nominalnej.
+  Silnik dostaje dodatkowo `fixedRateMonths` (= `12·lata`, 0 przy zmiennej) — tylko do
+  reżimu opłaty za wcześniejszą spłatę (niżej).
 - Wydarzenia: nadpłata jednorazowa, nadpłata cykliczna (od–do miesiąca), narodziny dziecka →
   spłata rodzinna (20 000 dla 2. dziecka, 60 000 dla 3.+; capped do salda), zmiana wskaźnika
   (UI: `zmiana_wskaznika`, nowy wskaźnik → silnik: `zmiana_oprocentowania` z nominalną =
-  marża + wskaźnik). Tryb nadpłat globalny + per zdarzenie: „skróć okres” (rata bez zmian) /
+  marża + wskaźnik; przy stopie okresowo stałej przez plan oprocentowania — niżej). Tryb nadpłat globalny + per zdarzenie: „skróć okres” (rata bez zmian) /
   „obniż ratę” (okres bez zmian). Zmiana stopy zawsze przelicza ratę.
 - Przełącznik „Kredyt w programie RKM” jest **per scenariusz** (`s.rkm`, checkbox w panelu
   pod jednolinijkowym streszczeniem) — dzięki temu da się zestawić kredyt w programie ze
@@ -53,25 +69,51 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   `totalCost` (KPI „Łączny koszt (odsetki + opłaty)” z podwierszem „w tym opłata za
   gwarancję …”) i do `totalWplaty`, ale **nie** do `totalFees` (tam siedzą wyłącznie opłaty
   za wcześniejszą spłatę).
-- Opłata za wcześniejszą spłatę: % przez N miesięcy, dotyczy tylko nadpłat dobrowolnych
-  (nie spłaty rodzinnej). Dwa limity z ustawy o kredycie hipotecznym z 23.03.2017:
-  okno maks. **36 mies.** przy stopie zmiennej (art. 40 ust. 2) — `max="36"` na polu
-  „Obowiązuje przez (mies.)”, `field-hint` z podstawą prawną, przycinanie przy wpisywaniu
-  (`FEE_MONTHS_MAX`), w `toEngineConfig` i w `normaliseState`; oraz pułap kwotowy
-  (art. 40 ust. 3) — opłata nie większa niż odsetki od nadpłacanej kwoty za 12 miesięcy,
-  czyli w silniku `fee = min(amt·feePct/100, amt·r·12)` licząc `r` ze stopy
-  **obowiązującej w tym miesiącu** (po zmianie wskaźnika limit idzie za nową stopą).
-  Kalkulator modeluje wyłącznie stopę zmienną, więc wariantu 3-letniego dla stopy stałej
-  nie ma.
+- Opłata za wcześniejszą spłatę: % przez N miesięcy (okno z umowy `feeMonths`), dotyczy
+  tylko nadpłat dobrowolnych (nie spłaty rodzinnej). Art. 40 ustawy z 23.03.2017 o kredycie
+  hipotecznym (t.j. **Dz.U. 2025 poz. 720**, przeczytany 28.09.2026 — API ELI daje dla tej
+  pozycji tylko PDF: `https://api.sejm.gov.pl/eli/acts/DU/2025/720/text.pdf`), w silniku
+  `earlyRepaymentFee(amt, m, r)` w `simulateScenario`:
+  - **stopa zmienna** — tylko do **m. 36** od zawarcia umowy (ust. 2), nie więcej niż **3 %**
+    spłacanej kwoty i niż **odsetki od niej za 12 mies.** (ust. 3), licząc `r` ze stopy
+    **obowiązującej w miesiącu spłaty** (ust. 5); gdy do końca umowy (pierwotny okres)
+    zostało < 12 mies. — nie więcej niż odsetki za ten pozostały okres (ust. 4). Czyli
+    `min(amt·feePct/100, amt·3/100, amt·r·12[, amt·r·pozostało])`.
+  - **okres stałej stopy** (m. ≤ `fixedRateMonths`) — ust. 6: „kredytodawca może pobierać
+    rekompensatę w tym okresie” → przez **cały** okres stałej stopy, bez limitu 36 mies.
+    i **bez** pułapów z ust. 3–4 (te mówią o rekompensacie „o której mowa w ust. 2”, czyli
+    tylko o stopie zmiennej); obowiązuje stawka z umowy `amt·feePct/100`. Ust. 7 (nie więcej
+    niż koszty banku) jest niepoliczalny — niemodelowany.
+  - **po okresie stałej stopy** kredyt jest zmienny, więc do m. 36 działa ust. 2–3,
+    później opłaty nie ma.
+  Odczytania ostrożne (tam, gdzie ustawa nie rozstrzyga — wybrano wariant „opłata
+  dozwolona”): (a) w okresie stałej stopy kredyt okresowo stały nie jest traktowany jako
+  „oprocentowany zmienną stopą” z ust. 2, więc 36 mies. go nie ogranicza; (b) po przejściu
+  na stopę zmienną 36 mies. liczy się od zawarcia umowy (jak w ust. 2), a nie od końca
+  okresu stałej stopy — nadpłata w m. 25–36 po 2-letniej stałej płaci opłatę z pułapem
+  z ust. 3. Okno z umowy przycina `RKM.feeMonthsMax(s)` = `max(36, 12·stalaLata)` przy
+  stałej, 36 przy zmiennej: `max` na polu „Obowiązuje przez (mies.)”, `field-hint` z ustępem,
+  przycinanie przy wpisywaniu (także po zmianie `stopa`/`stalaLata`), w `toEngineConfig`,
+  `normaliseState` i walidatorze gotowych porównań. Silnik i tak sam pilnuje ust. 2
+  (okno z umowy 60 mies. przy stopie zmiennej nie da opłaty w m. 40).
 - **Koszt alternatywny gotówki (lokata)**: jeden GLOBALNY parametr `state.lokata`
   (domyślnie 3,0; pole w pasku nad panelami, bo to cecha rynku, nie scenariusza).
   `RKM.kosztZLokata(result, lokataPct, horizonMonths)` zwraca wartość przyszłą wszystkich
   **wypływów kredytobiorcy** na koniec horyzontu, przy kapitalizacji miesięcznej
-  `r = lokata/100/12`: per miesiąc `rata + nadplata + oplata`, plus `gwarancjaFee`
-  w miesiącu 0. Spłata rodzinna jest wyłączona — to pieniądz BGK, nie kredytobiorcy.
-  UI liczy `horizon = max(payoffMonths A, payoffMonths B)` i pokazuje jeden wiersz
-  `.compare-row` pod siatką porównania. Przy lokacie 0 % wynik równa się `result.totalWplaty`
-  (KPI „Suma wpłat (raty + nadpłaty + opłaty)”).
+  `r = lokata/100/12`: per miesiąc `rata + nadplata + oplata`, plus w miesiącu 0
+  **wkład własny** (`cfg.wklad` → `result.wklad`) i `gwarancjaFee`. Wkład jest tam celowo:
+  bez niego większy wkład wyglądał na darmowy i porównanie „200 000 wkładu bez RKM” kontra
+  „20 % wkładu w RKM + reszta nadpłacona w m. 37” było skrzywione na korzyść większego
+  wkładu. „Dodatkowa kwota kredytu” to pieniądz pożyczony — nie jest wypływem. Spłata
+  rodzinna jest wyłączona — to pieniądz BGK, nie kredytobiorcy. UI liczy
+  `horizon = max(payoffMonths A, payoffMonths B)` i pokazuje jeden wiersz `.compare-row`
+  pod siatką porównania („Łączny koszt z uwzględnieniem lokaty (wkład + raty + nadpłaty +
+  opłaty, …)”) z różnicą także w dzisiejszych pieniądzach (dyskonto tą samą lokatą).
+  Przy lokacie 0 % wynik równa się `result.totalWplaty` (KPI „Suma wpłat (wkład + raty +
+  nadpłaty + opłaty)”; `totalWplaty` zawiera wkład). Przypadek kontrolny w testach
+  (cena 599 000, 20 lat, 5,5 %, lokata 3 %, opłata 3 %/36 mies., „obniż ratę”): A bez RKM
+  z wkładem 200 000 vs C w RKM z wkładem 119 800 + nadpłata 80 200 w m. 37 → bez dziecka
+  C droższe o ≈ 7 750 zł (≈ 4 260 zł dziś), z 3. dzieckiem w m. 24 tańsze o ≈ 117 500 zł.
 - Reguła RKM (zweryfikowana z tekstem ustawy 02.09.2026, patrz niżej): część kredytu objęta
   gwarancją BGK maleje z każdą spłatą kapitału (rata, nadpłata dobrowolna, spłata rodzinna —
   art. 4a ust. 6). W pierwszych 36 mies. nadpłata DOBROWOLNA jest bezpieczna tylko do
@@ -133,16 +175,23 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
 - **Banner „Kredyt nie spełnia warunków RKM”** (tylko tryb RKM) renderuje się w panelu
   bezpośrednio pod blokiem „Kredyt”, w formie `warning-banner` z paletą krytyczną
   (`.warning-banner.critical`, `role="status"`), po jednym punkcie na naruszony limit.
-  Kody z `RKM.rkmLimitIssues({cena, wklad, remont})` (zwraca `{issues, wydatki, minWklad,
-  maxWklad, brakDo20, gwarancjaPotrzebna, gwarancja, pctWkladu}`): `wklad_pct` (wkład > 20 %
-  wydatków — art. 5 ust. 1 pkt 5 lit. a), `wklad_kwota` (wkład > 200 000 zł — art. 3 ust. 3
+  Kody z `RKM.rkmLimitIssues({cena, wklad, remont, stala, stalaLata})` (zwraca `{issues,
+  wydatki, minWklad, maxWklad, maxWkladPct, prog20, stala, stala30, brakDo20,
+  gwarancjaPotrzebna, gwarancja, pctWkladu}`): `wklad_pct` (wkład > 20 % wydatków — art. 5
+  ust. 1 pkt 5 lit. a; albo > 30 %, gdy stopa jest stała na **co najmniej 5 lat** — lit. b,
+  `stala30`; stała na krócej zostaje przy 20 % — ustawa nie daje jej 30 %, a lit. a mówi
+  o stopie zmiennej, więc ostrożnie 20 %), `wklad_kwota` (wkład > 200 000 zł — art. 3 ust. 3
   pkt 1), `gwarancja_niedobor` (`0,2·wydatki − wkład > 100 000`, czyli nawet pełna gwarancja
   nie domyka 20 % — trzeba dołożyć wkładu co najmniej `0,2·wydatki − 100 000`) i `suma_200k`
   (wkład + potrzebna gwarancja > 200 000 zł). `suma_200k` raportujemy TYLKO wtedy, gdy nie
   wynika już z któregoś z poprzednich, żeby banner nie powtarzał tej samej przyczyny.
   Banner jest informacyjny — kalkulator dalej liczy, wkładu nie przycinamy po cichu; pod
   „Wkładem własnym” dochodzi w trybie RKM `field-hint` z dopuszczalnym przedziałem
-  („W RKM: od W zł do 20 % wydatków (V zł)”, W = `max(0, 0,2·wydatki − 100 000)`).
+  („W RKM: od W zł do 20 % wydatków (V zł)”, W = `max(0, 0,2·wydatki − 100 000)`; przy
+  stałej ≥ 5 lat „do 30 % wydatków (V zł) — stopa stała na co najmniej 5 lat”, przy
+  krótszej dopisek „— 30 % tylko przy stopie stałej na co najmniej 5 lat”). Wzór gwarancji
+  się nie zmienia (domyka do 20 %, `prog20`), więc przy wkładzie 20–30 % gwarancja = 0
+  i działa podpowiedź „Bez gwarancji (wkład własny ≥ 20 %)…”.
   Świadomie NIE modelowane (tylko w dokumentacji): art. 5 ust. 2 (rodzina z dwojgiem dzieci
   posiadająca jedno mieszkanie — wkład ≤ 10 %), art. 3 ust. 3a w zw. z art. 5 ust. 2d (wkład
   wyłącznie w postaci działki — bez limitu procentowego, wkład + kredyt ≤ 1 000 000 zł),
@@ -151,17 +200,24 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   Także art. 7 ust. 2: gdy warunek braku innego mieszkania spełniono w trybie art. 5 ust. 2,
   spłata rodzinna przysługuje dopiero po wygaśnięciu gwarancji — niemodelowane, opisane
   w /pytania przy pytaniu o „termin na dziecko”.
-- Stan w `localStorage` (klucz `abkredyt-state-v6`), w try/catch, z kontrolą kształtu
+- Stan w `localStorage` (klucz `abkredyt-state-v7`), w try/catch, z kontrolą kształtu
   (`looksLikeState`) — przy zmianie schematu stanu podbij sufiks klucza **i** stałą
-  `RKM.STATE_VERSION` (= 6; siedzi w silniku, stan nosi ją jako pole `v`). Dekoder linku
-  przyjmuje wersje z `RKM.ACCEPTED_STATE_VERSIONS` (`[4, 5, 6]`) i podnosi je do bieżącej:
+  `RKM.STATE_VERSION` (= 7; siedzi w silniku, stan nosi ją jako pole `v`). Gdy pod
+  bieżącym kluczem nic nie ma, UI czyta poprzedni (`LEGACY_STORAGE_KEYS` =
+  `["abkredyt-state-v6"]`) i podnosi go przez `normaliseState()` — przy następnym bumpie
+  dopisz tam stary klucz. Dekoder linku przyjmuje wersje z `RKM.ACCEPTED_STATE_VERSIONS`
+  (`[4, 5, 6, 7]`) i podnosi je do bieżącej:
   ładunek v4 nosił dodatkowo pole `gwarancja` (dziś ignorowane), a v4 i v5 miały GLOBALNY
   tryb RKM (`rkmOn`, klucz „k”) — przy dekodowaniu trafia on do OBU scenariuszy
   (`A.rkm = B.rkm = rkmOn`, `LEGACY_GLOBAL_RKM_VERSIONS`), a brakująca lokata dostaje
-  `DEFAULT_LOKATA_PCT`. To samo domykanie robi `normaliseState()` dla stanu z dysku.
-  Każda inna wersja przechodzi dalej bez zmian i UI ją odrzuca.
+  `DEFAULT_LOKATA_PCT`; ładunki v4–v6 dostają `stopa: "zmienna"` oraz domyślne
+  `stalaPct`/`stalaLata` (`RKM.DEFAULT_STALA_PCT` = 5,8, `DEFAULT_STALA_LATA` = 5).
+  To samo domykanie robi `normaliseState()` dla stanu z dysku (plus przycięcie `stalaLata`
+  do 1–10 i `feeMonths` do `feeMonthsMax`). Każda inna wersja przechodzi dalej bez zmian
+  i UI ją odrzuca.
 - Stan w linku: przycisk „Kopiuj link do tego porównania” koduje `{v, chartMode,
-  tableScn, lokata, A, B}` (z `rkm` w każdym scenariuszu) jako JSON ze skróconymi
+  tableScn, lokata, A, B}` (z `rkm`, `stopa`/`stalaPct`/`stalaLata` — klucze „z”/„q”/„j”,
+  wartości stopy „z”/„s” — w każdym scenariuszu) jako JSON ze skróconymi
   (jednoznakowymi) kluczami → `deflate-raw`
   (`CompressionStream`) → base64url → fragment `#s=d.<ładunek>`. Gdy przeglądarka nie ma
   `CompressionStream`, powstaje wariant `#s=j.<base64url JSON-a>`; dekoder przyjmuje oba.
@@ -237,10 +293,10 @@ sugeruje finansowanie Rządowego Funduszu Mieszkaniowego, nie zmiany w art. 7/4a
 niepotwierdzone.
 
 ## Gotowe porównania (`public/scenariusze.html`)
-Podstrona z 5 kartami „pytanie → dwa scenariusze → link `#s=`”, pod
+Podstrona z 6 kartami „pytanie → dwa scenariusze → link `#s=`”, pod
 https://abkredyt.kondratek.pl/scenariusze.html. **Plik jest generowany — nie edytuj go
 ręcznie.** Źródło prawdy to `tools/scenarios.json` (pytanie, „dlaczego to ważne”,
-lista ustawień, „na co patrzeć”, wybrane metryki i PEŁNY stan v6 dla każdej karty);
+lista ustawień, „na co patrzeć”, wybrane metryki i PEŁNY stan v7 dla każdej karty);
 `tools/build-scenarios.mjs` wczytuje silnik z `<script id="engine">` tak samo jak
 `tools/test-engine.mjs`, waliduje kształt stanu (ostrzejszy odpowiednik `looksLikeState`
 plus zakresy okresu/opłaty i typy zdarzeń), liczy 2–3 liczby nagłówkowe przez
@@ -249,7 +305,10 @@ plus zakresy okresu/opłaty i typy zdarzeń), liczy 2–3 liczby nagłówkowe pr
 Regeneracja: `node tools/build-scenarios.mjs`. `tools/test-scenarios.mjs` (w CI po teście
 silnika) sprawdza świeżość pliku bajt w bajt, rozpakowuje każdy link i weryfikuje tezę
 każdej karty (naruszenie reguły w m. 6, gwarancja 0 przy wkładzie 20 %, rosnąca rata po
-zmianie wskaźnika itd.). Liczby w kartach nie są przepisane — biorą się z silnika przy
+zmianie wskaźnika, w karcie 6 — duży wkład bez RKM kontra RKM ze stopą stałą 5 lat, wkładem
+30 % i nadpłatą w m. 37 — limit 30 %, opłata 1 500 zł w okresie stałej stopy i zmiana
+kierunku wyniku po usunięciu dziecka). Metryka może liczyć się na wspólnym horyzoncie
+(`get(r, ctx)`, np. `kosztZLokata`). Liczby w kartach nie są przepisane — biorą się z silnika przy
 każdym buildzie, więc zmiana silnika albo `STATE_VERSION` wymaga podbicia pól `v`
 w `tools/scenarios.json` i ponownego wygenerowania strony. Data w stopce jest stałą
 (`GENERATED_LABEL`), nie zegarem — inaczej test świeżości padałby co dobę.

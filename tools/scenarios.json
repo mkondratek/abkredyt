@@ -10,7 +10,7 @@
     "lookAt": "W scenariuszu A pojawia się baner „Utrata przyszłych spłat rodzinnych”, a przy spłacie rodzinnej — odznaka „utracona”. Różnicę w pieniądzu czytaj z wiersza „Łączny koszt z uwzględnieniem lokaty” pod porównaniem.",
     "metrics": ["sumaOdsetek", "splataRodzinna"],
     "state": {
-      "v": 6,
+      "v": 7,
       "lokata": 3,
       "chartMode": "saldo",
       "tableScn": "A",
@@ -26,6 +26,9 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": [
           { "type": "jednorazowa", "month": 6, "amount": 150000, "trybOverride": "auto" },
           { "type": "dziecko", "month": 30, "amount": 60000, "childNumber": 3, "trybOverride": "auto" }
@@ -43,6 +46,9 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": [
           { "type": "dziecko", "month": 30, "amount": 60000, "childNumber": 3, "trybOverride": "auto" },
           { "type": "jednorazowa", "month": 37, "amount": 150000, "trybOverride": "auto" }
@@ -61,7 +67,7 @@
     "lookAt": "Porównaj „Suma odsetek” i „Data ostatniej raty” — wychodzą niemal identycznie, a różnicę robi opłata za wcześniejszą spłatę w B. Zajrzyj też do „Część gwarantowana po 3 latach”: wyższa rata w A zjada gwarancję BGK równie szybko jak nadpłaty w B, więc zapasu na przyszłe nadpłaty nie zostawia żaden z wariantów.",
     "metrics": ["rataPoczatkowa", "sumaOdsetek", "dataOstatniejRaty"],
     "state": {
-      "v": 6,
+      "v": 7,
       "lokata": 3,
       "chartMode": "saldo",
       "tableScn": "A",
@@ -77,6 +83,9 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": []
       },
       "B": {
@@ -91,6 +100,9 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": [
           { "type": "cykliczna", "startMonth": 1, "endMonth": 360, "monthlyAmount": 1250, "trybOverride": "auto" }
         ]
@@ -108,7 +120,7 @@
     "lookAt": "W panelu A pod „Gwarancją BGK” stoi podpowiedź „Bez gwarancji (wkład własny ≥ 20 %)…”. Porównaj „Suma odsetek” i wiersz „Łączny koszt z uwzględnieniem lokaty” — 20 000 zł od BGK nie nadrabia odsetek, które dokłada rezygnacja z nadpłat.",
     "metrics": ["sumaOdsetek", "dataOstatniejRaty"],
     "state": {
-      "v": 6,
+      "v": 7,
       "lokata": 3,
       "chartMode": "saldo",
       "tableScn": "A",
@@ -124,6 +136,9 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": [
           { "type": "dziecko", "month": 24, "amount": 20000, "childNumber": 2, "trybOverride": "auto" }
         ]
@@ -140,6 +155,9 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": [
           { "type": "cykliczna", "startMonth": 1, "endMonth": 360, "monthlyAmount": 1000, "trybOverride": "auto" }
         ]
@@ -157,7 +175,7 @@
     "lookAt": "W B porównaj „Ratę po ostatnim wydarzeniu” z „Ratą początkową”, a wykres zostaw w trybie „Rata”, w którym otwiera się ten link. Skalę kosztu pokazuje Δ w wierszu „Suma odsetek”.",
     "metrics": ["rataKoncowa", "sumaOdsetek"],
     "state": {
-      "v": 6,
+      "v": 7,
       "lokata": 3,
       "chartMode": "rata",
       "tableScn": "A",
@@ -173,6 +191,9 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": []
       },
       "B": {
@@ -187,6 +208,9 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": [
           { "type": "zmiana_wskaznika", "month": 12, "newWskaznik": 5.6 }
         ]
@@ -204,7 +228,7 @@
     "lookAt": "„Suma odsetek” i „Skrócenie okresu” mówią, ile kosztuje wygoda; „Rata po ostatnim wydarzeniu” — ile z tej wygody masz co miesiąc.",
     "metrics": ["sumaOdsetek", "rataKoncowa", "dataOstatniejRaty"],
     "state": {
-      "v": 6,
+      "v": 7,
       "lokata": 3,
       "chartMode": "saldo",
       "tableScn": "A",
@@ -220,6 +244,9 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": [
           { "type": "jednorazowa", "month": 12, "amount": 50000, "trybOverride": "skroc" }
         ]
@@ -236,8 +263,65 @@
         "tryb": "skroc",
         "feePct": 3,
         "feeMonths": 36,
+        "stopa": "zmienna",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
         "events": [
           { "type": "jednorazowa", "month": 12, "amount": 50000, "trybOverride": "obniz" }
+        ]
+      }
+    }
+  },
+  {
+    "id": "duzy-wklad-czy-rkm",
+    "question": "Mam dużo gotówki na wkład. Wpłacić wszystko bez RKM czy wejść do RKM z mniejszym wkładem?",
+    "why": "Przy stopie stałej na co najmniej 5 lat RKM dopuszcza wkład własny do 30 % wydatków, a nie 20 %. Kto ma 200 000 zł na mieszkanie za 500 000 zł, może więc wpłacić 150 000 zł w programie i resztę zostawić na później — ale na zerowej gwarancji BGK każda nadpłata w pierwszych 3 latach odbiera spłatę rodzinną, więc pozostałe 50 000 zł czeka do 37. miesiąca. Poza programem wpłaca od razu wszystko i ma niższy kredyt. Przy tej samej gotówce rozstrzyga to, czy urodzi się dziecko.",
+    "settings": [
+      "A: bez RKM, wkład 200 000 zł (40 %), 20 lat, stopa stała 5,80 % na 5 lat",
+      "B: RKM, stopa stała 5,80 % na 5 lat, wkład 150 000 zł (30 %), nadpłata 50 000 zł w m. 37 (obniż ratę), trzecie dziecko w m. 30"
+    ],
+    "lookAt": "Wiersz „Łączny koszt z uwzględnieniem lokaty” liczy teraz także wkład własny jako wpłatę w dniu startu, więc 200 000 zł od razu i 150 000 zł + 50 000 zł po trzech latach stoją na równych zasadach. W B zajrzyj do KPI „Łączny koszt”: nadpłata w m. 37 wypada jeszcze w okresie stałej stopy, więc bank bierze od niej opłatę za wcześniejszą spłatę (w okresie stałej stopy może ją pobierać przez cały ten okres — art. 40 ust. 6 ustawy o kredycie hipotecznym). Na koniec usuń w B zdarzenie „Narodziny dziecka” i porównaj jeszcze raz — bez 60 000 zł od BGK przewaga RKM znika.",
+    "metrics": ["splataRodzinna", "oplataZaNadplaty", "kosztZLokata"],
+    "state": {
+      "v": 7,
+      "lokata": 3,
+      "chartMode": "saldo",
+      "tableScn": "B",
+      "A": {
+        "rkm": false,
+        "cena": 500000,
+        "wklad": 200000,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 20,
+        "start": "2027-01",
+        "tryb": "obniz",
+        "feePct": 3,
+        "feeMonths": 60,
+        "stopa": "stala",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
+        "events": []
+      },
+      "B": {
+        "rkm": true,
+        "cena": 500000,
+        "wklad": 150000,
+        "remont": 0,
+        "marza": 1.9,
+        "wskaznik": 3.6,
+        "years": 20,
+        "start": "2027-01",
+        "tryb": "obniz",
+        "feePct": 3,
+        "feeMonths": 60,
+        "stopa": "stala",
+        "stalaPct": 5.8,
+        "stalaLata": 5,
+        "events": [
+          { "type": "dziecko", "month": 30, "amount": 60000, "childNumber": 3, "trybOverride": "auto" },
+          { "type": "jednorazowa", "month": 37, "amount": 50000, "trybOverride": "obniz" }
         ]
       }
     }

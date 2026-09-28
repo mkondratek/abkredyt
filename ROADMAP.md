@@ -44,10 +44,15 @@
     wprost, że wygaśnięcie gwarancji nie jest terminem na dziecko. Silnik zwraca
     `guaranteeExhaustedMonth` i `fullChildRepaymentUntilMonth`.
 11. ✅ Opłata za wcześniejszą spłatę wg ustawy o kredycie hipotecznym (art. 40): podpowiedź
-    i `max="36"` na oknie opłaty (ust. 1, stopa zmienna) plus pułap kwotowy w silniku —
-    `fee = min(amt·feePct/100, amt·r·12)` od stopy obowiązującej w miesiącu nadpłaty (ust. 4).
+    i `max="36"` na oknie opłaty (ust. 2, stopa zmienna) plus pułap kwotowy w silniku —
+    `fee = min(amt·feePct/100, amt·r·12)` od stopy obowiązującej w miesiącu nadpłaty (ust. 3
+    i 5; od pkt 13 także pułap 3 % i ust. 4).
 12. ✅ Podstrona „Gotowe porównania” (`public/scenariusze.html`) — 5 pytań z gotowymi
     linkami `#s=`, generowana z `tools/scenarios.json` przez `node tools/build-scenarios.mjs`.
+13. ✅ (28.09.2026) Wkład własny w koszcie z lokatą i w „Sumie wpłat” (wpłata w dniu startu)
+    oraz oprocentowanie per scenariusz „zmienne | okresowo stałe” — limit wkładu 30 % w RKM
+    przy stałej ≥ 5 lat, opłata za wcześniejszą spłatę przez cały okres stałej stopy
+    (art. 40 ust. 6), stan v7, szósta karta gotowych porównań.
 
 ## Do rozstrzygnięcia (wątpliwe punkty z audytu)
 - Skrócić notkę „Reguła RKM” do 2–3 punktów, cytat ustawy tylko w stopce?
