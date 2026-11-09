@@ -77,6 +77,15 @@ links.forEach((payload, i) => {
     eq(at + "." + k + ": okres (lata)", st[k].years, src[k].years);
   });
   eq(at + ": chartMode", st.chartMode, src.chartMode);
+  // Nazwy scenariuszy (v8): każda karta nazywa A i B — niepusto i różnie — nazwy
+  // przeżywają link i stoją na stronie w liście „Ustawienia”.
+  ["A", "B"].forEach((k) => {
+    ok(at + "." + k + ": niepusta nazwa w źródle", typeof src[k].nazwa === "string" && src[k].nazwa.length > 0, JSON.stringify(src[k].nazwa));
+    eq(at + "." + k + ": nazwa po odczytaniu linku", st[k].nazwa, src[k].nazwa);
+    const htmlName = src[k].nazwa ? src[k].nazwa.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : "";
+    ok(at + "." + k + ": nazwa w wygenerowanej stronie", !!htmlName && onDisk.indexOf("<li>" + k + " — " + htmlName + ": ") >= 0, htmlName);
+  });
+  ok(at + ": nazwy A i B różne", src.A.nazwa !== src.B.nazwa, JSON.stringify([src.A.nazwa, src.B.nazwa]));
   ["A", "B"].forEach((k) => {
     let res = null;
     try { res = RKM.simulateScenario(toEngineConfig(st[k], RKM)); } catch (e) { /* niżej */ }

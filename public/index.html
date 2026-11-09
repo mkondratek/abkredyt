@@ -193,6 +193,19 @@ header.top .start-note{ font-size:13px; margin-top:6px; }
    · Cofnij” renderuje się ze stanu (pendingUndo) razem z panelem, więc przeżywa
    przerysowanie #scenarios. */
 .panel-head-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; }
+/* Nazwa scenariusza (edytowalna w miejscu): tytuł + „✎”, a w trybie edycji pole
+   tekstowe. min-width:0 — długa nazwa łamie się, zamiast wypychać „Kopiuj z …”. */
+.scn-title-wrap{ flex:1 1 auto; min-width:0; }
+/* h2 i „✎” w jednym biegu tekstu: przy zawiniętej nazwie ołówek stoi za ostatnim
+   słowem, a nie przy prawej krawędzi pudełka nagłówka. */
+.panel-head h2.scn-title{ display:inline; cursor:text; overflow-wrap:anywhere; }
+.scn-title-wrap .btn-icon{ margin-left:6px; vertical-align:2px; }
+.scn-letter{ display:inline-block; font-size:11px; font-weight:700; line-height:1; padding:3px 6px; margin-right:7px; border-radius:999px;
+  background:var(--accent-a-solid); color:var(--on-accent); position:relative; top:-2px; }
+.panel.b .scn-letter{ background:var(--accent-b-solid); }
+.panel-head-row > .btn{ flex:0 0 auto; white-space:nowrap; }
+.btn.btn-icon{ padding:2px 7px; font-size:13px; line-height:1.2; color:var(--ink-muted); flex:0 0 auto; }
+.panel-head input.scn-name-input{ font-size:16px; font-weight:600; padding:4px 8px; width:100%; max-width:320px; min-width:0; }
 .btn.btn-sm{ padding:4px 9px; font-size:11.5px; }
 /* Ta sama forma „wyłączenia” co przy chipach presetów: bez atrybutu `disabled`,
    żeby przycisk zostawał focusowalny i czytał powód z `title`. */
@@ -351,6 +364,10 @@ input[readonly]{ color:var(--ink-muted); background:var(--surface-3); }
   border:none; background:var(--surface-2); color:var(--ink-muted); padding:6px 13px; font-size:12.5px; cursor:pointer; font-family:inherit;
 }
 .seg button.active{ background:var(--accent-a-solid); color:var(--on-accent); }
+/* Przełącznik harmonogramu niesie nazwy scenariuszy — dwie długie nazwy mają się
+   zmieścić także na telefonie, więc każda jest przycinana wielokropkiem. */
+#table-scn{ max-width:100%; min-width:0; }
+#table-scn button{ max-width:min(220px, 40vw); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .legend-col{ display:flex; flex-direction:column; gap:6px; max-width:420px; }
 .legend{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-muted); }
 .legend .li{ display:flex; align-items:baseline; gap:7px; }
@@ -1027,7 +1044,7 @@ function kosztZLokata(result, lokataPct, horizonMonths){
    przez CompressionStream) robi warstwa UI; tutaj tylko część przenośna,
    testowana w tools/test-engine.mjs.
    ========================================================================== */
-const STATE_VERSION = 7;
+const STATE_VERSION = 8;
 /* Starsze ładunki są przyjmowane i podnoszone do bieżącej wersji:
      • v4 niósł jeszcze pole `gwarancja` (skrócony klucz „g”), dziś wyliczane
        z ceny, wkładu i dodatkowej kwoty — jest po prostu pomijane;
@@ -1037,9 +1054,11 @@ const STATE_VERSION = 7;
        dostają DEFAULT_LOKATA_PCT;
      • rodzaj oprocentowania (`stopa`, `stalaPct`, `stalaLata`) pojawia się w v7 —
        starsze ładunki dostają stopę zmienną (i domyślne parametry stopy stałej,
-       żeby przełączenie w UI miało od czego zacząć).
+       żeby przełączenie w UI miało od czego zacząć);
+     • nazwa scenariusza (`nazwa`, klucz „i”) pojawia się w v8 — starsze ładunki
+       dostają pustą nazwę (= „Scenariusz A/B”). Pusta nazwa nie jedzie w linku.
    Każda inna wersja przechodzi dalej nietknięta i UI ją odrzuca. */
-const ACCEPTED_STATE_VERSIONS = [4, 5, 6, 7];
+const ACCEPTED_STATE_VERSIONS = [4, 5, 6, 7, 8];
 const LEGACY_GLOBAL_RKM_VERSIONS = [4, 5];
 const DEFAULT_LOKATA_PCT = 3;
 
@@ -1050,6 +1069,16 @@ const SCN_KEYS = {
   stopa:"z", stalaPct:"q", stalaLata:"j", events:"e"
 };
 const STOPA_VALS = { zmienna:"z", stala:"s" };
+/* Nazwa scenariusza nadana przez użytkownika (v8). Poza SCN_KEYS, bo pusta
+   (= „Scenariusz A/B”) nie trafia do linku wcale — link nie rośnie. */
+const NAZWA_KEY = "i";
+const NAZWA_MAX = 40;
+/* Jedyna normalizacja nazwy (UI, dekoder linku, generator gotowych porównań):
+   napis → przycięte spacje, najwyżej NAZWA_MAX znaków; wszystko inne → "". */
+function nazwaOf(v){
+  if(typeof v!=="string") return "";
+  return v.trim().slice(0, NAZWA_MAX).trim();
+}
 /* `id` zdarzenia świadomie NIE trafia do linku — jest lokalnym uchwytem UI
    i po odczytaniu linku nadawany jest od nowa. */
 const EVT_KEYS = {
@@ -1070,6 +1099,8 @@ function shortenScenario(s){
   Object.keys(SCN_KEYS).forEach(k=>{ if(k!=="events" && s[k]!==undefined) o[SCN_KEYS[k]] = s[k]; });
   if(s.tryb!==undefined) o[SCN_KEYS.tryb] = TRYB_VALS[s.tryb] || s.tryb;
   if(s.stopa!==undefined) o[SCN_KEYS.stopa] = STOPA_VALS[s.stopa] || s.stopa;
+  const nazwa = nazwaOf(s.nazwa);
+  if(nazwa) o[NAZWA_KEY] = nazwa;
   o[SCN_KEYS.events] = (Array.isArray(s.events)?s.events:[]).map(e=>{
     const x = {};
     Object.keys(EVT_KEYS).forEach(k=>{ if(e[k]!==undefined) x[EVT_KEYS[k]] = e[k]; });
@@ -1085,6 +1116,7 @@ function expandScenario(o){
   Object.keys(SCN_KEYS).forEach(k=>{ if(k!=="events" && o[SCN_KEYS[k]]!==undefined) s[k] = o[SCN_KEYS[k]]; });
   if(s.tryb!==undefined) s.tryb = TRYB_R[s.tryb] || s.tryb;
   if(s.stopa!==undefined) s.stopa = STOPA_R[s.stopa] || s.stopa;
+  s.nazwa = nazwaOf(o[NAZWA_KEY]); // brak w ładunku (v≤7 albo nazwa pusta) → ""
   const evts = Array.isArray(o[SCN_KEYS.events]) ? o[SCN_KEYS.events] : [];
   s.events = evts.map(x=>{
     const e = { id: linkEventId() };
@@ -1182,7 +1214,7 @@ const api = {
   planOprocentowania, feeMonthsMax, fixedRateMonthsOf, stalaLataOf,
   FEE_WINDOW_ZMIENNA_MONTHS, FEE_MAX_PCT_ZMIENNA,
   STALA_LATA_MIN, STALA_LATA_MAX, DEFAULT_STALA_PCT, DEFAULT_STALA_LATA,
-  STATE_VERSION, ACCEPTED_STATE_VERSIONS,
+  STATE_VERSION, ACCEPTED_STATE_VERSIONS, NAZWA_MAX, nazwaOf,
   shortenState, expandState, encodeStateJson, decodeStateJson,
   bytesToB64url, b64urlToBytes
 };
@@ -1288,7 +1320,8 @@ function defaultScenario(which){
     marza:1.9, wskaznik:3.6,
     start:"2027-01", tryb:"skroc",
     stopa:"zmienna", stalaPct:RKM.DEFAULT_STALA_PCT, stalaLata:RKM.DEFAULT_STALA_LATA,
-    feePct:3, feeMonths:36
+    feePct:3, feeMonths:36,
+    nazwa:""
   };
   if(which==="A"){
     return Object.assign({}, common, {
@@ -1311,10 +1344,10 @@ function defaultState(){
 }
 
 /* ============ persistence ============ */
-const STORAGE_KEY = "abkredyt-state-v7";
+const STORAGE_KEY = "abkredyt-state-v8";
 /* Stan zapisany przez poprzednią wersję strony — czytany tylko wtedy, gdy pod
    bieżącym kluczem nic nie ma, i od razu podnoszony przez normaliseState(). */
-const LEGACY_STORAGE_KEYS = ["abkredyt-state-v6"];
+const LEGACY_STORAGE_KEYS = ["abkredyt-state-v7", "abkredyt-state-v6"];
 
 /* Lekka kontrola kształtu — żeby stan z innej (starszej, spersonalizowanej)
    wersji nie odżył po zmianie schematu. */
@@ -1324,6 +1357,7 @@ function looksLikeScenario(s){
   if(!nums.every(k=>typeof s[k]==="number" && isFinite(s[k]))) return false;
   if(typeof s.start!=="string" || !/^\d{4}-\d{2}$/.test(s.start)) return false;
   if(s.stopa!==undefined && typeof s.stopa!=="string") return false;
+  if(s.nazwa!==undefined && typeof s.nazwa!=="string") return false; // v8, opcjonalna
   if(!Array.isArray(s.events)) return false;
   return s.events.every(e=>e && typeof e==="object" && typeof e.type==="string");
 }
@@ -1338,7 +1372,7 @@ function looksLikeState(st){
    Tu też domykamy limity, które od wersji 6 obowiązują na wejściu: opłata za
    wcześniejszą spłatę w ustawowym oknie (art. 40 ust. 2 i 6 u.k.h. — 36 mies. albo
    cały okres stałej stopy) i okres w granicach trybu. Stan sprzed wersji 7 nie zna
-   rodzaju oprocentowania — dostaje stopę zmienną. */
+   rodzaju oprocentowania — dostaje stopę zmienną, a sprzed wersji 8 — pustą nazwę. */
 function normaliseState(st){
   if(!st || typeof st!=="object") return st;
   if(typeof st.lokata!=="number" || !isFinite(st.lokata) || st.lokata<0) st.lokata = DEFAULT_LOKATA_PCT;
@@ -1354,6 +1388,7 @@ function normaliseState(st){
     if(s.stopa!=="stala" && s.stopa!=="zmienna") s.stopa = "zmienna";
     if(typeof s.stalaPct!=="number" || !isFinite(s.stalaPct) || s.stalaPct<0) s.stalaPct = RKM.DEFAULT_STALA_PCT;
     s.stalaLata = RKM.stalaLataOf(s);
+    s.nazwa = RKM.nazwaOf(s.nazwa);
     if(typeof s.feeMonths==="number") s.feeMonths = clamp(Math.round(s.feeMonths), 0, feeMonthsMaxOf(s));
     if(typeof s.years==="number") s.years = clamp(Math.round(s.years), yearsMin(s), 35);
     if(!Array.isArray(s.events)) return;
@@ -1368,7 +1403,7 @@ try{
   for(let i=0; !saved && i<LEGACY_STORAGE_KEYS.length; i++) saved = localStorage.getItem(LEGACY_STORAGE_KEYS[i]);
   if(saved){
     const parsed = JSON.parse(saved);
-    if(looksLikeState(parsed)) state = normaliseState(parsed);
+    if(looksLikeState(parsed)){ state = normaliseState(parsed); state.v = STATE_VERSION; }
   }
 }catch(e){ /* ignore */ }
 
@@ -1525,6 +1560,11 @@ function summaryLine(s){
   // Prefiks „RKM · ” niesie tryb scenariusza w streszczeniu — a więc i w legendzie wykresu.
   return (s.rkm ? "RKM · " : "") + parts.join(" · ");
 }
+/* Nazwa scenariusza nadana przez użytkownika (`s.nazwa`, v8). `scenarioName` —
+   pełna forma do nagłówka panelu i przełącznika harmonogramu; `scenarioTag` —
+   tam, gdzie litera musi zostać, bo to klucz koloru (legenda, dymek, werdykty). */
+function scenarioName(key, s){ return (s && s.nazwa) || ("Scenariusz "+key); }
+function scenarioTag(key, s){ return key + (s && s.nazwa ? " · "+s.nazwa : ""); }
 
 /* ============ presety wydarzeń ============ */
 /* Kwoty i miesiące zostają bezwzględne (tak są czytelniejsze niż „10 % kredytu”),
@@ -1589,7 +1629,11 @@ function presetDisabledReason(s, e){
    o skopiowaniu jest renderowana ZE STANU (`pendingUndo`) razem z panelem —
    inaczej nie przeżyłaby najbliższego `scenariosEl.innerHTML = …`. Bufor kasuje
    każde inne przerysowanie (czyli każda kolejna edycja scenariusza); decyduje
-   o tym flaga `keepUndo`, ustawiana wyłącznie przez kopiowanie i cofanie. */
+   o tym flaga `keepUndo`, ustawiana wyłącznie przez kopiowanie i cofanie.
+   Nazwa scenariusza (`nazwa`) NIE jest kopiowana: kopia jest punktem wyjścia do
+   zmian, więc ten scenariusz zachowuje własną nazwę (a „Kopiuj z …” porównuje
+   scenariusze bez nazw — inaczej różnica samej nazwy odblokowywałaby kopię,
+   która niczego nie zmienia). */
 const UNDO_MS = 8000;
 let pendingUndo = null;   // {key, from, snapshot, timer}
 let keepUndo = false;
@@ -1610,7 +1654,9 @@ function stableJson(v){
 }
 function scenarioFingerprint(s){
   const evts = (Array.isArray(s.events)?s.events:[]).map(e=>{ const x = Object.assign({}, e); delete x.id; return x; });
-  return stableJson(Object.assign({}, s, {events:evts}));
+  const c = Object.assign({}, s, {events:evts});
+  delete c.nazwa;
+  return stableJson(c);
 }
 function sameScenario(a, b){ return scenarioFingerprint(a)===scenarioFingerprint(b); }
 
@@ -1631,7 +1677,9 @@ function copyScenarioFromOther(key){
   if(sameScenario(state[key], state[from])) return;
   clearUndo();
   pendingUndo = {key:key, from:from, snapshot: cloneScenario(state[key], false), timer:null};
+  const ownName = state[key].nazwa || "";
   state[key] = cloneScenario(state[from], true);
+  state[key].nazwa = ownName; // nazwa zostaje — patrz komentarz nad UNDO_MS
   pendingUndo.timer = setTimeout(()=>expireUndo(key), UNDO_MS);
   keepUndo = true;
   requestFocus(key, "undo-copy");
@@ -1659,15 +1707,114 @@ function expireUndo(key){
 
 function copyButtonHtml(key){
   const from = otherKey(key);
-  const aria = "Zastąp scenariusz "+key+" kopią scenariusza "+from;
+  const aria = "Zastąp scenariusz "+scenarioTag(key, state[key])+" kopią scenariusza "+scenarioTag(from, state[from])+" (nazwa zostaje)";
   const disabled = sameScenario(state[key], state[from]);
   return '<button type="button" class="btn btn-sm'+(disabled?" is-disabled":"")+'" data-copy-from="'+from+'" data-key="'+copyBtnKey(key)+'"'+
     ' aria-label="'+escapeXml(aria)+'"'+(disabled?' aria-disabled="true" title="Scenariusze są identyczne"':'')+
     '>Kopiuj z '+from+'</button>';
 }
+/* ============ nazwa scenariusza — edycja w miejscu ============ */
+/* Klik w „✎” (albo w sam nagłówek) zamienia <h2> na pole tekstowe. Stan edycji
+   żyje POZA `state` (jak `pendingUndo`): `renaming = {key, draft}` — szkic
+   przeżywa ewentualne przerysowanie #scenarios w trakcie pisania, ale do stanu
+   (i do linku/localStorage) trafia dopiero przy zatwierdzeniu. Otwarcie
+   i anulowanie podmieniają sam rząd nagłówka (bez symulacji); zatwierdzenie
+   zapisuje nazwę i woła recompute(), bo nazwa siedzi w legendzie, werdyktach
+   porównania i przełączniku harmonogramu. Enter/blur zatwierdza, Escape anuluje. */
+let renaming = null; // {key, draft}
+let rerenderingPanels = false; // blur pola nazwy przy przerysowaniu #scenarios to nie zatwierdzenie
+
+function renameBtnKey(key){ return "rename-"+key; }
+function renameInputKey(key){ return "rename-input-"+key; }
+function panelHeadRowHtml(key){
+  const s = state[key];
+  let title;
+  if(renaming && renaming.key===key){
+    title = '<input type="text" class="scn-name-input" maxlength="'+RKM.NAZWA_MAX+'" value="'+escapeXml(renaming.draft)+'"'+
+      ' data-key="'+renameInputKey(key)+'" aria-label="Nazwa scenariusza '+key+'" placeholder="Scenariusz '+key+'" autocomplete="off" spellcheck="false">';
+  } else {
+    const name = s.nazwa
+      ? '<span class="scn-letter" aria-hidden="true">'+key+'</span>'+escapeXml(s.nazwa)
+      : escapeXml(scenarioName(key, s));
+    title = '<h2 class="scn-title" data-rename-title title="Kliknij, aby zmienić nazwę">'+name+'</h2>'+
+      '<button type="button" class="btn btn-sm btn-icon" data-rename data-key="'+renameBtnKey(key)+'" aria-label="Zmień nazwę scenariusza '+key+'" title="Zmień nazwę">✎</button>';
+  }
+  return '<div class="panel-head-row"><div class="scn-title-wrap">'+title+'</div>'+copyButtonHtml(key)+'</div>';
+}
+/* Podmiana samego rzędu nagłówka (otwarcie/anulowanie edycji nazwy) — bez
+   symulacji i bez przerysowania reszty panelu. */
+function rerenderHeadRow(key){
+  const panel = scenariosEl.querySelector(".panel."+key.toLowerCase());
+  const row = panel && panel.querySelector(".panel-head-row");
+  if(!row) return;
+  row.outerHTML = panelHeadRowHtml(key);
+  attachHeadHandlers(panel, key);
+}
+function focusInPanel(key, dataKey){
+  const el = findByFocusKey(key, {dataKey:dataKey});
+  if(el) el.focus({preventScroll:true});
+  return el;
+}
+function startRename(key){
+  if(renaming && renaming.key!==key) commitRename(false);
+  renaming = {key:key, draft: state[key].nazwa || ""};
+  rerenderHeadRow(key);
+  const inp = focusInPanel(key, renameInputKey(key));
+  if(inp && typeof inp.select==="function") inp.select();
+}
+/* `refocus` — Enter: fokus wraca na „✎”; blur: zostaje tam, dokąd użytkownik
+   go przeniósł (captureFocusState złapie to w doRecompute). */
+function commitRename(refocus){
+  if(!renaming) return;
+  const key = renaming.key;
+  const next = RKM.nazwaOf(renaming.draft);
+  renaming = null;
+  if(next===(state[key].nazwa||"")){
+    rerenderHeadRow(key);
+    if(refocus) focusInPanel(key, renameBtnKey(key));
+    return;
+  }
+  state[key].nazwa = next;
+  rerenderHeadRow(key);
+  if(refocus){ focusInPanel(key, renameBtnKey(key)); requestFocus(key, renameBtnKey(key)); }
+  recompute(); // legenda, werdykty, harmonogram + persist()
+}
+function cancelRename(){
+  if(!renaming) return;
+  const key = renaming.key;
+  renaming = null;
+  rerenderHeadRow(key);
+  focusInPanel(key, renameBtnKey(key));
+}
+function attachHeadHandlers(panel, key){
+  const row = panel.querySelector(".panel-head-row");
+  if(!row) return;
+  // „Kopiuj z A/B” — przycisk wyłączony nie ma atrybutu `disabled` (zostaje
+  // focusowalny), handler sam sprawdza aria-disabled, jak przy chipach presetów.
+  const copyFromBtn = row.querySelector("[data-copy-from]");
+  if(copyFromBtn) copyFromBtn.addEventListener("click", ()=>{
+    if(copyFromBtn.getAttribute("aria-disabled")==="true") return;
+    copyScenarioFromOther(key);
+  });
+  const renameBtn = row.querySelector("[data-rename]");
+  if(renameBtn) renameBtn.addEventListener("click", ()=>startRename(key));
+  const title = row.querySelector("[data-rename-title]");
+  if(title) title.addEventListener("click", ()=>startRename(key));
+  const inp = row.querySelector(".scn-name-input");
+  if(inp){
+    inp.addEventListener("input", ()=>{ if(renaming && renaming.key===key) renaming.draft = inp.value; });
+    inp.addEventListener("keydown", (ev)=>{
+      if(ev.key==="Enter"){ ev.preventDefault(); commitRename(true); }
+      else if(ev.key==="Escape"){ ev.preventDefault(); cancelRename(); }
+    });
+    // Blur po odpięciu pola z DOM (podmiana rzędu) trafia już na renaming===null.
+    inp.addEventListener("blur", ()=>{ if(!rerenderingPanels && renaming && renaming.key===key) commitRename(false); });
+  }
+}
+
 function undoNoteHtml(key){
   if(!pendingUndo || pendingUndo.key!==key) return '';
-  return '<div class="copy-note" role="status">Skopiowano z '+pendingUndo.from+' · '+
+  return '<div class="copy-note" role="status">Skopiowano z '+escapeXml(scenarioTag(pendingUndo.from, state[pendingUndo.from]))+' · '+
     '<button type="button" class="btn btn-sm" data-undo-copy data-key="undo-copy">Cofnij</button></div>';
 }
 
@@ -1827,7 +1974,7 @@ function renderPanel(key, s, result, baseline){
 
   let html = '<div class="panel '+cls+'">';
   html += '<div class="panel-head">'+
-    '<div class="panel-head-row"><h2>Scenariusz '+key+'</h2>'+copyButtonHtml(key)+'</div>'+
+    panelHeadRowHtml(key)+
     '<div class="panel-sum">'+escapeXml(summaryLine(s))+'</div>'+
     /* Tryb RKM per scenariusz — przełącznik w panelu, nie nad stroną. `data-key`
        jest kluczem przywracania fokusu po przerysowaniu #scenarios. */
@@ -1891,7 +2038,8 @@ function renderPanel(key, s, result, baseline){
       "Od m. "+plan.switchMonth+" oprocentowanie = marża + wskaźnik", RKM.STALA_LATA_MAX, RKM.STALA_LATA_MIN);
   }
   html += field(key,"Marża %","marza",s.marza,"number",0.01);
-  html += field(key,"Wskaźnik referencyjny <span class=\'sub\'>(WIBOR/WIRON"+(stala?", po okresie stałej stopy":"")+")</span> %","wskaznik",s.wskaznik,"number",0.01);
+  html += field(key,"Wskaźnik referencyjny <span class=\'sub\'>(POLSTR 1M / WIBOR 3M"+(stala?", po okresie stałej stopy":"")+")</span> %","wskaznik",s.wskaznik,"number",0.01,
+    WSKAZNIK_HINT);
   const nominalId = fieldId(key,"nominalRate");
   html += stala
     ? '<div class="field span2"><label for="'+nominalId+'">Oprocentowanie nominalne</label><input id="'+nominalId+'" type="text" class="mono" readonly value="'+escapeXml("stała "+pct(nn(s.stalaPct))+" do m. "+plan.fixedMonths+", potem marża + wskaźnik")+'"></div>'
@@ -2041,6 +2189,12 @@ function renderPanel(key, s, result, baseline){
 /* Wszystkie pola liczbowe kredytu to kwoty albo procenty — żadna nie ma sensu
    ujemna, więc `min="0"` wchodzi z automatu (walidację i tak dubluje `nn()`).
    `panelKey` + `key` dają stabilne, unikalne id — do <label for> (p. 4 audytu). */
+/* Orientacyjne poziomy wskaźników — stała aktualizowana ręcznie przy wydaniu.
+   Brak publicznego API: GPW Benchmark licencjonuje dane (opóźnione o 5 dni),
+   a żadne źródło nie odpowiada na żądania z przeglądarki (CORS). Nowe hipoteki
+   od IX–X 2026 są na POLSTR 1M (stopa składana); WIBOR znika z nowych umów od 2027. */
+const WSKAZNIK_HINT = "Orientacyjnie (GPW Benchmark, 9.11.2026): POLSTR 1M składany 3,45 %, WIBOR 3M 3,89 %. "+
+  "Oferty na POLSTR mają zwykle wyższą marżę niż na WIBOR — nie mieszaj ich bez uwagi.";
 function field(panelKey, label, key, val, type, step, hint, max, minVal){
   const min = type==="number" ? ' min="'+(minVal!==undefined?minVal:0)+'"' : '';
   const id = fieldId(panelKey, key);
@@ -2443,16 +2597,22 @@ function renderCompare(resA, resB){
   const tB = resB.payoffDate ? resB.payoffDate.getTime() : null;
   const d4 = (tA!==null && tB!==null) ? (tA - tB)/86400000 : 0;
   const bothNever = neverPaysOff(resA) && neverPaysOff(resB);
+  /* Bez nazwy: „korzystniej A”; z nazwą: „korzystniej: A · Nazwa” (litera zostaje
+     — to klucz koloru). „niższa u A” → „niższa u: A · Nazwa”. */
+  function verdict(word, key){
+    const s = state[key];
+    return escapeXml(s.nazwa ? word+": "+scenarioTag(key, s) : word+" "+key);
+  }
   function who(v, lowerIsBetter){
     if(Math.abs(v) < 1) return '<span class="who">bez różnicy</span>';
     const aBetter = lowerIsBetter ? v<0 : v>0;
-    return aBetter ? '<span class="who win-a">korzystniej A</span>' : '<span class="who win-b">korzystniej B</span>';
+    return aBetter ? '<span class="who win-a">'+verdict("korzystniej", "A")+'</span>' : '<span class="who win-b">'+verdict("korzystniej", "B")+'</span>';
   }
   /* Rata początkowa nie ma „lepszej" strony: niższa rata to zwykle dłuższy okres
      i więcej odsetek. Stąd sam fakt, bez oceny. */
   function lowerAt(v){
     if(Math.abs(v) < 1) return '<span class="who">bez różnicy</span>';
-    return v<0 ? '<span class="who win-a">niższa u A</span>' : '<span class="who win-b">niższa u B</span>';
+    return v<0 ? '<span class="who win-a">'+verdict("niższa u", "A")+'</span>' : '<span class="who win-b">'+verdict("niższa u", "B")+'</span>';
   }
   let html = '<h2>Porównanie A vs B</h2><div class="compare-grid">';
   html += '<div class="compare-item"><div class="lbl">Rata początkowa</div><div class="val">'+money(resA.initialRata)+' <span style="color:var(--ink-faint);font-weight:400;">vs</span> '+money(resB.initialRata)+'</div>'+lowerAt(d1)+'</div>';
@@ -2532,14 +2692,21 @@ function doRecompute(){
   const baseB = simulateScenario(baselineConfig(state.B));
   lastResults = {A:resA,B:resB,baseA,baseB};
 
+  rerenderingPanels = true;
   scenariosEl.innerHTML = renderPanel("A", state.A, resA, baseA) + renderPanel("B", state.B, resB, baseB);
+  rerenderingPanels = false;
   document.getElementById("compare").innerHTML = renderCompare(resA, resB);
 
   // legenda = to samo jednolinijkowe streszczenie, żeby wykres dał się czytać bez formularza
   const legend = document.getElementById("chart-legend");
-  legend.innerHTML =
-    '<span class="li"><span class="sw" style="background:var(--accent-a)"></span><span><span class="leg-key">A</span> <span class="leg-sum">'+escapeXml(summaryLine(state.A))+'</span></span></span>'+
-    '<span class="li"><span class="sw" style="background:var(--accent-b)"></span><span><span class="leg-key">B</span> <span class="leg-sum">'+escapeXml(summaryLine(state.B))+'</span></span></span>';
+  // Z nazwą: „A · Nazwa — streszczenie”; bez nazwy jak dotąd: „A streszczenie”.
+  function legendItem(key, color){
+    const s = state[key];
+    return '<span class="li"><span class="sw" style="background:'+color+'"></span><span><span class="leg-key">'+escapeXml(scenarioTag(key, s))+'</span>'+
+      (s.nazwa ? ' — ' : ' ')+'<span class="leg-sum">'+escapeXml(summaryLine(s))+'</span></span></span>';
+  }
+  legend.innerHTML = legendItem("A", "var(--accent-a)") + legendItem("B", "var(--accent-b)");
+  renderTableScn();
 
   renderChart();
 
@@ -2562,6 +2729,19 @@ function doRecompute(){
   persist();
 }
 
+/* Przełącznik harmonogramu A/B: nazwy scenariuszy (pełne — przycinane w CSS
+   wielokropkiem, pełna w `title`). Tylko tekst i klasa — bez innerHTML, żeby
+   nie zgubić fokusu, jeśli stoi na którymś z przycisków. */
+function renderTableScn(){
+  document.querySelectorAll("#table-scn button[data-scn]").forEach(b=>{
+    const key = b.dataset.scn;
+    const name = scenarioName(key, state[key]);
+    b.textContent = name;
+    b.title = name;
+    b.classList.toggle("active", key===state.tableScn);
+  });
+}
+
 let chartData = null;
 /* Fakty o znacznikach RKM (okno/gwarancja/pełna spłata rodzinna) liczone RAZ tu
    — legenda (doRecompute) i dymek (showTooltipAt) czytają ten sam obiekt, więc
@@ -2578,7 +2758,7 @@ function renderChart(){
   // streszczenie co legenda, więc czytnik ekranu dostaje sens wykresu bez
   // zaglądania w formularz (p. 5 audytu).
   const modeLabel = state.chartMode==="saldo" ? "salda kapitału" : "raty";
-  svgEl.setAttribute("aria-label", "Wykres "+modeLabel+" w czasie: A — "+summaryLine(state.A)+"; B — "+summaryLine(state.B));
+  svgEl.setAttribute("aria-label", "Wykres "+modeLabel+" w czasie: "+scenarioTag("A", state.A)+" — "+summaryLine(state.A)+"; "+scenarioTag("B", state.B)+" — "+summaryLine(state.B));
   document.querySelectorAll("#chart-mode button").forEach(b=> b.classList.toggle("active", b.dataset.mode===state.chartMode));
   updateScrollFade(chartWrapEl);
 }
@@ -2629,8 +2809,8 @@ function updateAllScrollFades(){
     const valB = state.chartMode==="saldo" ? (moB?moB.saldo:0) : (moB?moB.rata:0);
     tt.hidden = false;
     tt.innerHTML = '<div style="color:var(--ink-faint);margin-bottom:4px;">mies. '+displayMonth+' · '+(moA?fmtDate(moA.date):"")+'</div>'+
-      '<div><span style="color:var(--accent-a);">●</span> A '+label+': <b>'+money(valA)+'</b></div>'+
-      '<div><span style="color:var(--accent-b);">●</span> B '+label+': <b>'+money(valB)+'</b></div>'+
+      '<div><span style="color:var(--accent-a);">●</span> '+escapeXml(scenarioTag("A", state.A))+' '+label+': <b>'+money(valA)+'</b></div>'+
+      '<div><span style="color:var(--accent-b);">●</span> '+escapeXml(scenarioTag("B", state.B))+' '+label+': <b>'+money(valB)+'</b></div>'+
       markerTooltipLines(displayMonth);
     positionTooltip(clientX, clientY);
   }
@@ -2780,14 +2960,8 @@ function attachPanelHandlers(){
     if(!panel) return;
     const s = state[key];
 
-    // „Kopiuj z A/B” + jednorazowe „Cofnij” (nagłówek panelu). Przycisk wyłączony
-    // nie ma atrybutu `disabled` (zostaje focusowalny) — handler sam sprawdza
-    // aria-disabled, tak samo jak przy chipach presetów.
-    const copyFromBtn = panel.querySelector("[data-copy-from]");
-    if(copyFromBtn) copyFromBtn.addEventListener("click", ()=>{
-      if(copyFromBtn.getAttribute("aria-disabled")==="true") return;
-      copyScenarioFromOther(key);
-    });
+    // Nagłówek panelu: nazwa (✎ / klik w tytuł), „Kopiuj z A/B”; niżej „Cofnij”.
+    attachHeadHandlers(panel, key);
     const undoCopyBtn = panel.querySelector("[data-undo-copy]");
     if(undoCopyBtn) undoCopyBtn.addEventListener("click", undoCopy);
 

@@ -54,6 +54,13 @@
     przy stałej ≥ 5 lat, opłata za wcześniejszą spłatę przez cały okres stałej stopy
     (art. 40 ust. 6), stan v7, szósta karta gotowych porównań.
 
+14. ✅ (09.11.2026) Nazwy scenariuszy — zmiana nazwy w miejscu (✎ przy tytule, Enter/Escape),
+    nazwa w legendzie, tabeli, werdyktach i dymku; stan v8; karty gotowych porównań nazwane.
+15. ✅ (09.11.2026) Wskaźnik referencyjny: etykieta „POLSTR 1M / WIBOR 3M” i datowana podpowiedź
+    z poziomami (stała `WSKAZNIK_HINT`, aktualizowana ręcznie). Automatyczne zaciąganie odrzucone:
+    brak publicznego API, dane GPW Benchmark licencjonowane i opóźnione o 5 dni, brak CORS.
+    Ewentualna droga: zgoda GPW Benchmark → dzienny job w CI zapisujący `public/wskazniki.json`.
+
 ## Do rozstrzygnięcia (wątpliwe punkty z audytu)
 - Skrócić notkę „Reguła RKM” do 2–3 punktów, cytat ustawy tylko w stopce?
 - „Obniż ratę” + nadpłata cykliczna kończy się wcześniej ratą kilku złotych — dodać zdanie

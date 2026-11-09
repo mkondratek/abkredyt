@@ -18,6 +18,8 @@ o typowym wymaganiu 10–20 % (rekomendacja S KNF).
 Przycisk „Kopiuj link do tego porównania” pakuje cały stan (oba scenariusze, wszystkie
 wydarzenia, tryb RKM każdego z nich, oprocentowanie lokaty) do fragmentu adresu — link
 można komuś wysłać albo zapisać w notatkach i wrócić do dokładnie tego samego porównania.
+Scenariusze można nazwać (ołówek „✎” przy nagłówku panelu) — nazwa trafia do legendy
+wykresu, porównania, harmonogramu i do linku.
 
 Strona: <https://abkredyt.kondratek.pl>
 
@@ -45,7 +47,7 @@ tylko z wariantem „bez nadpłat".
 ## Jak liczy silnik
 
 Rata równa (annuitet), kapitalizacja miesięczna, oprocentowanie miesięczne `r = nominal/12`.
-Oprocentowanie wpisuje się jako marża + wskaźnik referencyjny (WIBOR/WIRON) — zdarzenie
+Oprocentowanie wpisuje się jako marża + wskaźnik referencyjny (POLSTR 1M składany albo WIBOR 3M — od jesieni 2026 nowe hipoteki są na POLSTR, WIBOR zostaje w starszych umowach) — zdarzenie
 „zmiana oprocentowania" to zmiana wskaźnika, nie ręczne wpisanie nowej stopy. Scenariusz
 może mieć też oprocentowanie **okresowo stałe**: stopa stała (np. 5,80 %) przez 1–10 lat,
 potem marża + wskaźnik obowiązujący w tym momencie; zmiany wskaźnika w okresie stałej stopy

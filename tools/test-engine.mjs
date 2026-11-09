@@ -707,8 +707,8 @@ near("solveMonths = referencja (saldo 300 000, rata 30-letnia)", solveMonths(300
    same mapy kluczy, więc round trip pokrywa jedno i drugie. */
 const { STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson, bytesToB64url, b64urlToBytes } = RKM;
 ok("kodek jest wystawiony na RKM", [STATE_VERSION, shortenState, expandState, encodeStateJson, decodeStateJson].every((v) => v !== undefined));
-ok("wersja stanu = 7", STATE_VERSION === 7, "jest " + STATE_VERSION);
-ok("akceptowane wersje linku 4–7", JSON.stringify(RKM.ACCEPTED_STATE_VERSIONS) === "[4,5,6,7]", JSON.stringify(RKM.ACCEPTED_STATE_VERSIONS));
+ok("wersja stanu = 8", STATE_VERSION === 8, "jest " + STATE_VERSION);
+ok("akceptowane wersje linku 4–8", JSON.stringify(RKM.ACCEPTED_STATE_VERSIONS) === "[4,5,6,7,8]", JSON.stringify(RKM.ACCEPTED_STATE_VERSIONS));
 ok("silnik podaje domyślne oprocentowanie lokaty", RKM.DEFAULT_LOKATA_PCT === 3, "jest " + RKM.DEFAULT_LOKATA_PCT);
 
 const sampleState = {
@@ -722,6 +722,7 @@ const sampleState = {
     marza: 1.9, wskaznik: 3.6, start: "2027-03", tryb: "skroc",
     feePct: 3, feeMonths: 36, years: 30,
     stopa: "zmienna", stalaPct: 5.8, stalaLata: 5,
+    nazwa: "Plan ostrożny",
     events: [
       { id: "x1", type: "cykliczna", startMonth: 1, endMonth: 360, monthlyAmount: 500, trybOverride: "auto" },
       { id: "x2", type: "jednorazowa", month: 37, amount: 50000, trybOverride: "obniz" },
@@ -734,6 +735,7 @@ const sampleState = {
     marza: 2.1, wskaznik: 3.6, start: "2026-12", tryb: "obniz",
     feePct: 0, feeMonths: 0, years: 25,
     stopa: "stala", stalaPct: 6.1, stalaLata: 7,
+    nazwa: "",
     events: [{ id: "y1", type: "dziecko", month: 24, amount: 20000, childNumber: 2, trybOverride: "auto" }],
   },
 };
@@ -802,7 +804,7 @@ function legacyPayload(version, rkmOn) {
   delete short.a.r;            // per-scenariuszowej flagi jeszcze nie było
   delete short.b.r;
   delete short.o;              // ani oprocentowania lokaty
-  ["a", "b"].forEach((k) => { delete short[k].z; delete short[k].q; delete short[k].j; }); // ani stopy stałej (v7)
+  ["a", "b"].forEach((k) => { delete short[k].z; delete short[k].q; delete short[k].j; delete short[k].i; }); // ani stopy stałej (v7), ani nazwy (v8)
   if (version === 4) { short.a.g = 100000; short.b.g = 0; }
   return bytesToB64url(new TextEncoder().encode(JSON.stringify(short)));
 }
@@ -826,7 +828,7 @@ function sortedJson(v) {
 ok(
   "ładunek v4 zachowuje pozostałe pola scenariuszy",
   fromV4 &&
-    sortedJson(stripIds(fromV4).A) === sortedJson(Object.assign(stripIds(sampleState).A, { rkm: true, stopa: "zmienna", stalaPct: 5.8, stalaLata: 5 })) &&
+    sortedJson(stripIds(fromV4).A) === sortedJson(Object.assign(stripIds(sampleState).A, { rkm: true, stopa: "zmienna", stalaPct: 5.8, stalaLata: 5, nazwa: "" })) &&
     sortedJson(stripIds(fromV4).B) === sortedJson(Object.assign(stripIds(sampleState).B, { rkm: true, stopa: "zmienna", stalaPct: 5.8, stalaLata: 5 })),
   sortedJson(fromV4 && stripIds(fromV4).A)
 );
@@ -858,9 +860,9 @@ ok(
   "ładunek z nieznanej wersji zostaje odrzucony (wersja nietknięta)",
   (() => {
     const short = shortenState(sampleState);
-    short.v = 8;
+    short.v = 9;
     const decoded = decodeStateJson(bytesToB64url(new TextEncoder().encode(JSON.stringify(short))));
-    return decoded && decoded.v === 8;
+    return decoded && decoded.v === 9;
   })()
 );
 
@@ -870,11 +872,11 @@ ok(
 function v6Payload() {
   const short = shortenState(sampleState);
   short.v = 6;
-  ["a", "b"].forEach((k) => { delete short[k].z; delete short[k].q; delete short[k].j; });
+  ["a", "b"].forEach((k) => { delete short[k].z; delete short[k].q; delete short[k].j; delete short[k].i; });
   return bytesToB64url(new TextEncoder().encode(JSON.stringify(short)));
 }
 const fromV6 = decodeStateJson(v6Payload());
-ok("ładunek v6 jest podnoszony do wersji 7", fromV6 && fromV6.v === 7, "jest " + (fromV6 && fromV6.v));
+ok("ładunek v6 jest podnoszony do bieżącej wersji", fromV6 && fromV6.v === STATE_VERSION, "jest " + (fromV6 && fromV6.v));
 ok(
   "ładunek v6 dostaje stopę zmienną w obu scenariuszach",
   fromV6 && fromV6.A.stopa === "zmienna" && fromV6.B.stopa === "zmienna",
@@ -894,6 +896,57 @@ ok(
   "ładunek v7 NIE jest nadpisywany domyślną stopą zmienną",
   roundTrip.B.stopa === "stala"
 );
+
+/* Nazwa scenariusza (v8): pusta nie jedzie w linku (link nie rośnie), niepusta —
+   pod jednoznakowym kluczem „i”; ładunek v7 dostaje pustą nazwę; normalizacja
+   (trim, maks. 40 znaków) siedzi w silniku (RKM.nazwaOf) i jest wspólna dla UI,
+   dekodera i generatora gotowych porównań. */
+const shortSample = shortenState(sampleState);
+ok("nazwa jedzie w linku pod kluczem „i”", shortSample.a.i === "Plan ostrożny", JSON.stringify(shortSample.a));
+ok("pusta nazwa nie trafia do ładunku", !("i" in shortSample.b), JSON.stringify(shortSample.b));
+ok("nazwa przeżywa round trip, pusta wraca jako \"\"", roundTrip.A.nazwa === "Plan ostrożny" && roundTrip.B.nazwa === "",
+  JSON.stringify([roundTrip.A.nazwa, roundTrip.B.nazwa]));
+ok("link bez nazw jest tak długi jak bez pola nazwa",
+  encodeStateJson(Object.assign({}, sampleState, { A: Object.assign({}, sampleState.A, { nazwa: "" }) })) ===
+    encodeStateJson(Object.assign({}, sampleState, { A: (() => { const a = Object.assign({}, sampleState.A); delete a.nazwa; return a; })() })));
+function v7Payload() {
+  const short = shortenState(sampleState);
+  short.v = 7;
+  ["a", "b"].forEach((k) => { delete short[k].i; });
+  return bytesToB64url(new TextEncoder().encode(JSON.stringify(short)));
+}
+const fromV7 = decodeStateJson(v7Payload());
+ok("ładunek v7 jest podnoszony do wersji 8", fromV7 && fromV7.v === 8, "jest " + (fromV7 && fromV7.v));
+ok("ładunek v7 dostaje pustą nazwę w obu scenariuszach", fromV7 && fromV7.A.nazwa === "" && fromV7.B.nazwa === "",
+  JSON.stringify(fromV7 && [fromV7.A.nazwa, fromV7.B.nazwa]));
+ok("ładunek v7 zachowuje stopę stałą (v7 nie jest migrowany jak v6)", fromV7 && fromV7.B.stopa === "stala" && fromV7.B.stalaLata === 7);
+ok("maks. długość nazwy = 40", RKM.NAZWA_MAX === 40, "jest " + RKM.NAZWA_MAX);
+const name41 = "x".repeat(41);
+ok("nazwaOf: 41 znaków → 40", RKM.nazwaOf(name41) === "x".repeat(40), String(RKM.nazwaOf(name41).length));
+ok("nazwaOf: przycina spacje", RKM.nazwaOf("  Plan B  ") === "Plan B");
+ok("nazwaOf: same spacje → pusta", RKM.nazwaOf("   ") === "");
+ok("nazwaOf: nie-napis → pusta", RKM.nazwaOf(42) === "" && RKM.nazwaOf(null) === "" && RKM.nazwaOf(undefined) === "");
+ok("nazwaOf: spacja na granicy 40 znaków nie zostaje na końcu", RKM.nazwaOf("a".repeat(39) + " bcd") === "a".repeat(39));
+ok("dekoder przycina za długą nazwę z ręcznie spreparowanego linku",
+  (() => {
+    const short = shortenState(sampleState);
+    short.a.i = "  " + "y".repeat(50);
+    const d = decodeStateJson(bytesToB64url(new TextEncoder().encode(JSON.stringify(short))));
+    return d && d.A.nazwa === "y".repeat(40);
+  })());
+ok("dekoder: nazwa nie-napis → pusta",
+  (() => {
+    const short = shortenState(sampleState);
+    short.a.i = { x: 1 };
+    const d = decodeStateJson(bytesToB64url(new TextEncoder().encode(JSON.stringify(short))));
+    return d && d.A.nazwa === "";
+  })());
+ok("polskie znaki w nazwie przeżywają base64url",
+  (() => {
+    const st = Object.assign({}, sampleState, { A: Object.assign({}, sampleState.A, { nazwa: "Żółć · „spłata” — 15 lat" }) });
+    const d = decodeStateJson(encodeStateJson(st));
+    return d && d.A.nazwa === "Żółć · „spłata” — 15 lat";
+  })());
 
 /* ---------- 10. wartości ujemne i bezsensowne (obrona w głąb) ----------
    UI przycina wejście, ale silnik musi być bezpieczny wywołany bezpośrednio

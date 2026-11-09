@@ -10,12 +10,13 @@
     "lookAt": "W scenariuszu A pojawia się baner „Utrata przyszłych spłat rodzinnych”, a przy spłacie rodzinnej — odznaka „utracona”. Różnicę w pieniądzu czytaj z wiersza „Ile gotówki wyjdzie z kieszeni” pod porównaniem.",
     "metrics": ["sumaOdsetek", "splataRodzinna"],
     "state": {
-      "v": 7,
+      "v": 8,
       "lokata": 3,
       "chartMode": "saldo",
       "tableScn": "A",
       "A": {
         "rkm": true,
+        "nazwa": "Nadpłata od razu",
         "cena": 500000,
         "wklad": 0,
         "remont": 0,
@@ -36,6 +37,7 @@
       },
       "B": {
         "rkm": true,
+        "nazwa": "Czekam do m. 37",
         "cena": 500000,
         "wklad": 0,
         "remont": 0,
@@ -67,12 +69,13 @@
     "lookAt": "Porównaj „Suma odsetek” i „Data ostatniej raty” — wychodzą niemal identycznie, a różnicę robi opłata za wcześniejszą spłatę w B. Zajrzyj też do „Część gwarantowana po 3 latach”: wyższa rata w A zjada gwarancję BGK równie szybko jak nadpłaty w B, więc zapasu na przyszłe nadpłaty nie zostawia żaden z wariantów.",
     "metrics": ["rataPoczatkowa", "sumaOdsetek", "dataOstatniejRaty"],
     "state": {
-      "v": 7,
+      "v": 8,
       "lokata": 3,
       "chartMode": "saldo",
       "tableScn": "A",
       "A": {
         "rkm": true,
+        "nazwa": "15 lat",
         "cena": 500000,
         "wklad": 0,
         "remont": 0,
@@ -90,6 +93,7 @@
       },
       "B": {
         "rkm": true,
+        "nazwa": "30 lat + nadpłaty",
         "cena": 500000,
         "wklad": 0,
         "remont": 0,
@@ -120,12 +124,13 @@
     "lookAt": "W panelu A pod „Gwarancją BGK” stoi podpowiedź „Bez gwarancji (wkład własny ≥ 20 %)…”. Porównaj „Suma odsetek” i wiersz „Ile gotówki wyjdzie z kieszeni” — 20 000 zł od BGK nie nadrabia odsetek, które dokłada rezygnacja z nadpłat.",
     "metrics": ["sumaOdsetek", "dataOstatniejRaty"],
     "state": {
-      "v": 7,
+      "v": 8,
       "lokata": 3,
       "chartMode": "saldo",
       "tableScn": "A",
       "A": {
         "rkm": true,
+        "nazwa": "RKM, bez nadpłat",
         "cena": 500000,
         "wklad": 100000,
         "remont": 0,
@@ -145,6 +150,7 @@
       },
       "B": {
         "rkm": false,
+        "nazwa": "Zwykły kredyt + nadpłaty",
         "cena": 500000,
         "wklad": 100000,
         "remont": 0,
@@ -175,12 +181,13 @@
     "lookAt": "W B porównaj „Ratę po ostatnim wydarzeniu” z „Ratą początkową”, a wykres zostaw w trybie „Rata”, w którym otwiera się ten link. Skalę kosztu pokazuje Δ w wierszu „Suma odsetek”.",
     "metrics": ["rataKoncowa", "sumaOdsetek"],
     "state": {
-      "v": 7,
+      "v": 8,
       "lokata": 3,
       "chartMode": "rata",
       "tableScn": "A",
       "A": {
         "rkm": true,
+        "nazwa": "Wskaźnik bez zmian",
         "cena": 500000,
         "wklad": 0,
         "remont": 0,
@@ -198,6 +205,7 @@
       },
       "B": {
         "rkm": true,
+        "nazwa": "Wskaźnik +2 p.p.",
         "cena": 500000,
         "wklad": 0,
         "remont": 0,
@@ -228,12 +236,13 @@
     "lookAt": "„Suma odsetek” i „Skrócenie okresu” mówią, ile kosztuje wygoda; „Rata po ostatnim wydarzeniu” — ile z tej wygody masz co miesiąc.",
     "metrics": ["sumaOdsetek", "rataKoncowa", "dataOstatniejRaty"],
     "state": {
-      "v": 7,
+      "v": 8,
       "lokata": 3,
       "chartMode": "saldo",
       "tableScn": "A",
       "A": {
         "rkm": true,
+        "nazwa": "Skróć okres",
         "cena": 500000,
         "wklad": 0,
         "remont": 0,
@@ -253,6 +262,7 @@
       },
       "B": {
         "rkm": true,
+        "nazwa": "Obniż ratę",
         "cena": 500000,
         "wklad": 0,
         "remont": 0,
@@ -283,12 +293,13 @@
     "lookAt": "Wiersz „Ile gotówki wyjdzie z kieszeni” liczy wkład własny jako wpłatę na starcie (podwiersz pokazuje go osobno dla A i B), więc 200 000 zł od razu i 150 000 zł + 50 000 zł po trzech latach stoją na równych zasadach. W B zajrzyj do KPI „Łączny koszt (odsetki + opłaty)”: nadpłata w m. 37 wypada jeszcze w okresie stałej stopy, więc bank bierze od niej opłatę za wcześniejszą spłatę (w okresie stałej stopy może ją pobierać przez cały ten okres — art. 40 ust. 6 ustawy o kredycie hipotecznym). Na koniec usuń w B zdarzenie „Narodziny dziecka” i porównaj jeszcze raz — bez 60 000 zł od BGK przewaga RKM znika.",
     "metrics": ["splataRodzinna", "oplataZaNadplaty", "kosztZLokata"],
     "state": {
-      "v": 7,
+      "v": 8,
       "lokata": 3,
       "chartMode": "saldo",
       "tableScn": "B",
       "A": {
         "rkm": false,
+        "nazwa": "Duży wkład bez RKM",
         "cena": 500000,
         "wklad": 200000,
         "remont": 0,
@@ -306,6 +317,7 @@
       },
       "B": {
         "rkm": true,
+        "nazwa": "RKM, stała stopa, wkład 30 %",
         "cena": 500000,
         "wklad": 150000,
         "remont": 0,

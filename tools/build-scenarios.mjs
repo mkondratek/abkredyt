@@ -2,7 +2,7 @@
 /**
  * Generator podstrony „Gotowe porównania” (public/scenariusze.html).
  *
- * Źródłem prawdy są tools/scenarios.json (pytania, opisy i PEŁNY stan v7 dla
+ * Źródłem prawdy są tools/scenarios.json (pytania, opisy i PEŁNY stan v8 dla
  * każdej karty) oraz silnik z <script id="engine"> w public/index.html — ten sam
  * blok, który uruchamia tools/test-engine.mjs. Skrypt:
  *   1. wczytuje silnik i wystawia go jako globalThis.RKM,
@@ -71,6 +71,11 @@ function validateScenario(s, where, errs, RKM) {
   if (typeof s.start !== "string" || !/^\d{4}-\d{2}$/.test(s.start)) errs.push(where + ".start: oczekiwano „RRRR-MM”");
   if (TRYBY.indexOf(s.tryb) < 0) errs.push(where + '.tryb: oczekiwano "skroc" albo "obniz"');
   if ("gwarancja" in s) errs.push(where + ".gwarancja: gwarancja BGK jest wyliczana, nie wpisywana");
+  // Nazwa scenariusza (v8): opcjonalny napis, już znormalizowany (bez spacji na
+  // brzegach, najwyżej RKM.NAZWA_MAX znaków) — inaczej link różniłby się od stanu.
+  if (s.nazwa !== undefined && (typeof s.nazwa !== "string" || s.nazwa !== RKM.nazwaOf(s.nazwa))) {
+    errs.push(where + ".nazwa: oczekiwano napisu bez spacji na brzegach, maks. " + RKM.NAZWA_MAX + " znaków");
+  }
   // Okres: w RKM ustawowe minimum 15 lat (art. 3 ust. 3 pkt 3), poza programem 5;
   // górne 35 to praktyka bankowa i granica suwaka w UI.
   const minYears = s.rkm ? 15 : 5;
@@ -375,6 +380,15 @@ function footer(dateLabel) {
    razem z treścią kart. */
 const GENERATED_LABEL = "28 września 2026 r.";
 
+/* Pozycja „A: …” / „B: …” z listy ustawień dostaje nazwę scenariusza ze stanu
+   („A — Nadpłata od razu: …”) — ta sama nazwa, którą kalkulator pokaże po
+   otwarciu linku. Pozycje bez prefiksu litery zostają bez zmian. */
+function settingsLine(line, state) {
+  const m = /^([AB]): ([\s\S]*)$/.exec(line);
+  const nazwa = m && state[m[1]] && state[m[1]].nazwa;
+  return nazwa ? m[1] + " — " + nazwa + ": " + m[2] : line;
+}
+
 /* ============ złożenie strony ============ */
 export function buildHtml() {
   const RKM = loadEngine();
@@ -401,7 +415,7 @@ export function buildHtml() {
     html += '        <p class="why">' + esc(sc.why) + "</p>\n";
     html += "        <h3>Ustawienia</h3>\n";
     html += '        <ul class="settings">\n';
-    sc.settings.forEach((line) => { html += "          <li>" + esc(line) + "</li>\n"; });
+    sc.settings.forEach((line) => { html += "          <li>" + esc(settingsLine(line, sc.state)) + "</li>\n"; });
     html += "        </ul>\n";
     html += '        <dl class="numbers">\n';
     metrics.forEach((key) => {

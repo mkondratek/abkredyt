@@ -28,7 +28,10 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   Testy nie przepisują liczb z silnika: rata bierze się z wzoru na annuitet zapisanego wprost
   w `tools/test-engine.mjs`, a sumy odsetek i miesiąc spłaty z niezależnej symulacji
   referencyjnej w tym samym pliku (zgodność ±1 zł / ±1 mies.).
-- Oprocentowanie w UI = marża + wskaźnik referencyjny (WIBOR/WIRON); silnik dostaje stopę
+- Oprocentowanie w UI = marża + wskaźnik referencyjny (etykieta „POLSTR 1M / WIBOR 3M”; pod polem
+  datowana podpowiedź `WSKAZNIK_HINT` z poziomami wg GPW Benchmark — aktualizuj ręcznie, bo nie ma
+  publicznego API: dane GPW są licencjonowane i opóźnione o 5 dni, żadne źródło nie ma CORS;
+  research 9.11.2026); silnik dostaje stopę
   nominalną. Presetów banków nie ma i nie dodawaj ich (to była personalizacja).
 - **Rodzaj oprocentowania per scenariusz** (`s.stopa`: `"zmienna"` | `"stala"`, radia
   „Oprocentowanie: zmienne | okresowo stałe” w bloku „Oprocentowanie”, `data-f="stopa"`).
@@ -208,24 +211,26 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   Także art. 7 ust. 2: gdy warunek braku innego mieszkania spełniono w trybie art. 5 ust. 2,
   spłata rodzinna przysługuje dopiero po wygaśnięciu gwarancji — niemodelowane, opisane
   w /pytania przy pytaniu o „termin na dziecko”.
-- Stan w `localStorage` (klucz `abkredyt-state-v7`), w try/catch, z kontrolą kształtu
+- Stan w `localStorage` (klucz `abkredyt-state-v8`), w try/catch, z kontrolą kształtu
   (`looksLikeState`) — przy zmianie schematu stanu podbij sufiks klucza **i** stałą
-  `RKM.STATE_VERSION` (= 7; siedzi w silniku, stan nosi ją jako pole `v`). Gdy pod
+  `RKM.STATE_VERSION` (= 8; siedzi w silniku, stan nosi ją jako pole `v`). Gdy pod
   bieżącym kluczem nic nie ma, UI czyta poprzedni (`LEGACY_STORAGE_KEYS` =
-  `["abkredyt-state-v6"]`) i podnosi go przez `normaliseState()` — przy następnym bumpie
+  `["abkredyt-state-v7", "abkredyt-state-v6"]`, czytane po kolei) i podnosi go przez `normaliseState()` — przy następnym bumpie
   dopisz tam stary klucz. Dekoder linku przyjmuje wersje z `RKM.ACCEPTED_STATE_VERSIONS`
-  (`[4, 5, 6, 7]`) i podnosi je do bieżącej:
+  (`[4, 5, 6, 7, 8]`) i podnosi je do bieżącej:
   ładunek v4 nosił dodatkowo pole `gwarancja` (dziś ignorowane), a v4 i v5 miały GLOBALNY
   tryb RKM (`rkmOn`, klucz „k”) — przy dekodowaniu trafia on do OBU scenariuszy
   (`A.rkm = B.rkm = rkmOn`, `LEGACY_GLOBAL_RKM_VERSIONS`), a brakująca lokata dostaje
   `DEFAULT_LOKATA_PCT`; ładunki v4–v6 dostają `stopa: "zmienna"` oraz domyślne
-  `stalaPct`/`stalaLata` (`RKM.DEFAULT_STALA_PCT` = 5,8, `DEFAULT_STALA_LATA` = 5).
+  `stalaPct`/`stalaLata` (`RKM.DEFAULT_STALA_PCT` = 5,8, `DEFAULT_STALA_LATA` = 5);
+  ładunki v4–v7 (i każdy bez klucza „i”) dostają `nazwa: ""`.
   To samo domykanie robi `normaliseState()` dla stanu z dysku (plus przycięcie `stalaLata`
-  do 1–10 i `feeMonths` do `feeMonthsMax`). Każda inna wersja przechodzi dalej bez zmian
+  do 1–10, `feeMonths` do `feeMonthsMax` i `nazwa` przez `RKM.nazwaOf`). Każda inna wersja przechodzi dalej bez zmian
   i UI ją odrzuca.
 - Stan w linku: przycisk „Kopiuj link do tego porównania” koduje `{v, chartMode,
   tableScn, lokata, A, B}` (z `rkm`, `stopa`/`stalaPct`/`stalaLata` — klucze „z”/„q”/„j”,
-  wartości stopy „z”/„s” — w każdym scenariuszu) jako JSON ze skróconymi
+  wartości stopy „z”/„s” — i `nazwa` pod kluczem „i”, POMIJANĄ, gdy pusta, w każdym
+  scenariuszu) jako JSON ze skróconymi
   (jednoznakowymi) kluczami → `deflate-raw`
   (`CompressionStream`) → base64url → fragment `#s=d.<ładunek>`. Gdy przeglądarka nie ma
   `CompressionStream`, powstaje wariant `#s=j.<base64url JSON-a>`; dekoder przyjmuje oba.
@@ -259,7 +264,34 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   (`sameScenario` — porównanie `stableJson` bez `id` zdarzeń), przycisk renderuje się jako
   `aria-disabled` + `.is-disabled` z `title="Scenariusze są identyczne"`, a handler ignoruje
   klik (ta sama konwencja co przy chipach presetów — bez atrybutu `disabled`, żeby przycisk
-  został focusowalny).
+  został focusowalny). **Nazwa scenariusza nie jest kopiowana** — kopia to punkt wyjścia
+  do zmian, więc scenariusz zachowuje własną `nazwa`; z tego samego powodu
+  `scenarioFingerprint` pomija `nazwa` (różnica samej nazwy nie odblokowuje kopiowania).
+- **Nazwy scenariuszy (stan v8)**: opcjonalne `s.nazwa` (napis, przycięty, maks. 40 znaków —
+  `RKM.NAZWA_MAX`; pusty = bez nazwy). Jedyna normalizacja to `RKM.nazwaOf(v)` w silniku
+  (trim → cięcie do 40 → trim; nie-napis → `""`) — używają jej `normaliseState`, dekoder
+  linku i walidator gotowych porównań; `looksLikeScenario` przyjmuje brak albo napis.
+  W UI dwa pomocniki: `scenarioName(key, s)` = `s.nazwa || "Scenariusz " + key` (nagłówek
+  panelu, przełącznik harmonogramu `#table-scn`, przycinany w CSS wielokropkiem, pełna nazwa
+  w `title`) i `scenarioTag(key, s)` = `key + (nazwa ? " · " + nazwa : "")` tam, gdzie litera
+  jest kluczem koloru: legenda wykresu („A · Nazwa — streszczenie”, bez nazwy jak dawniej
+  „A streszczenie”), `aria-label` wykresu, dymek („A · Nazwa saldo: …”), werdykty
+  porównania (bez nazwy „korzystniej A”/„niższa u A”, z nazwą „korzystniej: A · Nazwa”/
+  „niższa u: A · Nazwa”), notka „Skopiowano z B · Nazwa” i `aria-label` przycisku
+  „Kopiuj z …” (sam napis przycisku zostaje z literą). Znaczniki RKM i badge zdarzeń
+  zostają z literą. Nagłówek z nazwą renderuje kółko z literą (`.scn-letter`) + nazwę.
+  **Edycja w miejscu**: w `.panel-head-row` obok `<h2>` przycisk „✎”
+  (`data-key="rename-A"`, `aria-label="Zmień nazwę scenariusza A"`); klik w niego albo
+  w sam `<h2>` (`title="Kliknij, aby zmienić nazwę"`) podmienia nagłówek na
+  `<input maxlength="40" data-key="rename-input-A" aria-label="Nazwa scenariusza A"
+  placeholder="Scenariusz A">`. Stan edycji żyje POZA `state` (`renaming = {key, draft}`,
+  jak `pendingUndo`) — szkic przeżywa przerysowanie `#scenarios`, a otwarcie/anulowanie
+  podmienia sam rząd nagłówka (`rerenderHeadRow`, bez symulacji). Enter zatwierdza
+  i oddaje fokus „✎”, blur zatwierdza i zostawia fokus tam, dokąd użytkownik go przeniósł,
+  Escape anuluje (fokus na „✎”); dopiero zatwierdzenie zmienia `state` i woła `recompute()`
+  (persist + legenda/werdykty/harmonogram). Blur wywołany samym przerysowaniem paneli jest
+  ignorowany (`rerenderingPanels`). Gotowe porównania mają nazwy A/B w
+  `tools/scenarios.json` i pokazują je w liście „Ustawienia” („A — Nazwa: …”).
 - „Data uruchomienia” to dwa własne `<select>` (miesiąc po polsku + rok: od bieżącego −2 do
   +10, plus rok ze stanu, jeśli wypada poza zakresem) zamiast `<input type="month">`, którego
   picker lokalizuje przeglądarka, a nie strona; `state.start` zostaje w formacie `"YYYY-MM"`.
@@ -304,7 +336,7 @@ niepotwierdzone.
 Podstrona z 6 kartami „pytanie → dwa scenariusze → link `#s=`”, pod
 https://abkredyt.kondratek.pl/scenariusze.html. **Plik jest generowany — nie edytuj go
 ręcznie.** Źródło prawdy to `tools/scenarios.json` (pytanie, „dlaczego to ważne”,
-lista ustawień, „na co patrzeć”, wybrane metryki i PEŁNY stan v7 dla każdej karty);
+lista ustawień, „na co patrzeć”, wybrane metryki i PEŁNY stan v8 — z nazwami A i B — dla każdej karty);
 `tools/build-scenarios.mjs` wczytuje silnik z `<script id="engine">` tak samo jak
 `tools/test-engine.mjs`, waliduje kształt stanu (ostrzejszy odpowiednik `looksLikeState`
 plus zakresy okresu/opłaty i typy zdarzeń), liczy 2–3 liczby nagłówkowe przez
