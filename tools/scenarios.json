@@ -7,7 +7,7 @@
       "A: nadpłata 150 000 zł w m. 6, trzecie dziecko w m. 30",
       "B: trzecie dziecko w m. 30, nadpłata 150 000 zł w m. 37"
     ],
-    "lookAt": "W scenariuszu A pojawia się baner „Utrata przyszłych spłat rodzinnych”, a przy spłacie rodzinnej — odznaka „utracona”. Różnicę w pieniądzu czytaj z wiersza „Łączny koszt z uwzględnieniem lokaty” pod porównaniem.",
+    "lookAt": "W scenariuszu A pojawia się baner „Utrata przyszłych spłat rodzinnych”, a przy spłacie rodzinnej — odznaka „utracona”. Różnicę w pieniądzu czytaj z wiersza „Ile gotówki wyjdzie z kieszeni” pod porównaniem.",
     "metrics": ["sumaOdsetek", "splataRodzinna"],
     "state": {
       "v": 7,
@@ -117,7 +117,7 @@
       "A: RKM, wkład 100 000 zł, drugie dziecko w m. 24, bez nadpłat",
       "B: zwykły kredyt, wkład 100 000 zł, nadpłata 1 000 zł/mies. od m. 1"
     ],
-    "lookAt": "W panelu A pod „Gwarancją BGK” stoi podpowiedź „Bez gwarancji (wkład własny ≥ 20 %)…”. Porównaj „Suma odsetek” i wiersz „Łączny koszt z uwzględnieniem lokaty” — 20 000 zł od BGK nie nadrabia odsetek, które dokłada rezygnacja z nadpłat.",
+    "lookAt": "W panelu A pod „Gwarancją BGK” stoi podpowiedź „Bez gwarancji (wkład własny ≥ 20 %)…”. Porównaj „Suma odsetek” i wiersz „Ile gotówki wyjdzie z kieszeni” — 20 000 zł od BGK nie nadrabia odsetek, które dokłada rezygnacja z nadpłat.",
     "metrics": ["sumaOdsetek", "dataOstatniejRaty"],
     "state": {
       "v": 7,
@@ -280,7 +280,7 @@
       "A: bez RKM, wkład 200 000 zł (40 %), 20 lat, stopa stała 5,80 % na 5 lat",
       "B: RKM, stopa stała 5,80 % na 5 lat, wkład 150 000 zł (30 %), nadpłata 50 000 zł w m. 37 (obniż ratę), trzecie dziecko w m. 30"
     ],
-    "lookAt": "Wiersz „Łączny koszt z uwzględnieniem lokaty” liczy teraz także wkład własny jako wpłatę w dniu startu, więc 200 000 zł od razu i 150 000 zł + 50 000 zł po trzech latach stoją na równych zasadach. W B zajrzyj do KPI „Łączny koszt”: nadpłata w m. 37 wypada jeszcze w okresie stałej stopy, więc bank bierze od niej opłatę za wcześniejszą spłatę (w okresie stałej stopy może ją pobierać przez cały ten okres — art. 40 ust. 6 ustawy o kredycie hipotecznym). Na koniec usuń w B zdarzenie „Narodziny dziecka” i porównaj jeszcze raz — bez 60 000 zł od BGK przewaga RKM znika.",
+    "lookAt": "Wiersz „Ile gotówki wyjdzie z kieszeni” liczy wkład własny jako wpłatę na starcie (podwiersz pokazuje go osobno dla A i B), więc 200 000 zł od razu i 150 000 zł + 50 000 zł po trzech latach stoją na równych zasadach. W B zajrzyj do KPI „Łączny koszt (odsetki + opłaty)”: nadpłata w m. 37 wypada jeszcze w okresie stałej stopy, więc bank bierze od niej opłatę za wcześniejszą spłatę (w okresie stałej stopy może ją pobierać przez cały ten okres — art. 40 ust. 6 ustawy o kredycie hipotecznym). Na koniec usuń w B zdarzenie „Narodziny dziecka” i porównaj jeszcze raz — bez 60 000 zł od BGK przewaga RKM znika.",
     "metrics": ["splataRodzinna", "oplataZaNadplaty", "kosztZLokata"],
     "state": {
       "v": 7,

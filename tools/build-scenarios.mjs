@@ -183,7 +183,7 @@ export const METRICS = {
   czescGwarantowana36: { label: "Część gwarantowana po 3 latach", get: (r) => money(r.guaranteeLeftAt36) },
   oplataZaNadplaty: { label: "Opłata za wcześniejszą spłatę", get: (r) => money(r.totalFees) },
   kosztZLokata: {
-    label: "Łączny koszt z uwzględnieniem lokaty",
+    label: "Ile gotówki wyjdzie z kieszeni (z lokatą)",
     get: (r, ctx) => money(ctx.RKM.kosztZLokata(r, ctx.state.lokata, ctx.horizon))
   }
 };

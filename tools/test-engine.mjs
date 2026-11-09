@@ -1090,14 +1090,15 @@ near(
 );
 
 /* ---------- 16. suma wpłat i koszt alternatywny gotówki (lokata) ----------
-   Wypływy kredytobiorcy = rata + nadpłata dobrowolna + opłata za wcześniejszą spłatę
-   (co miesiąc) plus jednorazowa opłata za gwarancję w miesiącu 0. Spłata rodzinna to
+   Wpłaty do banku (totalWplaty) = rata + nadpłata dobrowolna + opłata za wcześniejszą
+   spłatę (co miesiąc) plus jednorazowa opłata za gwarancję w miesiącu 0 — bez wkładu.
+   kosztZLokata dokłada wkład w miesiącu 0 (gotowkaRazem = wkład + totalWplaty). Spłata rodzinna to
    pieniądz BGK — do wpłat nie wchodzi i na lokacie pracować nie może.
    Referencyjne FV liczone tu zwykłą pętlą, nie przez RKM.kosztZLokata. */
 const { kosztZLokata } = RKM;
 ok("silnik wystawia kosztZLokata", typeof kosztZLokata === "function");
 function wplatyRef(res) {
-  let sum = res.wklad + res.gwarancjaFee;
+  let sum = res.gwarancjaFee;
   res.months.forEach((mo) => { sum += mo.rata + mo.nadplata + mo.oplata; });
   return sum;
 }
@@ -1109,8 +1110,10 @@ function fvRef(res, lokataPct, horizon) {
   });
   return fv;
 }
-near("suma wpłat = wkład + raty + nadpłaty + opłaty + opłata za gwarancję", s30.totalWplaty, wplatyRef(s30), 0.01, " zł");
-near("lokata 0 % → wartość przyszła równa sumie wpłat", kosztZLokata(s30, 0, s30.payoffMonths), s30.totalWplaty, 0.01, " zł");
+near("suma wpłat do banku = raty + nadpłaty + opłaty + opłata za gwarancję (bez wkładu)", s30.totalWplaty, wplatyRef(s30), 0.01, " zł");
+near("gotówka razem = wkład + suma wpłat do banku", s30.gotowkaRazem, s30.wklad + s30.totalWplaty, 0.01, " zł");
+near("lokata 0 % → wartość przyszła = wkład + suma wpłat", kosztZLokata(s30, 0, s30.payoffMonths), s30.totalWplaty + s30.wklad, 0.01, " zł");
+near("lokata 0 % → wartość przyszła = gotówka razem", kosztZLokata(s30, 0, s30.payoffMonths), s30.gotowkaRazem, 0.01, " zł");
 ok(
   "lokata > 0 % → wartość przyszła większa niż suma wpłat",
   kosztZLokata(s30, 3, s30.payoffMonths) > s30.totalWplaty + 1,
@@ -1124,11 +1127,12 @@ ok(
   Math.round(kosztZLokata(s30, 7, 360)) + " vs " + Math.round(kosztZLokata(s30, 3, 360))
 );
 /* Spłata rodzinna poza wypłatami: gdyby wchodziła, suma wpłat urosłaby dokładnie o nią. */
-let sumaZeSplata = gDziecko.wklad + gDziecko.gwarancjaFee;
+let sumaZeSplata = gDziecko.gwarancjaFee;
 gDziecko.months.forEach((mo) => { sumaZeSplata += mo.rata + mo.nadplata + mo.oplata + mo.splataRodzinna; });
 ok("scenariusz kontrolny naprawdę dostał spłatę rodzinną", gDziecko.totalSplataRodzinna > 0, String(gDziecko.totalSplataRodzinna));
 near("suma wpłat pomija spłatę rodzinną", sumaZeSplata - gDziecko.totalSplataRodzinna, gDziecko.totalWplaty, 1, " zł");
-near("koszt z lokatą też pomija spłatę rodzinną (lokata 0 % = suma wpłat)", kosztZLokata(gDziecko, 0, gDziecko.payoffMonths), gDziecko.totalWplaty, 0.01, " zł");
+near("koszt z lokatą też pomija spłatę rodzinną (lokata 0 % = wkład + suma wpłat)", kosztZLokata(gDziecko, 0, gDziecko.payoffMonths), gDziecko.totalWplaty + gDziecko.wklad, 0.01, " zł");
+near("… i = gotówka razem", kosztZLokata(gDziecko, 0, gDziecko.payoffMonths), gDziecko.gotowkaRazem, 0.01, " zł");
 
 /* Sedno punktu 5 roadmapy: „nadpłacić teraz" kontra „poczekać do m. 37".
    Przy lokacie niższej niż oprocentowanie kredytu odłożenie nadpłaty jest droższe,
@@ -1196,7 +1200,7 @@ const malyKredyt = simulateScenario(cfg({ principal: 50000, years: 30, gwarancja
 ok("kredyt zawsze poniżej 60 000 → brak znacznika (null)", malyKredyt.fullChildRepaymentUntilMonth === null, String(malyKredyt.fullChildRepaymentUntilMonth));
 ok("kredyt, który się nie amortyzuje, też nie dostaje znacznika", zaDlugi.fullChildRepaymentUntilMonth === null, String(zaDlugi.fullChildRepaymentUntilMonth));
 
-/* ---------- 16b. wkład własny w sumie wpłat i w koszcie z lokatą ----------
+/* ---------- 16b. wkład własny: poza „Sumą wpłat do banku”, ale w koszcie z lokatą ----------
    Wkład własny to wpłata kredytobiorcy w dniu startu (miesiąc 0). Bez niego większy
    wkład wyglądałby na darmowy, a „mniejszy wkład + nadpłata później" byłby karany
    za gotówkę, która w obu wariantach i tak idzie do banku — tylko w innym czasie.
@@ -1211,8 +1215,10 @@ const zWkladem = simulateScenario(cfg({ principal: 400000, wklad: 100000, gwaran
 const zWklademBez = simulateScenario(cfg({ principal: 400000, gwarancja: 0, years: 30 }));
 ok("silnik oddaje wkład własny w wyniku", zWkladem.wklad === 100000, "jest " + zWkladem.wklad);
 near("wkład nie zmienia odsetek (kapitał przychodzi w principal)", zWkladem.totalInterest, zWklademBez.totalInterest, 0.01, " zł");
-near("suma wpłat = wkład + suma wpłat bez wkładu", zWkladem.totalWplaty, 100000 + zWklademBez.totalWplaty, 0.01, " zł");
-near("lokata 0 % → FV = wkład + wpłaty bez wkładu", kosztZLokata(zWkladem, 0, 360), 100000 + zWklademBez.totalWplaty, 0.01, " zł");
+near("suma wpłat do banku nie zależy od wkładu (KPI bez wkładu)", zWkladem.totalWplaty, zWklademBez.totalWplaty, 0.01, " zł");
+near("gotówka razem = wkład + suma wpłat do banku", zWkladem.gotowkaRazem, 100000 + zWklademBez.totalWplaty, 0.01, " zł");
+near("lokata 0 % → FV = wkład + suma wpłat do banku", kosztZLokata(zWkladem, 0, 360), zWkladem.wklad + zWkladem.totalWplaty, 0.01, " zł");
+near("lokata 0 % → FV = gotówka razem", kosztZLokata(zWkladem, 0, 360), zWkladem.gotowkaRazem, 0.01, " zł");
 near("lokata 3 % → wkład rośnie jak lokata przez cały horyzont", kosztZLokata(zWkladem, 3, 360) - kosztZLokata(zWklademBez, 3, 360), 100000 * Math.pow(1 + 0.03 / 12, 360), 0.01, " zł");
 ok("obrona w głąb: ujemny wkład = brak wkładu", simulateScenario(cfg({ wklad: -5000 })).wklad === 0);
 

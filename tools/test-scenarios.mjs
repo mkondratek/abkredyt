@@ -163,8 +163,8 @@ if (s5) {
    i resztą gotówki nadpłaconą w m. 37. Teza karty: przy stopie stałej ≥ 5 lat
    wkład 30 % mieści się w RKM (art. 5 ust. 1 pkt 5 lit. b), gwarancja wynosi zero,
    nadpłata w m. 37 jest już poza oknem reguły, ale jeszcze w okresie stałej stopy
-   — więc płaci opłatę (art. 40 ust. 6 u.k.h.); z dzieckiem RKM wygrywa w koszcie
-   z lokatą (który liczy wkład), bez dziecka — przegrywa. */
+   — więc płaci opłatę (art. 40 ust. 6 u.k.h.); z dzieckiem RKM wygrywa w wierszu
+   „Ile gotówki wyjdzie z kieszeni” (kosztZLokata, liczy wkład), bez dziecka — przegrywa. */
 const s6 = byId("duzy-wklad-czy-rkm");
 ok("karta 6: stan odczytany", !!s6);
 if (s6) {
@@ -183,11 +183,11 @@ if (s6) {
     s6.B.eventLog.some((e) => e.type === "rate" && e.month === 61), JSON.stringify(s6.B.eventLog.filter((e) => e.type === "rate")));
   const H = Math.max(s6.A.payoffMonths, s6.B.payoffMonths);
   const fvA = RKM.kosztZLokata(s6.A, s6.st.lokata, H), fvB = RKM.kosztZLokata(s6.B, s6.st.lokata, H);
-  ok("karta 6: z dzieckiem RKM tańszy w koszcie z lokatą", fvB < fvA, Math.round(fvB) + " vs " + Math.round(fvA));
+  ok("karta 6: z dzieckiem RKM tańszy w gotówce z kieszeni (z lokatą)", fvB < fvA, Math.round(fvB) + " vs " + Math.round(fvA));
   const bezDziecka = Object.assign({}, s6.st.B, { events: s6.st.B.events.filter((e) => e.type !== "dziecko") });
   const resB0 = RKM.simulateScenario(toEngineConfig(bezDziecka, RKM));
   const H0 = Math.max(s6.A.payoffMonths, resB0.payoffMonths);
-  ok("karta 6: bez dziecka RKM droższy w koszcie z lokatą (przewaga znika)",
+  ok("karta 6: bez dziecka RKM droższy w gotówce z kieszeni (z lokatą) — przewaga znika",
     RKM.kosztZLokata(resB0, s6.st.lokata, H0) > RKM.kosztZLokata(s6.A, s6.st.lokata, H0),
     Math.round(RKM.kosztZLokata(resB0, s6.st.lokata, H0)) + " vs " + Math.round(RKM.kosztZLokata(s6.A, s6.st.lokata, H0)));
 }

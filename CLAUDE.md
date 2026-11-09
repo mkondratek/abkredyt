@@ -67,7 +67,7 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   kredytu, jednorazowo przy uruchomieniu. Silnik przyjmuje `gwarancjaFeePct` (domyślnie 1,
   UI podaje 0 dla scenariusza spoza RKM) i zwraca `gwarancjaFee`; opłata wchodzi do
   `totalCost` (KPI „Łączny koszt (odsetki + opłaty)” z podwierszem „w tym opłata za
-  gwarancję …”) i do `totalWplaty`, ale **nie** do `totalFees` (tam siedzą wyłącznie opłaty
+  gwarancję …”) i do `totalWplaty` (KPI „Suma wpłat do banku”), ale **nie** do `totalFees` (tam siedzą wyłącznie opłaty
   za wcześniejszą spłatę).
 - Opłata za wcześniejszą spłatę: % przez N miesięcy (okno z umowy `feeMonths`), dotyczy
   tylko nadpłat dobrowolnych (nie spłaty rodzinnej). Art. 40 ustawy z 23.03.2017 o kredycie
@@ -107,10 +107,18 @@ jest Expander (wiele zdarzeń, ale tylko porównanie z „bez nadpłat”).
   wkładu. „Dodatkowa kwota kredytu” to pieniądz pożyczony — nie jest wypływem. Spłata
   rodzinna jest wyłączona — to pieniądz BGK, nie kredytobiorcy. UI liczy
   `horizon = max(payoffMonths A, payoffMonths B)` i pokazuje jeden wiersz `.compare-row`
-  pod siatką porównania („Łączny koszt z uwzględnieniem lokaty (wkład + raty + nadpłaty +
-  opłaty, …)”) z różnicą także w dzisiejszych pieniądzach (dyskonto tą samą lokatą).
-  Przy lokacie 0 % wynik równa się `result.totalWplaty` (KPI „Suma wpłat (wkład + raty +
-  nadpłaty + opłaty)”; `totalWplaty` zawiera wkład). Przypadek kontrolny w testach
+  pod siatką porównania: „Ile gotówki wyjdzie z kieszeni (z lokatą X %, do końca wspólnego
+  horyzontu N lat M mies.)” — wartości A vs B z werdyktem, podwiersz „w tym wkład własny:
+  A … · B … (wpłacony na starcie)”, różnica także w dzisiejszych pieniądzach (dyskonto tą
+  samą lokatą) i jednozdaniowe wyjaśnienie. Etykieta celowo NIE mówi „Łączny koszt”, żeby
+  nie mylić wiersza z KPI „Łączny koszt (odsetki + opłaty)”.
+  **Wkład własny jest TYLKO w tym wierszu, nie w sumach per scenariusz** (decyzja
+  właściciela 09.11.2026 — pozostałe KPI go nie zawierają, więc w sumie scenariusza mylił):
+  `result.totalWplaty` = raty + nadpłaty + opłaty za wcześniejszą spłatę + opłata za
+  gwarancję, BEZ wkładu (KPI „Suma wpłat do banku (raty + nadpłaty + opłaty)”, podwiersz
+  o spłacie rodzinnej), a `result.gotowkaRazem` = `wklad + totalWplaty` — prosta suma, której
+  odpowiada `kosztZLokata` przy lokacie 0 % (test: `kosztZLokata(r, 0, h) === gotowkaRazem`).
+  Przypadek kontrolny w testach
   (cena 599 000, 20 lat, 5,5 %, lokata 3 %, opłata 3 %/36 mies., „obniż ratę”): A bez RKM
   z wkładem 200 000 vs C w RKM z wkładem 119 800 + nadpłata 80 200 w m. 37 → bez dziecka
   C droższe o ≈ 7 750 zł (≈ 4 260 zł dziś), z 3. dzieckiem w m. 24 tańsze o ≈ 117 500 zł.

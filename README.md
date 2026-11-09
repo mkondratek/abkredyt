@@ -68,17 +68,20 @@ później opłaty nie ma. Pole „Obowiązuje przez" jest przycinane do 36 miesi
 całego okresu stałej stopy, jeśli jest dłuższy.
 
 **Koszt alternatywny gotówki.** Nad panelami stoi jeden wspólny parametr — oprocentowanie
-lokaty netto (domyślnie 3 %). Pod porównaniem A vs B dochodzi wiersz „Łączny koszt
-z uwzględnieniem lokaty": każda złotówka wpłacona do banku (wkład własny w dniu startu,
-rata, nadpłata dobrowolna, opłata za wcześniejszą spłatę, opłata za gwarancję) mogła
-zamiast tego pracować na lokacie do końca wspólnego horyzontu — czyli do ostatniej raty
-dłuższego z dwóch kredytów. Wkład własny jest tu celowo: dopiero z nim da się uczciwie
+lokaty netto (domyślnie 3 %). Pod porównaniem A vs B dochodzi wiersz „Ile gotówki wyjdzie
+z kieszeni (z lokatą …, do końca wspólnego horyzontu …)": każda złotówka, która wychodzi
+z Twojej kieszeni (wkład własny na starcie, rata, nadpłata dobrowolna, opłata za
+wcześniejszą spłatę, opłata za gwarancję), mogła zamiast tego pracować na lokacie do końca
+wspólnego horyzontu — czyli do ostatniej raty dłuższego z dwóch kredytów. Podwiersz pokazuje,
+ile z tego to wkład własny każdego scenariusza. Wkład jest tu celowo: dopiero z nim da się uczciwie
 porównać większy wkład z mniejszym wkładem i nadpłatą później (np. 200 000 zł wkładu bez
 RKM kontra 20–30 % wkładu w RKM i resztę gotówki nadpłaconą w 37. miesiącu). Bez tego
 porównanie „nadpłacić teraz" kontra „poczekać do miesiąca 37 i zachować spłatę rodzinną"
 jest jednostronne: widać oszczędność na odsetkach, nie widać, co przez ten czas zarabiała
 gotówka. Spłata rodzinna do wpłat nie wchodzi — to pieniądz BGK, nie kredytobiorcy —
-i z tego samego powodu nie liczy się jej w KPI „Suma wpłat (wkład + raty + nadpłaty + opłaty)".
+i z tego samego powodu nie liczy się jej w KPI „Suma wpłat do banku (raty + nadpłaty +
+opłaty)". Ten KPI z kolei nie zawiera wkładu własnego — jak „Suma odsetek” i „Łączny koszt
+(odsetki + opłaty)” — więc wkład widać wyłącznie w wierszu z lokatą.
 
 **Znaczniki reguły RKM** (tylko dla scenariusza w programie) pokazują na wykresie
 i w rozwiniętym harmonogramie trzy momenty: koniec 36-miesięcznego okna, po którym nadpłata

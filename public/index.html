@@ -941,12 +941,16 @@ function simulateScenario(cfg){
   const last = monthsOut[monthsOut.length-1];
   const payoffMonths = monthsOut.length;
   const paidOff = balance<=0.5;
-  /* Wpłaty kredytobiorcy = wkład własny + raty + nadpłaty dobrowolne + opłaty za
-     wcześniejszą spłatę + jednorazowa opłata za gwarancję. Spłata rodzinna NIE jest
-     jego pieniądzem, więc do wpłat nie wchodzi — to samo rozgraniczenie robi
-     kosztZLokata(). Dodatkowa kwota kredytu to pieniądz pożyczony, nie wpłata. */
-  let totalWplaty = wklad + gwarancjaFee;
+  /* Wpłaty do banku = raty + nadpłaty dobrowolne + opłaty za wcześniejszą spłatę
+     + jednorazowa opłata za gwarancję. BEZ wkładu własnego — pozostałe KPI scenariusza
+     („Suma odsetek”, „Łączny koszt”) też go nie zawierają, więc w sumie per scenariusz
+     tylko by mylił. Spłata rodzinna NIE jest pieniądzem kredytobiorcy, więc też nie
+     wchodzi. Dodatkowa kwota kredytu to pieniądz pożyczony, nie wpłata.
+     gotowkaRazem = wkład + totalWplaty — cała gotówka z kieszeni kredytobiorcy; to
+     prosta suma, której odpowiada kosztZLokata() przy lokacie 0 %. */
+  let totalWplaty = gwarancjaFee;
   monthsOut.forEach(mo=>{ totalWplaty += mo.rata + mo.nadplata + mo.oplata; });
+  const gotowkaRazem = wklad + totalWplaty;
   /* Ostatni miesiąc, w którym saldo jeszcze pozwala przyjąć PEŁNĄ spłatę rodzinną za
      trzecie dziecko (60 000 zł). Gdy saldo nigdy nie schodzi poniżej tego progu przed
      spłatą kredytu — null, bo znacznik nie niesie wtedy żadnej informacji. */
@@ -967,7 +971,7 @@ function simulateScenario(cfg){
   return {
     months:monthsOut, rataHistory,
     totalInterest, totalFees, totalNadplaty, totalSplataRodzinna,
-    gwarancjaFee, gwarancjaFeePct, totalWplaty, wklad, fixedRateMonths,
+    gwarancjaFee, gwarancjaFeePct, totalWplaty, gotowkaRazem, wklad, fixedRateMonths,
     totalCost: totalInterest+totalFees+gwarancjaFee,
     payoffDate: last? last.date : null,
     payoffMonths,
@@ -999,7 +1003,9 @@ function simulateScenario(cfg){
    przypadkach i tak idzie do banku — tylko w innym czasie.
    NIE wchodzi spłata rodzinna — to pieniądz BGK, nie kredytobiorcy, więc nie mógłby
    pracować na jego lokacie. Ani dodatkowa kwota kredytu — to pieniądz pożyczony.
-   Przy lokacie 0 % wynik jest po prostu sumą wpłat (= result.totalWplaty).
+   Celowo liczone od `wklad + totalWplaty` (= result.gotowkaRazem), a NIE od samego
+   totalWplaty: KPI „Suma wpłat do banku” pomija wkład, ten wiersz porównania — nie.
+   Przy lokacie 0 % wynik jest po prostu sumą gotówki (= result.gotowkaRazem).
    ========================================================================== */
 function kosztZLokata(result, lokataPct, horizonMonths){
   if(!result || !Array.isArray(result.months)) return 0;
@@ -2006,7 +2012,7 @@ function renderPanel(key, s, result, baseline){
        (art. 4a ust. 5) — dlatego etykieta mówi „opłaty”, a nie tylko o nadpłatach. */
     ["Łączny koszt (odsetki + opłaty)", money(result.totalCost), "",
      result.gwarancjaFee>0.5 ? "w tym opłata za gwarancję "+money(result.gwarancjaFee) : ""],
-    ["Suma wpłat (wkład + raty + nadpłaty + opłaty)", money(result.totalWplaty), "",
+    ["Suma wpłat do banku (raty + nadpłaty + opłaty)", money(result.totalWplaty), "",
      "bez spłaty rodzinnej — to nie jest pieniądz kredytobiorcy"],
     ["Data ostatniej raty", payoffLabel(result)],
     ["Oszczędność odsetek vs bez nadpłat", decisions ? money(saving) : "—", decisions ? savingTone(saving) : ""],
@@ -2469,10 +2475,11 @@ function renderCompare(resA, resB){
   const dLok = fvA - fvB;
   const dLokDzis = dLok / Math.pow(1 + nn(state.lokata)/100/12, horizon);
   html += '<div class="compare-row">'+
-    '<div class="lbl">Łączny koszt z uwzględnieniem lokaty <span style="text-transform:none;">(wkład + raty + nadpłaty + opłaty, na koniec wspólnego horyzontu, '+months2ym(horizon)+')</span></div>'+
+    '<div class="lbl">Ile gotówki wyjdzie z kieszeni <span style="text-transform:none;">(z lokatą '+pct(state.lokata)+', do końca wspólnego horyzontu '+months2ym(horizon)+')</span></div>'+
     '<div class="val">'+money(fvA)+' <span class="vs">vs</span> '+money(fvB)+' &nbsp;'+who(dLok,true)+'</div>'+
+    '<div class="note">w tym wkład własny: A '+money(nn(resA.wklad))+' · B '+money(nn(resB.wklad))+' (wpłacony na starcie)</div>'+
     (Math.abs(dLok)>=1 ? '<div class="note">Różnica '+money(Math.abs(dLok))+' na koniec horyzontu, czyli ok. '+money(Math.abs(dLokDzis))+' w dzisiejszych pieniądzach.</div>' : '')+
-    '<div class="note">Każda złotówka wpłacona do banku mogła do końca horyzontu pracować na lokacie '+pct(state.lokata)+' netto; scenariusz z niższymi ratami zyskuje, bo uwolniona gotówka pracuje. Wkład własny liczy się jako wpłata w dniu startu — dzięki temu da się uczciwie porównać większy wkład z mniejszym wkładem i nadpłatą później.</div>'+
+    '<div class="note">Liczymy wszystko, co wychodzi z Twojej kieszeni — wkład własny na starcie, raty, nadpłaty i opłaty — tak, jakby każda złotówka mogła do końca horyzontu pracować na lokacie. Dlatego większy wkład nie jest tu „darmowy”, a odroczona nadpłata zyskuje.</div>'+
     '</div>';
   return html;
 }

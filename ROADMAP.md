@@ -17,7 +17,7 @@
    „oprocentowanie lokaty netto” (domyślnie 3,0) w pasku nad panelami, `RKM.kosztZLokata()`
    liczy wartość przyszłą wypływów kredytobiorcy (rata + nadpłata + opłaty, plus opłata za
    gwarancję w m. 0; bez spłaty rodzinnej) na koniec wspólnego horyzontu = dłuższego z dwóch
-   kredytów, i wchodzi jako jeden wiersz porównania A vs B razem z KPI „Suma wpłat”.
+   kredytów, i wchodzi jako jeden wiersz porównania A vs B razem z KPI „Suma wpłat do banku” (od 09.11.2026 bez wkładu; wkład liczy tylko wiersz „Ile gotówki wyjdzie z kieszeni”).
 6. ✅ Stan w URL oprócz localStorage — przycisk „Kopiuj link do tego porównania”, ładunek
    we fragmencie `#s=` (deflate-raw + base64url, awaryjnie sam base64url JSON-a), link ma
    pierwszeństwo nad localStorage i po wczytaniu jest z adresu usuwany.
